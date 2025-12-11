@@ -59,16 +59,16 @@ const nouns = [
 const rand = (dict) => dict[Math.round(Math.random() * 1000) % dict.length];
 
 function App() {
-	let rowId = 1;
-	let items = cell([]);
-	let selected_item = cell(null);
+	let row_id = 1;
+	let rows = cell([]);
+	let selected_row = cell(null);
 
 	function build_data(count = 1000) {
 		const data = new Array(count);
 		for (let i = 0; i < count; i++) {
 			const text = rand(adjectives) + ' ' + rand(colours) + ' ' + rand(nouns);
 			data[i] = {
-				id: rowId++,
+				id: row_id++,
 				label: cell(text),
 				is_selected: cell(false),
 			};
@@ -77,51 +77,51 @@ function App() {
 	}
 
 	const run = () => {
-		set(items, build_data(1000));
+		set(rows, build_data(1000));
 	};
 
 	const runlots = () => {
-		set(items, build_data(10000));
+		set(rows, build_data(10000));
 	};
 
 	const add = () => {
-		set(items, [...get(items), ...build_data(1000)]);
+		set(rows, [...get(rows), ...build_data(1000)]);
 	};
 
 	const clear = () => {
-		set(items, []);
-		put(selected_item, null);
+		set(rows, []);
+		put(selected_row, null);
 	};
 
 	const update_rows = () => {
 		batch(() => {
-			for (let i = 0, row; (row = get(items)[i]); i += 10) {
+			for (let i = 0, row; (row = get(rows)[i]); i += 10) {
 				set(row.label, get(row.label) + ' !!!');
 			}
 		});
 	};
 
 	const swaprows = () => {
-		if (get(items).length > 998) {
-			const clone = get(items).slice();
+		if (get(rows).length > 998) {
+			const clone = get(rows).slice();
 			const temp = clone[1];
 			clone[1] = clone[998];
 			clone[998] = temp;
-			set(items, clone);
+			set(rows, clone);
 		}
 	};
 
 	const select = (row) => {
-		const prev = get(selected_item);
+		const prev = get(selected_row);
 		if (prev) set(prev.is_selected, false);
 		set(row.is_selected, true);
-		put(selected_item, row);
+		put(selected_row, row);
 	};
 
 	const remove = (row) => {
-		const clone = get(items).slice();
+		const clone = get(rows).slice();
 		clone.splice(clone.indexOf(row), 1);
-		set(items, clone);
+		set(rows, clone);
 	};
 
 	return (
@@ -129,7 +129,7 @@ function App() {
 			<div class="jumbotron">
 				<div class="row">
 					<div class="col-md-6">
-						<h1>Riftttt</h1>
+						<h1>Rift</h1>
 					</div>
 					<div class="col-md-6">
 						<div class="row">
@@ -184,7 +184,7 @@ function App() {
 			</div>
 			<table class="table table-hover table-striped test-data">
 				<tbody>
-					<For each={items}>
+					<For each={rows}>
 						{(row) => (
 							<tr class={get(row.is_selected) ? 'danger' : ''}>
 								<td class="col-md-1">{row.id}</td>
