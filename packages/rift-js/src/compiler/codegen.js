@@ -234,6 +234,9 @@ function transformComponent(
 		allEventTypes.add(e.eventName);
 	}
 
+	// Extract for_block cell names for variable hoisting
+	const forBlockVars = extractForBlockVars(code, forBlocks);
+
 	// Build the connected callback body
 	const connectedBody = buildConnectedBody(
 		code,
@@ -246,20 +249,50 @@ function transformComponent(
 		nameGen,
 		templateRegistry,
 		usedImports,
-		allEventTypes
+		allEventTypes,
+		forBlockVars
 	);
 
 	// Replace the return statement with this.connected()
 	const returnStart = jsxReturn.start;
 	const returnEnd = jsxReturn.end;
 
-	const connectedCode = `this.connected(() => {
+	// Generate variable declarations for for_block captures (hoisted before connected)
+	const forBlockDecls = forBlockVars.map((fb) => `let ${fb.varName};`).join('\n  ');
+	const forBlockDeclsCode = forBlockDecls ? `${forBlockDecls}\n  ` : '';
+
+	const connectedCode = `${forBlockDeclsCode}this.connected(() => {
 ${connectedBody}
   });`;
 
 	s.overwrite(returnStart, returnEnd, connectedCode);
 
 	return { componentName: name };
+}
+
+/**
+ * Extract for_block cell names and generate variable names for capturing returns
+ * @param {string} code - Original source code
+ * @param {Array} forBlocks - For blocks from template extraction
+ * @returns {Array<{cellName: string, varName: string, cellCode: string}>}
+ */
+function extractForBlockVars(code, forBlocks) {
+	const result = [];
+	for (const forBlock of forBlocks) {
+		const forInfo = extractForInfo(forBlock.node, forBlock.containerVarName);
+		const cellCode = code.slice(forInfo.itemsExpression.start, forInfo.itemsExpression.end);
+		// Use simple identifier if possible, otherwise generate a name
+		const cellName =
+			forInfo.itemsExpression.type === 'Identifier'
+				? forInfo.itemsExpression.name
+				: `for_block_${result.length + 1}`;
+		result.push({
+			cellName,
+			varName: `${cellName}_for_block`,
+			cellCode,
+		});
+	}
+	return result;
 }
 
 /**
@@ -336,7 +369,8 @@ function buildConnectedBody(
 	nameGen,
 	templateRegistry,
 	usedImports,
-	allEventTypes
+	allEventTypes,
+	forBlockVars = []
 ) {
 	const lines = [];
 
@@ -369,7 +403,9 @@ function buildConnectedBody(
 	}
 
 	// Process for blocks
-	for (const forBlock of forBlocks) {
+	for (let i = 0; i < forBlocks.length; i++) {
+		const forBlock = forBlocks[i];
+		const forBlockVar = forBlockVars[i];
 		usedImports.add('for_block');
 		const forCode = generateForBlock(
 			code,
@@ -377,7 +413,8 @@ function buildConnectedBody(
 			nameGen,
 			templateRegistry,
 			usedImports,
-			allEventTypes
+			allEventTypes,
+			forBlockVar
 		);
 		lines.push(forCode);
 		lines.push('');
@@ -395,7 +432,15 @@ function buildConnectedBody(
 /**
  * Generate code for a for_block
  */
-function generateForBlock(code, forBlock, nameGen, templateRegistry, usedImports, allEventTypes) {
+function generateForBlock(
+	code,
+	forBlock,
+	nameGen,
+	templateRegistry,
+	usedImports,
+	allEventTypes,
+	forBlockVar = null
+) {
 	const { containerVarName, node } = forBlock;
 
 	// Extract <For> component info
@@ -431,8 +476,11 @@ function generateForBlock(code, forBlock, nameGen, templateRegistry, usedImports
 	const indexParamName = indexParam || 'index';
 	const lines = [];
 
+	// Capture the for_block return value if we have a variable for it
+	const forBlockAssignment = forBlockVar ? `${forBlockVar.varName} = ` : '';
+
 	lines.push(
-		`    for_block(${containerVarName}, ${generateExpr(
+		`    ${forBlockAssignment}for_block(${containerVarName}, ${generateExpr(
 			code,
 			itemsExpression
 		)}, (anchor, ${itemParam}, ${indexParamName}) => {`
@@ -472,9 +520,12 @@ function generateForBlock(code, forBlock, nameGen, templateRegistry, usedImports
 		lines.push('');
 	}
 
+	// Track ref counts per cell for numbered refs (ref_1, ref_2, etc.)
+	const cellRefCounts = new Map();
+
 	// Bindings inside for block
 	for (const binding of processedBindings) {
-		const bindCode = generateBinding(code, binding, usedImports, itemParam);
+		const bindCode = generateBinding(code, binding, usedImports, itemParam, true, cellRefCounts);
 		lines.push(`      ${bindCode}`);
 	}
 
@@ -488,9 +539,49 @@ function generateForBlock(code, forBlock, nameGen, templateRegistry, usedImports
 }
 
 /**
- * Generate code for a binding
+ * Check if a binding is a simple direct mapping (v maps directly to property)
+ * Simple: get(cell) with no transform -> element.property = v
+ * Not simple: get(cell) ? 'a' : 'b' -> requires transform
  */
-function generateBinding(code, binding, usedImports, itemParam = null) {
+function isSimpleDirectBinding(binding) {
+	const { needsTransform, staticPrefix, fullExpression, getCallNode } = binding;
+
+	// If there's a static prefix, it's not simple
+	if (staticPrefix) return false;
+
+	// If no transform needed, the entire expression is get(cell)
+	if (!needsTransform) return true;
+
+	// If transform is needed, check if it's just get(cell) with no surrounding expression
+	// The fullExpression should be the same as the getCallNode
+	if (
+		getCallNode &&
+		fullExpression.start === getCallNode.start &&
+		fullExpression.end === getCallNode.end
+	) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Generate code for a binding
+ * @param {string} code - Original source code
+ * @param {object} binding - Binding info
+ * @param {Set} usedImports - Set of imports to track
+ * @param {string} itemParam - Item parameter name (for for_block context)
+ * @param {boolean} insideForBlock - Whether we're inside a for_block callback
+ * @param {Map} cellRefCounts - Map to track ref counts per cell (for numbered refs)
+ */
+function generateBinding(
+	code,
+	binding,
+	usedImports,
+	itemParam = null,
+	insideForBlock = false,
+	cellRefCounts = null
+) {
 	const {
 		targetVar,
 		targetProperty,
@@ -511,14 +602,29 @@ function generateBinding(code, binding, usedImports, itemParam = null) {
 		return `${targetVar}.${targetProperty} = ${prefixCode}${exprCode};`;
 	}
 
-	usedImports.add('bind');
-	usedImports.add('get');
-
 	// Generate the cell argument code
 	const cellCode = generateExpr(code, cellArg);
 
 	// Generate the expression code for initial value (using original get() calls)
 	const initialExprCode = generateExpr(code, fullExpression);
+
+	// Check if this is a simple direct binding inside a for_block
+	// If so, we can use ref-based direct DOM updates instead of bind()
+	if (insideForBlock && isSimpleDirectBinding(binding) && cellRefCounts) {
+		// Get or initialize the ref count for this cell
+		const currentCount = cellRefCounts.get(cellCode) || 0;
+		const refNum = currentCount + 1;
+		cellRefCounts.set(cellCode, refNum);
+
+		// Emit: initial value assignment + ref storage on cell
+		// cell.ref_N = element;
+		return `${targetVar}.${targetProperty} = ${initialExprCode};
+      ${cellCode}.ref_${refNum} = ${targetVar};`;
+	}
+
+	// Fall back to bind() for complex bindings
+	usedImports.add('bind');
+	usedImports.add('get');
 
 	// Generate the expression code for bind callback, replacing get(cell) with v
 	let bindExprCode;

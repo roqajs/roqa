@@ -1,4 +1,4 @@
-import { defineComponent, cell, get, put, set, batch } from 'rift-js';
+import { defineComponent, cell, get, put, set } from 'rift-js';
 
 const adjectives = [
 	'pretty',
@@ -94,11 +94,9 @@ function App() {
 	};
 
 	const update_rows = () => {
-		batch(() => {
-			for (let i = 0, row; (row = get(rows)[i]); i += 10) {
-				set(row.label, get(row.label) + ' !!!');
-			}
-		});
+		for (let i = 0, row; (row = get(rows)[i]); i += 10) {
+			set(row.label, get(row.label) + ' !!!');
+		}
 	};
 
 	const swaprows = () => {
