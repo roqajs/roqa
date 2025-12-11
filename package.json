@@ -1,0 +1,20 @@
+{
+  "name": "rift-monorepo",
+  "private": true,
+  "type": "module",
+  "author": "Hawk Ticehurst",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=10.15.0",
+    "npm": ">=10.9.3"
+  },
+  "engineStrict": true,
+  "scripts": {
+    "fmt": "prettier --write .",
+    "fmt:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "rift-vite-plugin": "workspace:*"
+  }
+}

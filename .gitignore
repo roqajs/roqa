@@ -1,0 +1,34 @@
+# Dependency directories
+node_modules/
+
+# Build output
+dist/
+build/
+
+# IDE related
+.idea
+
+# Test coverage
+coverage
+*.lcov
+
+# Optional eslint cache
+.eslintcache
+
+# dotenv environment variables file
+.env
+.env.test
+
+# OS-specific
+.DS_Store
+
+# VS Code settings
+.vscode/
+
+# Debugging files
+debug
+.chrome-debug-profile/
+
+# Temporary folders
+tmp/
+temp/

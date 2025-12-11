@@ -1,0 +1,50 @@
+{
+  "name": "rift-js",
+	"description": "Rift is a reactive UI framework",
+  "license": "MIT",
+  "author": "Hawk Ticehurst",
+  "version": "0.0.1",
+  "type": "module",
+	"repository": {
+    "type": "git",
+    "url": "git+https://github.com/hawkticehurst/rift.git",
+    "directory": "packages/rift-js"
+  },
+	"bugs": {
+		"url": "https://github.com/hawkticehurst/rift/issues"
+	},
+	"homepage": "https://rift.hawkticehurst.com",
+	"keywords": [
+		"rift",
+		"rift-js",
+		"riftjs",
+		"UI",
+		"framework"
+	],
+	"exports": {
+		".": {
+			"types": "./types/index.d.ts",
+			"import": "./src/runtime/index.js",
+      "browser": "./src/runtime/index.js",
+      "default": "./src/runtime/index.js"
+		},
+		"./package.json": "./package.json",
+    "./compiler": {
+      "types": "./src/compiler/index.d.ts",
+      "import": "./src/compiler/index.js",
+      "default": "./src/compiler/index.js"
+    },
+		"./jsx-runtime": {
+      "types": "./src/jsx-runtime.d.ts",
+      "import": "./src/jsx-runtime.js",
+      "default": "./src/jsx-runtime.js"
+    }
+	},
+  "devDependencies": {
+    "@babel/generator": "catalog:default",
+    "@babel/parser": "catalog:default",
+    "@babel/traverse": "catalog:default",
+    "@babel/types": "catalog:default",
+    "magic-string": "catalog:default"
+  }
+}

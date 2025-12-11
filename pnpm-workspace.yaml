@@ -1,0 +1,16 @@
+# Rift monorepo workspace configuration
+packages:
+  - packages/*
+  - samples/*
+
+# Shared dependency versions (use with `catalog:default` in package.json)
+catalogs:
+  default:
+    # Babel tooling
+    '@babel/generator': ^7.28.5
+    '@babel/parser': ^7.28.5
+    '@babel/traverse': ^7.28.5
+    '@babel/types': ^7.28.5
+    # Build tools
+    magic-string: ^0.30.21
+    vite: ^7.1.9

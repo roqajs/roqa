@@ -1,0 +1,213 @@
+import { isJSXExpressionContainer } from "../parser.js";
+
+/**
+ * Transform event handlers from JSX attributes to inline assignments
+ *
+ * Input JSX:
+ *   <button onclick={run}>Click</button>
+ *   <a onclick={() => select(row)}>Select</a>
+ *
+ * Output:
+ *   button_1.__click = run;
+ *   a_1.__click = [select, row];  // For parameterized handlers
+ */
+
+/**
+ * @typedef {Object} EventBinding
+ * @property {string} varName - Variable name of the element
+ * @property {string} eventName - Event name (click, input, etc.)
+ * @property {import("@babel/types").Node} handler - The handler expression
+ * @property {number[]} path - Path in the JSX tree
+ */
+
+/**
+ * @typedef {Object} ProcessedEvent
+ * @property {string} varName - Variable name of the element
+ * @property {string} eventName - Event name
+ * @property {import("@babel/types").Node} handlerExpression - The handler (identifier or array expression)
+ * @property {boolean} isParameterized - Whether handler needs item parameter
+ * @property {import("@babel/types").Node[]} params - Additional parameters for the handler
+ */
+
+/**
+ * Process event bindings and determine handler type
+ * @param {EventBinding[]} events
+ * @param {string|null} itemParam - Current loop item parameter name (for parameterized handlers)
+ * @returns {ProcessedEvent[]}
+ */
+export function processEvents(events, itemParam = null) {
+  const processed = [];
+
+  for (const event of events) {
+    const { varName, eventName, handler } = event;
+
+    if (!handler) {
+      // Boolean attribute like onclick without value - skip
+      continue;
+    }
+
+    // Extract the actual expression from JSXExpressionContainer
+    const expression = isJSXExpressionContainer(handler)
+      ? handler.expression
+      : handler;
+
+    const processedEvent = analyzeHandler(
+      expression,
+      varName,
+      eventName,
+      itemParam
+    );
+    processed.push(processedEvent);
+  }
+
+  return processed;
+}
+
+/**
+ * Analyze a handler expression to determine its type
+ * @param {import("@babel/types").Node} expression
+ * @param {string} varName
+ * @param {string} eventName
+ * @param {string|null} itemParam
+ * @returns {ProcessedEvent}
+ */
+function analyzeHandler(expression, varName, eventName, itemParam) {
+  // Case 1: Simple identifier - onclick={run}
+  if (expression.type === "Identifier") {
+    return {
+      varName,
+      eventName,
+      handlerExpression: expression,
+      isParameterized: false,
+      params: [],
+    };
+  }
+
+  // Case 2: Arrow function - onclick={() => select(row)}
+  if (
+    expression.type === "ArrowFunctionExpression" ||
+    expression.type === "FunctionExpression"
+  ) {
+    return analyzeArrowHandler(expression, varName, eventName, itemParam);
+  }
+
+  // Case 3: Call expression directly - onclick={handler(item)}
+  // This is unusual but handle it
+  if (expression.type === "CallExpression") {
+    // Wrap in array format: [handler, ...args]
+    const args = expression.arguments;
+    return {
+      varName,
+      eventName,
+      handlerExpression: expression.callee,
+      isParameterized: true,
+      params: args,
+    };
+  }
+
+  // Default: treat as simple handler
+  return {
+    varName,
+    eventName,
+    handlerExpression: expression,
+    isParameterized: false,
+    params: [],
+  };
+}
+
+/**
+ * Analyze an arrow function handler
+ * @param {import("@babel/types").ArrowFunctionExpression} arrow
+ * @param {string} varName
+ * @param {string} eventName
+ * @param {string|null} itemParam
+ * @returns {ProcessedEvent}
+ */
+function analyzeArrowHandler(arrow, varName, eventName, itemParam) {
+  const body = arrow.body;
+
+  // Check if it's a simple call expression: () => fn(args)
+  // Transform to array format: [fn, ...args]
+  if (body.type === "CallExpression" && body.callee.type === "Identifier") {
+    return {
+      varName,
+      eventName,
+      handlerExpression: body.callee,
+      isParameterized: body.arguments.length > 0,
+      params: body.arguments,
+    };
+  }
+
+  // For more complex arrow functions, keep them as-is
+  // e.g., () => { multiple; statements; } or () => obj.method()
+  return {
+    varName,
+    eventName,
+    handlerExpression: arrow,
+    isParameterized: false,
+    params: [],
+  };
+}
+
+/**
+ * Check if an expression contains a specific identifier
+ * @param {import("@babel/types").Node} node
+ * @param {string} name
+ * @returns {boolean}
+ */
+function containsIdentifier(node, name) {
+  if (!node) return false;
+
+  if (node.type === "Identifier") {
+    return node.name === name;
+  }
+
+  if (node.type === "MemberExpression") {
+    return containsIdentifier(node.object, name);
+  }
+
+  if (node.type === "CallExpression") {
+    return (
+      containsIdentifier(node.callee, name) ||
+      node.arguments.some((arg) => containsIdentifier(arg, name))
+    );
+  }
+
+  // Add more cases as needed
+  return false;
+}
+
+/**
+ * Generate event handler assignment code
+ * @param {ProcessedEvent} event
+ * @param {(node: import("@babel/types").Node) => string} generateExpr - Function to generate expression code
+ * @returns {string}
+ */
+export function generateEventAssignment(event, generateExpr) {
+  const { varName, eventName, handlerExpression, isParameterized, params } =
+    event;
+
+  if (isParameterized) {
+    // Array format: element.__click = [handler, arg1, arg2]
+    const handlerCode = generateExpr(handlerExpression);
+    const paramsCode = params.map((p) => generateExpr(p)).join(", ");
+    return `${varName}.__${eventName} = [${handlerCode}, ${paramsCode}];`;
+  }
+
+  // Simple assignment: element.__click = handler
+  const handlerCode = generateExpr(handlerExpression);
+  return `${varName}.__${eventName} = ${handlerCode};`;
+}
+
+/**
+ * Collect unique event types from processed events
+ * @param {ProcessedEvent[]} events
+ * @returns {string[]}
+ */
+export function collectEventTypes(events) {
+  const types = new Set();
+  for (const event of events) {
+    types.add(event.eventName);
+  }
+  return Array.from(types);
+}

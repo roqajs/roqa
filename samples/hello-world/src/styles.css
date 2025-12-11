@@ -1,0 +1,39 @@
+*,
+*::after,
+*::before {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	font-family: Georgia, 'Times New Roman', Times, serif;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100vh;
+	background-color: #151515;
+	color: #fafafa;
+	flex-direction: column;
+}
+
+rift-app {
+	text-align: center;
+}
+
+rift-app h1 {
+	font-size: 3rem;
+	font-weight: 500;
+	font-style: italic;
+	margin-bottom: 20px;
+}
+
+rift-app button {
+	padding: 10px 20px;
+	font-size: 1.2rem;
+	border: solid 2px #487bf1;
+	border-radius: 10px;
+	cursor: pointer;
+	background-color: #2a62e5;
+	color: #fafafa;
+	transition: background-color 0.3s ease;
+}
