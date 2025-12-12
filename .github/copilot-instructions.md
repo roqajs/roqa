@@ -130,7 +130,7 @@ packages/
 
 ### Entry Point
 
-**File**: [packages/rift-js/src/compiler/index.js](packages/rift-js/src/compiler/index.js)
+**File**: `packages/rift-js/src/compiler/index.js`
 
 ```js
 export function compile(code, filename) {
@@ -269,7 +269,7 @@ This phase eliminates runtime overhead by:
 
 ## Vite Plugin
 
-**File**: [packages/vite-plugin/src/index.js](packages/vite-plugin/src/index.js)
+**File**: `packages/vite-plugin/src/index.js`
 
 The plugin:
 
