@@ -49,8 +49,11 @@ function formatCompileError(error) {
 		message += `\n  - Use lowercase HTML: <div>, <span>, <button>`;
 	}
 
-	if (error.loc) {
+	if (error.loc && error.loc.start) {
 		message += `\n\nLocation: line ${error.loc.start.line}, column ${error.loc.start.column}`;
+	} else if (error.loc && typeof error.loc.line === 'number') {
+		// Handle Babel-style loc format
+		message += `\n\nLocation: line ${error.loc.line}, column ${error.loc.column}`;
 	}
 
 	return message;

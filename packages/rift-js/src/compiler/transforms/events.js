@@ -116,6 +116,69 @@ function analyzeHandler(expression, varName, eventName, itemParam) {
 }
 
 /**
+ * Check if an expression is "static" - safe to extract as a parameter
+ * that can be evaluated at setup time rather than click time.
+ * @param {import("@babel/types").Node} node
+ * @returns {boolean}
+ */
+function isStaticExpression(node) {
+  if (!node) return true;
+
+  switch (node.type) {
+    // Identifiers are static (they reference a variable)
+    case "Identifier":
+      return true;
+
+    // Literals are always static
+    case "NumericLiteral":
+    case "StringLiteral":
+    case "BooleanLiteral":
+    case "NullLiteral":
+      return true;
+
+    // Member expressions like obj.prop are static
+    case "MemberExpression":
+      return isStaticExpression(node.object) && isStaticExpression(node.property);
+
+    // Function calls are NOT static - they need to be evaluated at click time
+    case "CallExpression":
+      return false;
+
+    // Binary/unary expressions containing calls are not static
+    case "BinaryExpression":
+    case "LogicalExpression":
+      return isStaticExpression(node.left) && isStaticExpression(node.right);
+
+    case "UnaryExpression":
+      return isStaticExpression(node.argument);
+
+    // Conditional expressions need all parts to be static
+    case "ConditionalExpression":
+      return (
+        isStaticExpression(node.test) &&
+        isStaticExpression(node.consequent) &&
+        isStaticExpression(node.alternate)
+      );
+
+    // Array/object literals - check all elements
+    case "ArrayExpression":
+      return node.elements.every((el) => el === null || isStaticExpression(el));
+
+    case "ObjectExpression":
+      return node.properties.every(
+        (prop) =>
+          prop.type === "ObjectProperty" &&
+          isStaticExpression(prop.key) &&
+          isStaticExpression(prop.value)
+      );
+
+    // Default: not static (be conservative)
+    default:
+      return false;
+  }
+}
+
+/**
  * Analyze an arrow function handler
  * @param {import("@babel/types").ArrowFunctionExpression} arrow
  * @param {string} varName
@@ -127,19 +190,24 @@ function analyzeArrowHandler(arrow, varName, eventName, itemParam) {
   const body = arrow.body;
 
   // Check if it's a simple call expression: () => fn(args)
-  // Transform to array format: [fn, ...args]
+  // Transform to array format: [fn, ...args] ONLY if all args are static
   if (body.type === "CallExpression" && body.callee.type === "Identifier") {
-    return {
-      varName,
-      eventName,
-      handlerExpression: body.callee,
-      isParameterized: body.arguments.length > 0,
-      params: body.arguments,
-    };
+    const allArgsStatic = body.arguments.every((arg) => isStaticExpression(arg));
+
+    if (allArgsStatic) {
+      return {
+        varName,
+        eventName,
+        handlerExpression: body.callee,
+        isParameterized: body.arguments.length > 0,
+        params: body.arguments,
+      };
+    }
   }
 
   // For more complex arrow functions, keep them as-is
   // e.g., () => { multiple; statements; } or () => obj.method()
+  // or when arguments contain dynamic expressions like get(count) + 1
   return {
     varName,
     eventName,

@@ -60,8 +60,8 @@ const rand = (dict) => dict[Math.round(Math.random() * 1000) % dict.length];
 
 function App() {
 	let row_id = 1;
-	let rows = cell([]);
-	let selected_row = cell(null);
+	const rows = cell([]);
+	const selected_row = cell(null);
 
 	function build_data(count = 1000) {
 		const data = new Array(count);

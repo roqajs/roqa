@@ -10,27 +10,18 @@ body {
 	margin: 0;
 	padding: 0;
 }
-hello-world {
-	display: flex;
-	flex-direction: column;
-}
-hello-world label {
-	margin-bottom: 0.5rem;
-}
-hello-world input {
+counter-button > button {
 	font-family: inherit;
 	font-size: inherit;
 	font-weight: inherit;
 	color: black;
 	background-color: #efefef;
 	border: 2px solid #000;
-	border-radius: 6px;
+	border-radius: 8px;
 	padding: 6px 10px;
 }
-hello-world #msg-label {
-	margin-bottom: 0.5rem;
-}
-hello-world #msg {
-	font-size: 1.4rem;
-	margin: 0;
+counter-button > button:hover,
+counter-button > button:active {
+	cursor: pointer;
+	background-color: #e6e6e6;
 }

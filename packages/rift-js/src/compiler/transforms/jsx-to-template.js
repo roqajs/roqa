@@ -1,12 +1,13 @@
 import {
-  getJSXElementName,
-  getJSXChildren,
-  isJSXElement,
-  isJSXText,
-  isJSXExpressionContainer,
-  extractJSXAttributes,
-  isForComponent,
-} from "../parser.js";
+	getJSXElementName,
+	getJSXChildren,
+	isJSXElement,
+	isJSXText,
+	isJSXExpressionContainer,
+	extractJSXAttributes,
+	isForComponent,
+	isJSXFragment,
+} from '../parser.js';
 
 /**
  * Template extraction and DOM traversal generation
@@ -21,87 +22,92 @@ import {
  * Per-file template registry for deduplication
  */
 export class TemplateRegistry {
-  constructor() {
-    this.templates = new Map(); // html -> { id, varName }
-    this.counter = 0;
-  }
+	constructor() {
+		this.templates = new Map(); // html -> { id, varName }
+		this.counter = 0;
+	}
 
-  /**
-   * Register a template and return its info
-   * @param {string} html - The HTML string
-   * @returns {{ id: number, varName: string, isNew: boolean }}
-   */
-  register(html) {
-    if (this.templates.has(html)) {
-      return { ...this.templates.get(html), isNew: false };
-    }
+	/**
+	 * Register a template and return its info
+	 * @param {string} html - The HTML string
+	 * @returns {{ id: number, varName: string, isNew: boolean }}
+	 */
+	register(html) {
+		if (this.templates.has(html)) {
+			return { ...this.templates.get(html), isNew: false };
+		}
 
-    this.counter++;
-    const info = {
-      id: this.counter,
-      varName: `$tmpl_${this.counter}`,
-    };
-    this.templates.set(html, info);
-    return { ...info, isNew: true };
-  }
+		this.counter++;
+		const info = {
+			id: this.counter,
+			varName: `$tmpl_${this.counter}`,
+		};
+		this.templates.set(html, info);
+		return { ...info, isNew: true };
+	}
 
-  /**
-   * Get all template declarations
-   * @returns {string[]}
-   */
-  getDeclarations() {
-    const declarations = [];
-    for (const [html, info] of this.templates) {
-      declarations.push(`const ${info.varName} = template('${escapeTemplateString(html)}');`);
-    }
-    return declarations;
-  }
+	/**
+	 * Get all template declarations
+	 * @returns {string[]}
+	 */
+	getDeclarations() {
+		const declarations = [];
+		for (const [html, info] of this.templates) {
+			declarations.push(`const ${info.varName} = template('${escapeTemplateString(html)}');`);
+		}
+		return declarations;
+	}
 }
 
 /**
  * Escape single quotes and backslashes in template strings
  */
 function escapeTemplateString(str) {
-  return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+	return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 /**
  * Type-specific variable name counters
  */
 export class VariableNameGenerator {
-  constructor() {
-    this.counters = new Map();
-  }
+	constructor() {
+		this.counters = new Map();
+		this.textNodeCounters = new Map(); // Track text node counts per parent
+	}
 
-  /**
-   * Generate a unique variable name for an element type
-   * @param {string} tagName - The HTML tag name
-   * @returns {string}
-   */
-  generate(tagName) {
-    const current = this.counters.get(tagName) || 0;
-    this.counters.set(tagName, current + 1);
-    return `${tagName}_${current + 1}`;
-  }
+	/**
+	 * Generate a unique variable name for an element type
+	 * @param {string} tagName - The HTML tag name
+	 * @returns {string}
+	 */
+	generate(tagName) {
+		const current = this.counters.get(tagName) || 0;
+		this.counters.set(tagName, current + 1);
+		return `${tagName}_${current + 1}`;
+	}
 
-  /**
-   * Generate a variable name for a text node
-   * @param {string} parentVarName - The parent element's variable name
-   * @returns {string}
-   */
-  generateTextNode(parentVarName) {
-    return `${parentVarName}_text`;
-  }
+	/**
+	 * Generate a variable name for a text node
+	 * @param {string} parentVarName - The parent element's variable name
+	 * @returns {string}
+	 */
+	generateTextNode(parentVarName) {
+		const key = `text_${parentVarName}`;
+		const current = this.textNodeCounters.get(key) || 0;
+		this.textNodeCounters.set(key, current + 1);
+		// First text node: p_1_text, second: p_1_text_2, etc.
+		return current === 0 ? `${parentVarName}_text` : `${parentVarName}_text_${current + 1}`;
+	}
 
-  /**
-   * Generate a root variable name
-   * @returns {string}
-   */
-  generateRoot() {
-    const current = this.counters.get("$root") || 0;
-    this.counters.set("$root", current + 1);
-    return `$root_${current + 1}`;
-  }
+	/**
+	 * Generate a root variable name
+	 * @returns {string}
+	 */
+	generateRoot() {
+		const current = this.counters.get('$root') || 0;
+		this.counters.set('$root', current + 1);
+		return `$root_${current + 1}`;
+	}
 }
 
 /**
@@ -110,6 +116,7 @@ export class VariableNameGenerator {
  * @param {TemplateRegistry} registry - Template registry for deduplication
  * @param {VariableNameGenerator} nameGen - Variable name generator
  * @param {boolean} isComponentRoot - If true, traversal uses 'this.firstChild' for root
+ * @param {boolean} isFragment - If true, the node is a JSX fragment
  * @returns {TemplateExtractionResult}
  *
  * @typedef {Object} TemplateExtractionResult
@@ -120,23 +127,165 @@ export class VariableNameGenerator {
  * @property {EventBinding[]} events - Event handler bindings
  * @property {ForBlock[]} forBlocks - For loop blocks
  */
-export function extractTemplate(node, registry, nameGen, isComponentRoot = false) {
-  const { html, bindings, events, forBlocks, structure } = jsxToHtml(node, nameGen);
+export function extractTemplate(
+	node,
+	registry,
+	nameGen,
+	isComponentRoot = false,
+	isFragment = false
+) {
+	if (isFragment || isJSXFragment(node)) {
+		return extractFragmentTemplate(node, registry, nameGen, isComponentRoot);
+	}
 
-  const templateInfo = registry.register(html);
-  const rootVar = nameGen.generateRoot();
+	const { html, bindings, events, forBlocks, structure } = jsxToHtml(node, nameGen);
 
-  // Generate traversal code
-  const traversal = generateTraversal(structure, rootVar, isComponentRoot);
+	const templateInfo = registry.register(html);
+	const rootVar = nameGen.generateRoot();
 
-  return {
-    templateVar: templateInfo.varName,
-    rootVar,
-    traversal,
-    bindings,
-    events,
-    forBlocks,
-  };
+	// Generate traversal code
+	const traversal = generateTraversal(structure, rootVar, isComponentRoot);
+
+	return {
+		templateVar: templateInfo.varName,
+		rootVar,
+		traversal,
+		bindings,
+		events,
+		forBlocks,
+	};
+}
+
+/**
+ * Extract template from a JSX fragment (multiple root elements)
+ * @param {import("@babel/types").JSXFragment} node - The JSX fragment
+ * @param {TemplateRegistry} registry - Template registry for deduplication
+ * @param {VariableNameGenerator} nameGen - Variable name generator
+ * @param {boolean} isComponentRoot - If true, traversal uses 'this.firstChild' for root
+ * @returns {TemplateExtractionResult}
+ */
+function extractFragmentTemplate(node, registry, nameGen, isComponentRoot) {
+	const bindings = [];
+	const events = [];
+	const forBlocks = [];
+	const structures = [];
+	let html = '';
+
+	// Process each child of the fragment as a root element
+	const children = node.children || [];
+	let childIndex = 0;
+
+	for (const child of children) {
+		if (isJSXText(child)) {
+			// Skip whitespace-only text nodes
+			const text = child.value.replace(/\s+/g, ' ').trim();
+			if (text) {
+				// Static text between elements - add to HTML
+				html += escapeHtml(text);
+			}
+		} else if (isJSXElement(child)) {
+			const childPath = [childIndex];
+			const childResult = processElement(child, nameGen, bindings, events, forBlocks, childPath);
+			html += childResult.html;
+			structures.push(childResult.structure);
+			childIndex++;
+		} else if (isJSXExpressionContainer(child)) {
+			// Dynamic expression at fragment level
+			html += '<!---->';
+			const textVarName = nameGen.generateTextNode('fragment');
+			bindings.push({
+				type: 'text',
+				varName: null, // No parent element for fragment-level expressions
+				textVarName,
+				expression: child.expression,
+				path: [childIndex],
+				childIndex: structures.length,
+				staticPrefix: '',
+				usesMarker: true,
+				isFragmentChild: true,
+			});
+			// Add a pseudo-structure entry for traversal
+			structures.push({
+				varName: textVarName,
+				tagName: '__text__',
+				children: [],
+				textNodes: [],
+				isTextMarker: true,
+			});
+			childIndex++;
+		}
+	}
+
+	const templateInfo = registry.register(html);
+	const rootVar = nameGen.generateRoot();
+
+	// Generate traversal for fragments (multiple roots as siblings)
+	const traversal = generateFragmentTraversal(structures, rootVar, isComponentRoot);
+
+	return {
+		templateVar: templateInfo.varName,
+		rootVar,
+		traversal,
+		bindings,
+		events,
+		forBlocks,
+	};
+}
+
+/**
+ * Generate DOM traversal for fragment (multiple root elements as siblings)
+ * @param {ElementStructure[]} structures - Array of root element structures
+ * @param {string} rootVar - The root variable name
+ * @param {boolean} isComponentRoot - If true, use 'this.firstChild' for first root
+ * @returns {TraversalStep[]}
+ */
+function generateFragmentTraversal(structures, rootVar, isComponentRoot) {
+	const steps = [];
+
+	let prevVar = null;
+	for (let i = 0; i < structures.length; i++) {
+		const structure = structures[i];
+
+		if (structure.isTextMarker) {
+			// This is a dynamic text marker - handle it specially
+			const markerVarName = `${structure.varName}_marker`;
+			if (i === 0) {
+				steps.push({
+					varName: markerVarName,
+					code: isComponentRoot ? 'this.firstChild' : `${rootVar}.firstChild`,
+					isMarker: true,
+					textVarName: structure.varName,
+				});
+			} else {
+				steps.push({
+					varName: markerVarName,
+					code: `${prevVar}.nextSibling`,
+					isMarker: true,
+					textVarName: structure.varName,
+				});
+			}
+			prevVar = structure.varName; // Use the text node for next traversal
+		} else {
+			// Regular element
+			if (i === 0) {
+				steps.push({
+					varName: structure.varName,
+					code: isComponentRoot ? 'this.firstChild' : `${rootVar}.firstChild`,
+				});
+			} else {
+				steps.push({
+					varName: structure.varName,
+					code: `${prevVar}.nextSibling`,
+				});
+			}
+			prevVar = structure.varName;
+
+			// Recurse into this element's children
+			generateChildTraversal(structure, steps);
+		}
+	}
+
+	return steps;
 }
 
 /**
@@ -146,13 +295,13 @@ export function extractTemplate(node, registry, nameGen, isComponentRoot = false
  * @returns {{ html: string, bindings: BindingPoint[], events: EventBinding[], forBlocks: ForBlock[], structure: ElementStructure }}
  */
 function jsxToHtml(node, nameGen) {
-  const bindings = [];
-  const events = [];
-  const forBlocks = [];
+	const bindings = [];
+	const events = [];
+	const forBlocks = [];
 
-  const { html, structure } = processElement(node, nameGen, bindings, events, forBlocks, []);
+	const { html, structure } = processElement(node, nameGen, bindings, events, forBlocks, []);
 
-  return { html, bindings, events, forBlocks, structure };
+	return { html, bindings, events, forBlocks, structure };
 }
 
 /**
@@ -183,181 +332,193 @@ function jsxToHtml(node, nameGen) {
  * @returns {{ html: string, structure: ElementStructure }}
  */
 function processElement(node, nameGen, bindings, events, forBlocks, path) {
-  const tagName = getJSXElementName(node);
-  const varName = nameGen.generate(tagName);
-  const attrs = extractJSXAttributes(node.openingElement);
+	const tagName = getJSXElementName(node);
+	const varName = nameGen.generate(tagName);
+	const attrs = extractJSXAttributes(node.openingElement);
 
-  let html = `<${tagName}`;
-  const structure = {
-    varName,
-    tagName,
-    children: [],
-    hasTextChild: false,
-    textVarName: null,
-    textNodes: [], // Track all text nodes that need variables
-  };
+	let html = `<${tagName}`;
+	const structure = {
+		varName,
+		tagName,
+		children: [],
+		hasTextChild: false,
+		textVarName: null,
+		textNodes: [], // Track all text nodes that need variables
+	};
 
-  // Process attributes
-  for (const [name, value] of attrs) {
-    if (name === "...") {
-      // Spread attributes - skip for now (could add runtime handling)
-      continue;
-    }
+	// Process attributes
+	for (const [name, value] of attrs) {
+		if (name === '...') {
+			// Spread attributes - skip for now (could add runtime handling)
+			continue;
+		}
 
-    // Check for event handlers (onclick, oninput, etc.)
-    if (name.startsWith("on")) {
-      const eventName = name.slice(2).toLowerCase();
-      events.push({
-        varName,
-        eventName,
-        handler: value, // JSXExpressionContainer or null
-        path: [...path],
-      });
-      continue;
-    }
+		// Check for event handlers (onclick, oninput, etc.)
+		if (name.startsWith('on')) {
+			const eventName = name.slice(2).toLowerCase();
+			events.push({
+				varName,
+				eventName,
+				handler: value, // JSXExpressionContainer or null
+				path: [...path],
+			});
+			continue;
+		}
 
-    // Handle attribute values
-    if (value === null) {
-      // Boolean attribute: <button disabled>
-      html += ` ${name}`;
-    } else if (value.type === "StringLiteral") {
-      // Static string: class="foo"
-      html += ` ${name}="${escapeAttr(value.value)}"`;
-    } else if (value.type === "JSXExpressionContainer") {
-      // Dynamic expression: class={expr}
-      // Add placeholder for static attributes, bind for dynamic
-      if (name === "class" || name === "className") {
-        // For class bindings, we'll handle at runtime
-        bindings.push({
-          type: "attribute",
-          varName,
-          attrName: "className",
-          expression: value.expression,
-          path: [...path],
-        });
-      } else {
-        bindings.push({
-          type: "attribute",
-          varName,
-          attrName: name,
-          expression: value.expression,
-          path: [...path],
-        });
-      }
-    }
-  }
+		// Handle attribute values
+		if (value === null) {
+			// Boolean attribute: <button disabled>
+			html += ` ${name}`;
+		} else if (value.type === 'StringLiteral') {
+			// Static string: class="foo"
+			html += ` ${name}="${escapeAttr(value.value)}"`;
+		} else if (value.type === 'JSXExpressionContainer') {
+			// Dynamic expression: class={expr}
+			// Add placeholder for static attributes, bind for dynamic
+			if (name === 'class' || name === 'className') {
+				// For class bindings, we'll handle at runtime
+				bindings.push({
+					type: 'attribute',
+					varName,
+					attrName: 'className',
+					expression: value.expression,
+					path: [...path],
+				});
+			} else {
+				bindings.push({
+					type: 'attribute',
+					varName,
+					attrName: name,
+					expression: value.expression,
+					path: [...path],
+				});
+			}
+		}
+	}
 
-  html += ">";
+	html += '>';
 
-  // Process children
-  const children = getJSXChildren(node);
-  let childIndex = 0; // Index among element children
-  let textNodeIndex = 0; // Index among ALL child nodes (including text nodes)
-  let pendingStaticText = ""; // Accumulate static text before dynamic expressions
+	// Process children - first pass to collect all content parts
+	const children = getJSXChildren(node);
+	const contentParts = []; // Array of { type: 'static'|'dynamic', value: string|expression }
+	let hasDynamicContent = false;
 
-  for (const child of children) {
-    const childPath = [...path, childIndex];
+	for (const child of children) {
+		if (isJSXText(child)) {
+			// Static text - normalize whitespace
+			const text = child.value.replace(/\s+/g, ' ');
+			if (text && text !== ' ') {
+				contentParts.push({ type: 'static', value: text });
+			}
+		} else if (isJSXExpressionContainer(child)) {
+			hasDynamicContent = true;
+			contentParts.push({ type: 'dynamic', expression: child.expression });
+		} else if (isJSXElement(child)) {
+			// Element child - flush content parts and process element
+			if (contentParts.length > 0) {
+				// If we have mixed content before an element, handle it
+				if (hasDynamicContent) {
+					// Add space placeholder for dynamic content
+					html += ' ';
+					const textVarName = nameGen.generateTextNode(varName);
+					structure.hasTextChild = true;
+					structure.textVarName = textVarName;
+					structure.textNodes.push({
+						varName: textVarName,
+						childIndex: 0,
+						isDynamic: true,
+					});
+					bindings.push({
+						type: 'text',
+						varName,
+						textVarName,
+						contentParts: [...contentParts],
+						path: [...path],
+					});
+				} else {
+					// All static - just add to HTML
+					for (const part of contentParts) {
+						html += escapeHtml(part.value.trim());
+					}
+				}
+				contentParts.length = 0;
+				hasDynamicContent = false;
+			}
 
-    if (isJSXText(child)) {
-      // Static text - accumulate it (may precede a dynamic expression)
-      // Normalize whitespace: collapse multiple spaces/newlines but preserve single spaces
-      const text = child.value.replace(/\s+/g, " ");
-      // Only trim if this is standalone text (not preceding a dynamic expression)
-      // We'll handle trimming when we know the context
-      if (text && text !== " ") {
-        pendingStaticText += text;
-      }
-    } else if (isJSXExpressionContainer(child)) {
-      // Dynamic expression: {expr}
-      // If there's pending static text, it becomes a prefix for this expression
-      // Trim leading whitespace but preserve trailing space before the expression
-      const staticPrefix = pendingStaticText.trimStart();
-      pendingStaticText = ""; // Reset
-      
-      // Add combined content to HTML (static prefix + placeholder for dynamic)
-      // Don't add extra space if prefix already ends with space
-      const htmlContent = staticPrefix ? escapeHtml(staticPrefix) : "";
-      html += htmlContent + " "; // Space placeholder for dynamic part
-      
-      const textVarName = nameGen.generateTextNode(varName);
-      structure.hasTextChild = true;
-      structure.textVarName = textVarName;
-      
-      // Track this text node's position
-      structure.textNodes.push({
-        varName: textVarName,
-        childIndex: textNodeIndex,
-        isDynamic: true,
-      });
+			// Check if it's a <For> component
+			if (isForComponent(child)) {
+				forBlocks.push({
+					containerVarName: varName,
+					node: child,
+					path: [...path, structure.children.length],
+				});
+			} else {
+				// Regular child element
+				const childResult = processElement(child, nameGen, bindings, events, forBlocks, [
+					...path,
+					structure.children.length,
+				]);
+				html += childResult.html;
+				structure.children.push(childResult.structure);
+			}
+		}
+	}
 
-      bindings.push({
-        type: "text",
-        varName,
-        textVarName,
-        expression: child.expression,
-        path: childPath,
-        childIndex: textNodeIndex,
-        staticPrefix, // Include the static text prefix
-      });
-      
-      textNodeIndex++; // The combined text creates one text node
-    } else if (isJSXElement(child)) {
-      // Flush any pending static text before element
-      if (pendingStaticText && pendingStaticText.trim()) {
-        html += escapeHtml(pendingStaticText.trim());
-        pendingStaticText = "";
-        textNodeIndex++;
-      } else {
-        pendingStaticText = "";
-      }
-      // Check if it's a <For> component
-      if (isForComponent(child)) {
-        // Add anchor point in HTML
-        forBlocks.push({
-          containerVarName: varName,
-          node: child,
-          path: childPath,
-        });
-        // Don't add anything to HTML - for_block creates its own anchor
-      } else {
-        // Regular child element
-        const childResult = processElement(child, nameGen, bindings, events, forBlocks, childPath);
-        html += childResult.html;
-        structure.children.push(childResult.structure);
-        textNodeIndex++; // Element children also count as child nodes
-      }
-      childIndex++;
-    }
-  }
+	// Handle remaining content parts after processing all children
+	if (contentParts.length > 0) {
+		if (hasDynamicContent) {
+			// Element has dynamic content - use space placeholder
+			html += ' ';
+			const textVarName = nameGen.generateTextNode(varName);
+			structure.hasTextChild = true;
+			structure.textVarName = textVarName;
+			structure.textNodes.push({
+				varName: textVarName,
+				childIndex: structure.children.length,
+				isDynamic: true,
+			});
+			bindings.push({
+				type: 'text',
+				varName,
+				textVarName,
+				contentParts: [...contentParts],
+				path: [...path],
+			});
+		} else {
+			// All static content - just add to HTML (trimmed)
+			const staticContent = contentParts
+				.map((p) => p.value)
+				.join('')
+				.trim();
+			if (staticContent) {
+				html += escapeHtml(staticContent);
+			}
+		}
+	}
 
-  // Flush any remaining static text (trim for standalone text at end)
-  if (pendingStaticText && pendingStaticText.trim()) {
-    html += escapeHtml(pendingStaticText.trim());
-  }
+	// Self-closing tags
+	const voidElements = new Set([
+		'area',
+		'base',
+		'br',
+		'col',
+		'embed',
+		'hr',
+		'img',
+		'input',
+		'link',
+		'meta',
+		'param',
+		'source',
+		'track',
+		'wbr',
+	]);
 
-  // Self-closing tags
-  const voidElements = new Set([
-    "area",
-    "base",
-    "br",
-    "col",
-    "embed",
-    "hr",
-    "img",
-    "input",
-    "link",
-    "meta",
-    "param",
-    "source",
-    "track",
-    "wbr",
-  ]);
+	if (!voidElements.has(tagName)) {
+		html += `</${tagName}>`;
+	}
 
-  if (!voidElements.has(tagName)) {
-    html += `</${tagName}>`;
-  }
-
-  return { html, structure };
+	return { html, structure };
 }
 
 /**
@@ -372,92 +533,121 @@ function processElement(node, nameGen, bindings, events, forBlocks, path) {
  * @property {string} code - The traversal code (e.g., "rootVar.firstChild")
  */
 function generateTraversal(structure, rootVar, isComponentRoot = false) {
-  const steps = [];
+	const steps = [];
 
-  // First step: get root element
-  // For component roots, we use 'this.firstChild' because the DocumentFragment
-  // becomes empty after appendChild
-  // For nested templates (like inside for_block), we use the rootVar
-  steps.push({
-    varName: structure.varName,
-    code: isComponentRoot ? "this.firstChild" : `${rootVar}.firstChild`,
-  });
+	// First step: get root element
+	// For component roots, we use 'this.firstChild' because the DocumentFragment
+	// becomes empty after appendChild
+	// For nested templates (like inside for_block), we use the rootVar
+	steps.push({
+		varName: structure.varName,
+		code: isComponentRoot ? 'this.firstChild' : `${rootVar}.firstChild`,
+	});
 
-  // Generate traversal for text nodes and children
-  generateChildTraversal(structure, steps);
+	// Generate traversal for text nodes and children
+	generateChildTraversal(structure, steps);
 
-  return steps;
+	return steps;
 }
 
 /**
  * Recursively generate traversal for children
  */
 function generateChildTraversal(structure, steps) {
-  const { varName, children, textNodes } = structure;
+	const { varName, children, textNodes } = structure;
 
-  // Process text nodes that need variables (dynamic expressions)
-  for (const textNode of textNodes) {
-    if (textNode.isDynamic) {
-      // When there's mixed content (static + dynamic), it becomes ONE text node
-      // Always use firstChild since the combined text is the first (and only) text child
-      steps.push({
-        varName: textNode.varName,
-        code: `${varName}.firstChild`,
-      });
-    }
-  }
+	// Process text nodes that need variables (dynamic expressions)
+	// With the new approach, dynamic content uses a space placeholder that creates
+	// a text node at parse time - we just need to grab that firstChild text node
+	for (let i = 0; i < textNodes.length; i++) {
+		const textNode = textNodes[i];
+		if (textNode.isDynamic) {
+			// The text node is the space placeholder - access it directly
+			if (textNode.childIndex === 0 && children.length === 0) {
+				// Text is the only/first child
+				steps.push({
+					varName: textNode.varName,
+					code: `${varName}.firstChild`,
+				});
+			} else if (textNode.childIndex === 0) {
+				// Text comes before elements
+				steps.push({
+					varName: textNode.varName,
+					code: `${varName}.firstChild`,
+				});
+			} else {
+				// Text comes after elements - traverse from last element
+				const prevChild = children[textNode.childIndex - 1];
+				if (prevChild) {
+					steps.push({
+						varName: textNode.varName,
+						code: `${prevChild.varName}.nextSibling`,
+					});
+				} else {
+					// Fallback - traverse from parent
+					let traversal = `${varName}.firstChild`;
+					for (let j = 0; j < textNode.childIndex; j++) {
+						traversal += '.nextSibling';
+					}
+					steps.push({
+						varName: textNode.varName,
+						code: traversal,
+					});
+				}
+			}
+		}
+	}
 
-  // Process child elements
-  let prevVar = null;
-  let elementIndex = 0;
-  
-  for (const child of children) {
-    if (elementIndex === 0) {
-      // First element child
-      if (textNodes.length > 0) {
-        // There's a text node before this element, use nextSibling from it
-        const lastTextNode = textNodes[textNodes.length - 1];
-        steps.push({
-          varName: child.varName,
-          code: `${lastTextNode.varName}.nextSibling`,
-        });
-      } else {
-        // No text nodes, use firstChild
-        steps.push({
-          varName: child.varName,
-          code: `${varName}.firstChild`,
-        });
-      }
-    } else {
-      // Subsequent children: use nextSibling from previous element
-      steps.push({
-        varName: child.varName,
-        code: `${prevVar}.nextSibling`,
-      });
-    }
-    
-    prevVar = child.varName;
-    elementIndex++;
+	// Process child elements
+	let prevVar = null;
+	let elementIndex = 0;
 
-    // Recurse into this child
-    generateChildTraversal(child, steps);
-  }
+	for (const child of children) {
+		if (elementIndex === 0) {
+			// First element child
+			if (textNodes.length > 0 && textNodes[0].childIndex === 0) {
+				// There's a text node before this element, use nextSibling from it
+				steps.push({
+					varName: child.varName,
+					code: `${textNodes[0].varName}.nextSibling`,
+				});
+			} else {
+				// No text nodes before, use firstChild
+				steps.push({
+					varName: child.varName,
+					code: `${varName}.firstChild`,
+				});
+			}
+		} else {
+			// Subsequent children: use nextSibling from previous element
+			steps.push({
+				varName: child.varName,
+				code: `${prevVar}.nextSibling`,
+			});
+		}
+
+		prevVar = child.varName;
+		elementIndex++;
+
+		// Recurse into this child
+		generateChildTraversal(child, steps);
+	}
 }
 
 /**
  * Escape HTML special characters
  */
 function escapeHtml(str) {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+	return str
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;');
 }
 
 /**
  * Escape attribute values
  */
 function escapeAttr(str) {
-  return str.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+	return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }

@@ -1,5 +1,5 @@
-import _traverse from "@babel/traverse";
-import { isGetCall, extractGetCellArg } from "../parser.js";
+import _traverse from '@babel/traverse';
+import { isGetCall, extractGetCellArg } from '../parser.js';
 
 // Handle CJS/ESM interop
 const traverse = _traverse.default || _traverse;
@@ -36,51 +36,51 @@ const traverse = _traverse.default || _traverse;
  * @property {boolean} isOnlyExpression - Whether this get() is the entire expression
  */
 export function findGetCalls(expression) {
-  const getCalls = [];
+	const getCalls = [];
 
-  // Simple case: expression IS a get() call
-  if (isGetCall(expression)) {
-    getCalls.push({
-      cellArg: extractGetCellArg(expression),
-      callNode: expression,
-      isOnlyExpression: true,
-    });
-    return getCalls;
-  }
+	// Simple case: expression IS a get() call
+	if (isGetCall(expression)) {
+		getCalls.push({
+			cellArg: extractGetCellArg(expression),
+			callNode: expression,
+			isOnlyExpression: true,
+		});
+		return getCalls;
+	}
 
-  // Complex case: get() is somewhere inside the expression
-  // Use Babel traverse to find all get() calls
-  const visitedNodes = new Set();
+	// Complex case: get() is somewhere inside the expression
+	// Use Babel traverse to find all get() calls
+	const visitedNodes = new Set();
 
-  // Create a mini AST wrapper for traverse
-  const wrapper = {
-    type: "Program",
-    body: [
-      {
-        type: "ExpressionStatement",
-        expression: expression,
-      },
-    ],
-  };
+	// Create a mini AST wrapper for traverse
+	const wrapper = {
+		type: 'Program',
+		body: [
+			{
+				type: 'ExpressionStatement',
+				expression: expression,
+			},
+		],
+	};
 
-  traverse(wrapper, {
-    CallExpression(path) {
-      const node = path.node;
-      if (visitedNodes.has(node)) return;
-      visitedNodes.add(node);
+	traverse(wrapper, {
+		CallExpression(path) {
+			const node = path.node;
+			if (visitedNodes.has(node)) return;
+			visitedNodes.add(node);
 
-      if (isGetCall(node)) {
-        getCalls.push({
-          cellArg: extractGetCellArg(node),
-          callNode: node,
-          isOnlyExpression: false,
-        });
-      }
-    },
-    noScope: true,
-  });
+			if (isGetCall(node)) {
+				getCalls.push({
+					cellArg: extractGetCellArg(node),
+					callNode: node,
+					isOnlyExpression: false,
+				});
+			}
+		},
+		noScope: true,
+	});
 
-  return getCalls;
+	return getCalls;
 }
 
 /**
@@ -94,58 +94,125 @@ export function findGetCalls(expression) {
  * @property {import("@babel/types").Node} cellArg - Cell to bind to
  * @property {import("@babel/types").Node} fullExpression - Full expression for the update callback
  * @property {boolean} needsTransform - Whether to transform get(cell) to v in callback
- * @property {string} staticPrefix - Static text that precedes the dynamic expression
+ * @property {Array} contentParts - Array of content parts (static/dynamic) for concatenated text
  */
 export function processBindings(bindings) {
-  const processed = [];
+	const processed = [];
 
-  for (const binding of bindings) {
-    const { type, varName, expression, staticPrefix } = binding;
+	for (const binding of bindings) {
+		const { type, varName } = binding;
 
-    // Find all get() calls in this expression
-    const getCalls = findGetCalls(expression);
+		// Handle new contentParts format for text bindings
+		if (type === 'text' && binding.contentParts) {
+			const { textVarName, contentParts } = binding;
 
-    if (getCalls.length === 0) {
-      // No get() calls - this is a static expression, no binding needed
-      // But we still need to set the initial value
-      processed.push({
-        targetVar: type === "text" ? binding.textVarName : varName,
-        targetProperty: type === "text" ? "nodeValue" : binding.attrName,
-        cellArg: null,
-        fullExpression: expression,
-        needsTransform: false,
-        isStatic: true,
-        staticPrefix: staticPrefix || "",
-      });
-      continue;
-    }
+			// Collect all get() calls from all dynamic parts
+			const allGetCalls = [];
+			for (const part of contentParts) {
+				if (part.type === 'dynamic') {
+					const getCalls = findGetCalls(part.expression);
+					for (const getCall of getCalls) {
+						allGetCalls.push({
+							...getCall,
+							partExpression: part.expression,
+						});
+					}
+				}
+			}
 
-    // For each get() call, create a binding
-    // Note: Multiple get() calls in one expression will create multiple bindings
-    // This might cause redundant updates, but ensures correctness
-    for (const getCall of getCalls) {
-      const targetProperty = type === "text"
-        ? "nodeValue"
-        : binding.attrName === "class" || binding.attrName === "className"
-          ? "className"
-          : binding.attrName;
+			if (allGetCalls.length === 0) {
+				// All static - shouldn't happen but handle it
+				processed.push({
+					targetVar: textVarName,
+					targetProperty: 'nodeValue',
+					cellArg: null,
+					fullExpression: null,
+					contentParts,
+					needsTransform: false,
+					isStatic: true,
+				});
+				continue;
+			}
 
-      processed.push({
-        targetVar: type === "text" ? binding.textVarName : varName,
-        targetProperty,
-        cellArg: getCall.cellArg,
-        fullExpression: expression,
-        needsTransform: !getCall.isOnlyExpression,
-        isStatic: false,
-        // Store the get() call node for replacement in codegen
-        getCallNode: getCall.callNode,
-        // Include static prefix for text bindings
-        staticPrefix: staticPrefix || "",
-      });
-    }
-  }
+			// Create a binding for each unique cell
+			// Track cells we've already created bindings for
+			const seenCells = new Set();
 
-  return processed;
+			for (const getCall of allGetCalls) {
+				// Create a unique key for this cell
+				const cellKey = JSON.stringify({
+					start: getCall.cellArg.start,
+					end: getCall.cellArg.end,
+				});
+
+				if (seenCells.has(cellKey)) continue;
+				seenCells.add(cellKey);
+
+				processed.push({
+					targetVar: textVarName,
+					targetProperty: 'nodeValue',
+					cellArg: getCall.cellArg,
+					fullExpression: null, // Not used with contentParts
+					contentParts,
+					needsTransform: true,
+					isStatic: false,
+					getCallNode: getCall.callNode,
+				});
+			}
+			continue;
+		}
+
+		// Handle legacy single expression format and attribute bindings
+		const { expression, staticPrefix, usesMarker } = binding;
+
+		// Find all get() calls in this expression
+		const getCalls = findGetCalls(expression);
+
+		if (getCalls.length === 0) {
+			// No get() calls - this is a static expression, no binding needed
+			// But we still need to set the initial value
+			processed.push({
+				targetVar: type === 'text' ? binding.textVarName : varName,
+				targetProperty: type === 'text' ? 'nodeValue' : binding.attrName,
+				cellArg: null,
+				fullExpression: expression,
+				needsTransform: false,
+				isStatic: true,
+				staticPrefix: staticPrefix || '',
+				usesMarker: usesMarker || false,
+			});
+			continue;
+		}
+
+		// For each get() call, create a binding
+		// Note: Multiple get() calls in one expression will create multiple bindings
+		// This might cause redundant updates, but ensures correctness
+		for (const getCall of getCalls) {
+			const targetProperty =
+				type === 'text'
+					? 'nodeValue'
+					: binding.attrName === 'class' || binding.attrName === 'className'
+					? 'className'
+					: binding.attrName;
+
+			processed.push({
+				targetVar: type === 'text' ? binding.textVarName : varName,
+				targetProperty,
+				cellArg: getCall.cellArg,
+				fullExpression: expression,
+				needsTransform: !getCall.isOnlyExpression,
+				isStatic: false,
+				// Store the get() call node for replacement in codegen
+				getCallNode: getCall.callNode,
+				// Include static prefix for text bindings
+				staticPrefix: staticPrefix || '',
+				// Pass through marker flag
+				usesMarker: usesMarker || false,
+			});
+		}
+	}
+
+	return processed;
 }
 
 /**
@@ -155,16 +222,16 @@ export function processBindings(bindings) {
  * @returns {string}
  */
 export function generateBindCall(binding, expressionCode) {
-  const { targetVar, targetProperty, cellArg, isStatic } = binding;
+	const { targetVar, targetProperty, cellArg, isStatic } = binding;
 
-  if (isStatic) {
-    // Static assignment, no bind needed
-    return `${targetVar}.${targetProperty} = ${expressionCode};`;
-  }
+	if (isStatic) {
+		// Static assignment, no bind needed
+		return `${targetVar}.${targetProperty} = ${expressionCode};`;
+	}
 
-  // Generate bind call
-  // We use __CELL_ARG__ as placeholder - codegen will replace with actual code
-  return `bind(__CELL_ARG__, (v) => {
+	// Generate bind call
+	// We use __CELL_ARG__ as placeholder - codegen will replace with actual code
+	return `bind(__CELL_ARG__, (v) => {
   ${targetVar}.${targetProperty} = ${expressionCode};
 });`;
 }
@@ -175,23 +242,23 @@ export function generateBindCall(binding, expressionCode) {
  * @returns {boolean}
  */
 export function hasGetCalls(expression) {
-  if (isGetCall(expression)) return true;
+	if (isGetCall(expression)) return true;
 
-  const wrapper = {
-    type: "Program",
-    body: [{ type: "ExpressionStatement", expression }],
-  };
+	const wrapper = {
+		type: 'Program',
+		body: [{ type: 'ExpressionStatement', expression }],
+	};
 
-  let found = false;
-  traverse(wrapper, {
-    CallExpression(path) {
-      if (isGetCall(path.node)) {
-        found = true;
-        path.stop();
-      }
-    },
-    noScope: true,
-  });
+	let found = false;
+	traverse(wrapper, {
+		CallExpression(path) {
+			if (isGetCall(path.node)) {
+				found = true;
+				path.stop();
+			}
+		},
+		noScope: true,
+	});
 
-  return found;
+	return found;
 }

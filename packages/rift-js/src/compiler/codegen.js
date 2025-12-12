@@ -145,31 +145,6 @@ function isJSX(node) {
 }
 
 /**
- * Wrap a JSX fragment's children in a synthetic div element
- * This allows fragments to be processed by the existing template extraction
- */
-function wrapFragmentInDiv(fragment) {
-	return {
-		type: 'JSXElement',
-		openingElement: {
-			type: 'JSXOpeningElement',
-			name: { type: 'JSXIdentifier', name: 'div' },
-			attributes: [],
-			selfClosing: false,
-		},
-		closingElement: {
-			type: 'JSXClosingElement',
-			name: { type: 'JSXIdentifier', name: 'div' },
-		},
-		children: fragment.children,
-		// Preserve location info for source mapping
-		start: fragment.start,
-		end: fragment.end,
-		loc: fragment.loc,
-	};
-}
-
-/**
  * Find the JSX return statement in a function body
  */
 function findJSXReturn(body) {
@@ -210,13 +185,10 @@ function transformComponent(
 	// Get the JSX element or fragment
 	let jsxNode = isJSX(jsxReturn.argument) ? jsxReturn.argument : jsxReturn.argument.expression;
 
-	// Handle fragments by wrapping children in a synthetic element
-	if (isJSXFragment(jsxNode)) {
-		jsxNode = wrapFragmentInDiv(jsxNode);
-	}
-
 	// Extract template info (isComponentRoot = true for main component)
-	const templateResult = extractTemplate(jsxNode, templateRegistry, nameGen, true);
+	// Pass the fragment flag so extractTemplate can handle it properly
+	const isFragment = isJSXFragment(jsxNode);
+	const templateResult = extractTemplate(jsxNode, templateRegistry, nameGen, true, isFragment);
 	const { templateVar, rootVar, traversal, bindings, events, forBlocks } = templateResult;
 
 	// Process bindings for bind() calls
@@ -303,6 +275,10 @@ function collectUsedVars(bindings, events, forBlocks) {
 
 	for (const b of bindings) {
 		used.add(b.targetVar);
+		// If this binding uses a marker, also track the marker variable
+		if (b.usesMarker) {
+			used.add(`${b.targetVar}_marker`);
+		}
 	}
 
 	for (const e of events) {
@@ -383,7 +359,7 @@ function buildConnectedBody(
 	const usedVars = collectUsedVars(bindings, events, forBlocks);
 	const filteredTraversal = filterTraversalSteps(traversal, usedVars);
 
-	// DOM traversal
+	// DOM traversal - text nodes are now regular nodes (space placeholders), not markers
 	for (const step of filteredTraversal) {
 		lines.push(`    const ${step.varName} = ${step.code};`);
 	}
@@ -420,9 +396,12 @@ function buildConnectedBody(
 		lines.push('');
 	}
 
+	// Track ref counts per cell for numbered refs (ref_1, ref_2, etc.)
+	const cellRefCounts = new Map();
+
 	// Bindings
 	for (const binding of bindings) {
-		const bindCode = generateBinding(code, binding, usedImports);
+		const bindCode = generateBinding(code, binding, usedImports, null, false, cellRefCounts);
 		lines.push(`    ${bindCode}`);
 	}
 
@@ -492,7 +471,7 @@ function generateForBlock(
 	const usedVars = collectUsedVars(processedBindings, processedEvents, []);
 	const filteredTraversal = filterTraversalSteps(traversal, usedVars);
 
-	// Traversal
+	// Traversal - text nodes are now regular nodes (space placeholders), not markers
 	for (const step of filteredTraversal) {
 		lines.push(`      const ${step.varName} = ${step.code};`);
 	}
@@ -591,7 +570,13 @@ function generateBinding(
 		needsTransform,
 		getCallNode,
 		staticPrefix,
+		contentParts,
 	} = binding;
+
+	// Handle new contentParts format (concatenated text content)
+	if (contentParts) {
+		return generateContentPartsBinding(code, binding, usedImports, insideForBlock, cellRefCounts);
+	}
 
 	// Build prefix string if we have static text before the dynamic expression
 	const prefixCode = staticPrefix ? `"${escapeStringLiteral(staticPrefix)}" + ` : '';
@@ -608,18 +593,21 @@ function generateBinding(
 	// Generate the expression code for initial value (using original get() calls)
 	const initialExprCode = generateExpr(code, fullExpression);
 
-	// Check if this is a simple direct binding inside a for_block
+	// Check if this is a simple direct binding (works for both for_block and component level)
 	// If so, we can use ref-based direct DOM updates instead of bind()
-	if (insideForBlock && isSimpleDirectBinding(binding) && cellRefCounts) {
+	if (isSimpleDirectBinding(binding) && cellRefCounts) {
 		// Get or initialize the ref count for this cell
 		const currentCount = cellRefCounts.get(cellCode) || 0;
 		const refNum = currentCount + 1;
 		cellRefCounts.set(cellCode, refNum);
 
+		// Determine indentation based on context
+		const indent = insideForBlock ? '      ' : '    ';
+
 		// Emit: initial value assignment + ref storage on cell
 		// cell.ref_N = element;
 		return `${targetVar}.${targetProperty} = ${initialExprCode};
-      ${cellCode}.ref_${refNum} = ${targetVar};`;
+${indent}${cellCode}.ref_${refNum} = ${targetVar};`;
 	}
 
 	// Fall back to bind() for complex bindings
@@ -641,6 +629,86 @@ function generateBinding(
     bind(${cellCode}, (v) => {
       ${targetVar}.${targetProperty} = ${prefixCode}${bindExprCode};
     });`;
+}
+
+/**
+ * Generate binding code for contentParts format (concatenated text)
+ */
+function generateContentPartsBinding(
+	code,
+	binding,
+	usedImports,
+	insideForBlock = false,
+	cellRefCounts = null
+) {
+	const { targetVar, targetProperty, cellArg, contentParts, isStatic } = binding;
+
+	// Build the concatenated expression from content parts
+	const buildConcatExpr = (useOriginalCode = true) => {
+		const parts = [];
+		for (const part of contentParts) {
+			if (part.type === 'static') {
+				// Keep whitespace as-is to preserve spacing between static/dynamic parts
+				const text = part.value;
+				// Only skip if completely empty
+				if (text) {
+					parts.push(`"${escapeStringLiteral(text)}"`);
+				}
+			} else if (part.type === 'dynamic') {
+				if (useOriginalCode) {
+					parts.push(generateExpr(code, part.expression));
+				} else {
+					// For bind callback, we keep the original expression
+					// (the bind will just re-evaluate the whole thing)
+					parts.push(generateExpr(code, part.expression));
+				}
+			}
+		}
+		return parts.join(' + ');
+	};
+
+	const initialExpr = buildConcatExpr(true);
+
+	if (isStatic) {
+		return `${targetVar}.${targetProperty} = ${initialExpr};`;
+	}
+
+	// For reactive bindings, check if we can use ref-based updates
+	const cellCode = generateExpr(code, cellArg);
+
+	// Check if this is a simple case: single dynamic expression that's just get(cell)
+	const dynamicParts = contentParts.filter((p) => p.type === 'dynamic');
+	const isSimple =
+		dynamicParts.length === 1 &&
+		dynamicParts[0].expression.type === 'CallExpression' &&
+		dynamicParts[0].expression.callee?.name === 'get';
+
+	if (isSimple && cellRefCounts) {
+		// Get or initialize the ref count for this cell
+		const currentCount = cellRefCounts.get(cellCode) || 0;
+		const refNum = currentCount + 1;
+		cellRefCounts.set(cellCode, refNum);
+
+		// Determine indentation based on context
+		const indent = insideForBlock ? '      ' : '    ';
+
+		// For ref-based updates with concatenation, we need to store the full concat expression pattern
+		// The setter will need to rebuild the string - store parts info on the ref
+		return `${targetVar}.${targetProperty} = ${initialExpr};
+${indent}${cellCode}.ref_${refNum} = ${targetVar};`;
+	}
+
+	// Fall back to bind() for complex bindings
+	usedImports.add('bind');
+	usedImports.add('get');
+
+	const indent = insideForBlock ? '      ' : '    ';
+
+	// Set initial value AND bind for updates
+	return `${targetVar}.${targetProperty} = ${initialExpr};
+${indent}bind(${cellCode}, (v) => {
+${indent}  ${targetVar}.${targetProperty} = ${initialExpr};
+${indent}});`;
 }
 
 /**

@@ -4,9 +4,6 @@
 
 import { bind } from './cell.js';
 
-const array_from = Array.from;
-const is_array = Array.isArray;
-
 // LIS algorithm state (reused across calls for performance)
 let lis_result;
 let lis_p;
@@ -344,11 +341,11 @@ export function for_block(container, source_cell, render_fn) {
 
 	const do_update = () => {
 		const collection = source_cell.v;
-		const array = is_array(collection)
+		const array = Array.isArray(collection)
 			? collection
 			: collection == null
 			? []
-			: array_from(collection);
+			: Array.from(collection);
 		reconcile_by_ref(anchor, for_state, array, render_fn);
 	};
 

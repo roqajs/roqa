@@ -9,13 +9,13 @@ export function defineComponent(tagName, fn) {
 	customElements.define(
 		tagName,
 		class extends HTMLElement {
-			_connectedCallbacks = new Set();
+			_connectedCallback;
 			connectedCallback() {
 				fn.call(this);
-				for (const callback of this._connectedCallbacks) callback();
+				if (this._connectedCallback) this._connectedCallback();
 			}
 			connected(fn) {
-				this._connectedCallbacks.add(fn);
+				this._connectedCallback = fn;
 			}
 		}
 	);

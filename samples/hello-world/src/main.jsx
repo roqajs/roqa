@@ -1,19 +1,20 @@
 import { defineComponent, cell, get, set } from 'rift-js';
 import './styles.css';
 
-function App() {
-	let count = cell(0);
+function HelloWorld() {
+	const name = cell('World');
 
-	const increment = () => {
-		set(count, get(count) + 1);
+	const updateName = (event) => {
+		set(name, event.target.value);
 	};
 
 	return (
 		<>
-			<h1>Hello Rift</h1>
-			<button onclick={increment}>Count is {get(count)}</button>
+			<label for="name">Enter name:</label>
+			<input id="name" type="text" value={get(name)} oninput={updateName} />
+			<p id="msg">Hello {get(name)}!</p>
 		</>
 	);
 }
 
-defineComponent('rift-app', App);
+defineComponent('hello-world', HelloWorld);
