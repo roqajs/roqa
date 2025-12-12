@@ -4,31 +4,12 @@ const template = (html) => {
 	t.innerHTML = html;
 	return () => cloneNode.call(t.content, true);
 };
-const bind = (cell$1, fn) => {
-	cell$1.e.push(fn);
+const bind = (cell, fn) => {
+	cell.e.push(fn);
 	return () => {
-		const idx = cell$1.e.indexOf(fn);
-		if (idx > -1) cell$1.e.splice(idx, 1);
+		const idx = cell.e.indexOf(fn);
+		if (idx > -1) cell.e.splice(idx, 1);
 	};
-};
-const notify = (cell$1) => {
-	for (let i = 0; i < cell$1.e.length; i++) cell$1.e[i](cell$1.v);
-};
-var batching = false;
-var pending = /* @__PURE__ */ new Set();
-const batch = (fn) => {
-	if (batching) {
-		fn();
-		return;
-	}
-	batching = true;
-	try {
-		fn();
-	} finally {
-		batching = false;
-		for (const cell$1 of pending) notify(cell$1);
-		pending.clear();
-	}
 };
 var PASSIVE_EVENTS = ["touchstart", "touchmove"];
 var all_registered_events = /* @__PURE__ */ new Set();
@@ -104,19 +85,17 @@ function handle_root_events(target) {
 function defineComponent(tagName, fn) {
 	if (customElements.get(tagName)) return;
 	customElements.define(tagName, class extends HTMLElement {
-		_connectedCallbacks = /* @__PURE__ */ new Set();
+		_connectedCallback;
 		connectedCallback() {
 			fn.call(this);
-			for (const callback of this._connectedCallbacks) callback();
+			if (this._connectedCallback) this._connectedCallback();
 		}
 		connected(fn$1) {
-			this._connectedCallbacks.add(fn$1);
+			this._connectedCallback = fn$1;
 		}
 	});
 	handle_root_events(document);
 }
-var array_from = Array.from;
-var is_array = Array.isArray;
 var lis_result;
 var lis_p;
 var lis_max_len = 0;
@@ -344,7 +323,7 @@ function for_block(container, source_cell, render_fn) {
 	};
 	const do_update = () => {
 		const collection = source_cell.v;
-		reconcile_by_ref(anchor, for_state, is_array(collection) ? collection : collection == null ? [] : array_from(collection), render_fn);
+		reconcile_by_ref(anchor, for_state, Array.isArray(collection) ? collection : collection == null ? [] : Array.from(collection), render_fn);
 	};
 	const unsubscribe = bind(source_cell, do_update);
 	const destroy = () => {
@@ -363,7 +342,7 @@ function for_block(container, source_cell, render_fn) {
 		}
 	};
 }
-var $tmpl_1 = template("<div class=\"container\"><div class=\"jumbotron\"><div class=\"row\"><div class=\"col-md-6\"><h1>Riftttt</h1></div><div class=\"col-md-6\"><div class=\"row\"><div class=\"col-sm-6 smallpad\"><button type=\"button\" class=\"btn btn-primary btn-block\" id=\"run\">Create 1,000 rows</button></div><div class=\"col-sm-6 smallpad\"><button type=\"button\" class=\"btn btn-primary btn-block\" id=\"runlots\">Create 10,000 rows</button></div><div class=\"col-sm-6 smallpad\"><button type=\"button\" class=\"btn btn-primary btn-block\" id=\"add\">Append 1,000 rows</button></div><div class=\"col-sm-6 smallpad\"><button type=\"button\" class=\"btn btn-primary btn-block\" id=\"update\">Update every 10th row</button></div><div class=\"col-sm-6 smallpad\"><button type=\"button\" class=\"btn btn-primary btn-block\" id=\"clear\">Clear</button></div><div class=\"col-sm-6 smallpad\"><button type=\"button\" class=\"btn btn-primary btn-block\" id=\"swaprows\">Swap Rows</button></div></div></div></div></div><table class=\"table table-hover table-striped test-data\"><tbody></tbody></table><span class=\"preloadicon glyphicon glyphicon-remove\" aria-hidden=\"true\"></span></div>");
+var $tmpl_1 = template("<div class=\"container\"><div class=\"jumbotron\"><div class=\"row\"><div class=\"col-md-6\"><h1>Rift</h1></div><div class=\"col-md-6\"><div class=\"row\"><div class=\"col-sm-6 smallpad\"><button type=\"button\" class=\"btn btn-primary btn-block\" id=\"run\">Create 1,000 rows</button></div><div class=\"col-sm-6 smallpad\"><button type=\"button\" class=\"btn btn-primary btn-block\" id=\"runlots\">Create 10,000 rows</button></div><div class=\"col-sm-6 smallpad\"><button type=\"button\" class=\"btn btn-primary btn-block\" id=\"add\">Append 1,000 rows</button></div><div class=\"col-sm-6 smallpad\"><button type=\"button\" class=\"btn btn-primary btn-block\" id=\"update\">Update every 10th row</button></div><div class=\"col-sm-6 smallpad\"><button type=\"button\" class=\"btn btn-primary btn-block\" id=\"clear\">Clear</button></div><div class=\"col-sm-6 smallpad\"><button type=\"button\" class=\"btn btn-primary btn-block\" id=\"swaprows\">Swap Rows</button></div></div></div></div></div><table class=\"table table-hover table-striped test-data\"><tbody></tbody></table><span class=\"preloadicon glyphicon glyphicon-remove\" aria-hidden=\"true\"></span></div>");
 var $tmpl_2 = template("<tr><td class=\"col-md-1\"> </td><td class=\"col-md-4\"><a> </a></td><td class=\"col-md-1\"><a><span class=\"glyphicon glyphicon-remove\" aria-hidden=\"true\"></span></a></td><td class=\"col-md-6\"></td></tr>");
 var adjectives = [
 	"pretty",
@@ -422,12 +401,12 @@ var nouns = [
 ];
 var rand = (dict) => dict[Math.round(Math.random() * 1e3) % dict.length];
 function App() {
-	let rowId = 1;
-	let items = {
+	let row_id = 1;
+	const rows = {
 		v: [],
 		e: []
 	};
-	let selected_item = {
+	const selected_row = {
 		v: null,
 		e: []
 	};
@@ -436,7 +415,7 @@ function App() {
 		for (let i = 0; i < count; i++) {
 			const text = rand(adjectives) + " " + rand(colours) + " " + rand(nouns);
 			data[i] = {
-				id: rowId++,
+				id: row_id++,
 				label: {
 					v: text,
 					e: []
@@ -450,56 +429,55 @@ function App() {
 		return data;
 	}
 	const run = () => {
-		items.v = build_data(1e3);
-		for (let i = 0; i < items.e.length; i++) items.e[i](items.v);
+		rows.v = build_data(1e3);
+		rows_for_block.update();
 	};
 	const runlots = () => {
-		items.v = build_data(1e4);
-		for (let i = 0; i < items.e.length; i++) items.e[i](items.v);
+		rows.v = build_data(1e4);
+		rows_for_block.update();
 	};
 	const add = () => {
-		items.v = [...items.v, ...build_data(1e3)];
-		for (let i = 0; i < items.e.length; i++) items.e[i](items.v);
+		rows.v = [...rows.v, ...build_data(1e3)];
+		rows_for_block.update();
 	};
 	const clear = () => {
-		items.v = [];
-		for (let i = 0; i < items.e.length; i++) items.e[i](items.v);
-		selected_item.v = null;
+		rows.v = [];
+		rows_for_block.update();
+		selected_row.v = null;
 	};
 	const update_rows = () => {
-		batch(() => {
-			for (let i = 0, row; row = items.v[i]; i += 10) {
-				row.label.v = row.label.v + " !!!";
-				for (let i$1 = 0; i$1 < row.label.e.length; i$1++) row.label.e[i$1](row.label.v);
-			}
-		});
+		for (let i = 0, row; row = rows.v[i]; i += 10) {
+			row.label.v = row.label.v + " !!!";
+			row.label.ref_1.nodeValue = row.label.v;
+		}
 	};
 	const swaprows = () => {
-		if (items.v.length > 998) {
-			const clone = items.v.slice();
+		if (rows.v.length > 998) {
+			const clone = rows.v.slice();
 			const temp = clone[1];
 			clone[1] = clone[998];
 			clone[998] = temp;
-			items.v = clone;
-			for (let i = 0; i < items.e.length; i++) items.e[i](items.v);
+			rows.v = clone;
+			rows_for_block.update();
 		}
 	};
 	const select = (row) => {
-		const prev = selected_item.v;
+		const prev = selected_row.v;
 		if (prev) {
 			prev.is_selected.v = false;
-			for (let i = 0; i < prev.is_selected.e.length; i++) prev.is_selected.e[i](prev.is_selected.v);
+			prev.is_selected.ref_1.className = prev.is_selected.v ? "danger" : "";
 		}
 		row.is_selected.v = true;
-		for (let i = 0; i < row.is_selected.e.length; i++) row.is_selected.e[i](row.is_selected.v);
-		selected_item.v = row;
+		row.is_selected.ref_1.className = row.is_selected.v ? "danger" : "";
+		selected_row.v = row;
 	};
 	const remove = (row) => {
-		const clone = items.v.slice();
+		const clone = rows.v.slice();
 		clone.splice(clone.indexOf(row), 1);
-		items.v = clone;
-		for (let i = 0; i < items.e.length; i++) items.e[i](items.v);
+		rows.v = clone;
+		rows_for_block.update();
 	};
+	let rows_for_block;
 	this.connected(() => {
 		const $root_1 = $tmpl_1();
 		this.appendChild($root_1);
@@ -522,7 +500,7 @@ function App() {
 		button_4.__click = update_rows;
 		button_5.__click = clear;
 		button_6.__click = swaprows;
-		for_block(tbody_1, items, (anchor, row, index) => {
+		rows_for_block = for_block(tbody_1, rows, (anchor, row, index) => {
 			const tr_1 = $tmpl_2().firstChild;
 			const td_1 = tr_1.firstChild;
 			const td_1_text = td_1.firstChild;
@@ -533,14 +511,10 @@ function App() {
 			a_1.__click = [select, row];
 			a_2.__click = [remove, row];
 			tr_1.className = row.is_selected.v ? "danger" : "";
-			bind(row.is_selected, (v) => {
-				tr_1.className = v ? "danger" : "";
-			});
+			row.is_selected.ref_1 = tr_1;
 			td_1_text.nodeValue = row.id;
 			a_1_text.nodeValue = row.label.v;
-			bind(row.label, (v) => {
-				a_1_text.nodeValue = v;
-			});
+			row.label.ref_1 = a_1_text;
 			anchor.before(tr_1);
 			return {
 				start: tr_1,
