@@ -577,11 +577,8 @@ export function inlineGetCalls(code, filename) {
 			const c = s.slice(call.cellStart, call.cellEnd);
 			const v = call.valueStart != null ? s.slice(call.valueStart, call.valueEnd) : 'undefined';
 
-			if (call.forBlockVar) {
-				// Cell has an associated for_block - use .update()
-				s.overwrite(call.start, call.end, `{ ${c}.v = ${v}; ${call.forBlockVar}.update(); }`);
-			} else {
-				// Check if this cell has bind callbacks to inline (exact match first)
+			// Helper to generate inlined updates from bind callbacks
+			const generateBindCallbackUpdates = () => {
 				let callbacks = bindCallbacks.get(call.cellCode);
 				let callbackCellCode = call.cellCode;
 
@@ -589,7 +586,6 @@ export function inlineGetCalls(code, filename) {
 				if ((!callbacks || callbacks.length === 0) && call.cellCode.includes('.')) {
 					const patternInfo = extractPropertyPattern(call.cellCode);
 					if (patternInfo) {
-						// Look for any bind callback with matching property pattern
 						for (const [existingCellCode, existingCallbacks] of bindCallbacks) {
 							const existingPattern = extractPropertyPattern(existingCellCode);
 							if (existingPattern && existingPattern.pattern === patternInfo.pattern) {
@@ -602,10 +598,8 @@ export function inlineGetCalls(code, filename) {
 				}
 
 				if (callbacks && callbacks.length > 0) {
-					// Inline the bind callback bodies wholesale
-					const inlinedUpdates = callbacks
+					return callbacks
 						.map((cb) => {
-							// Transform callback body, substituting the actual cell code's prefix
 							let body = transformCallbackBody(
 								cb.callbackBody,
 								callbackCellCode,
@@ -613,12 +607,10 @@ export function inlineGetCalls(code, filename) {
 								cb.paramName,
 								cb.refNum
 							);
-							// If we pattern-matched, replace the original prefix with the actual one
 							if (callbackCellCode !== call.cellCode) {
 								const originalPattern = extractPropertyPattern(callbackCellCode);
 								const actualPattern = extractPropertyPattern(call.cellCode);
 								if (originalPattern && actualPattern) {
-									// Replace "row.is_selected.ref_N" with "prev.is_selected.ref_N"
 									const regex = new RegExp(
 										`\\b${originalPattern.prefix}\\.${originalPattern.pattern}\\b`,
 										'g'
@@ -629,62 +621,71 @@ export function inlineGetCalls(code, filename) {
 							return body;
 						})
 						.join(' ');
+				}
+				return '';
+			};
 
-					s.overwrite(call.start, call.end, `{ ${c}.v = ${v}; ${inlinedUpdates} }`);
-				} else {
-					// Check for ref assignments without bind() (exact match first)
-					let refInfos = refWithoutBind.get(call.cellCode);
-					let refCellCode = call.cellCode;
+			// Helper to generate updates from ref assignments without bind()
+			const generateRefUpdates = () => {
+				let refInfos = refWithoutBind.get(call.cellCode);
+				let refCellCode = call.cellCode;
 
-					// If no exact match, try pattern match
-					if ((!refInfos || refInfos.length === 0) && call.cellCode.includes('.')) {
-						const patternInfo = extractPropertyPattern(call.cellCode);
-						if (patternInfo) {
-							for (const [existingCellCode, existingRefInfos] of refWithoutBind) {
-								const existingPattern = extractPropertyPattern(existingCellCode);
-								if (existingPattern && existingPattern.pattern === patternInfo.pattern) {
-									refInfos = existingRefInfos;
-									refCellCode = existingCellCode;
-									break;
-								}
+				if ((!refInfos || refInfos.length === 0) && call.cellCode.includes('.')) {
+					const patternInfo = extractPropertyPattern(call.cellCode);
+					if (patternInfo) {
+						for (const [existingCellCode, existingRefInfos] of refWithoutBind) {
+							const existingPattern = extractPropertyPattern(existingCellCode);
+							if (existingPattern && existingPattern.pattern === patternInfo.pattern) {
+								refInfos = existingRefInfos;
+								refCellCode = existingCellCode;
+								break;
 							}
 						}
 					}
-
-					if (refInfos && refInfos.length > 0) {
-						// Generate direct DOM updates using the refs
-						const directUpdates = refInfos
-							.map((info) => {
-								let update = `${refCellCode}.ref_${info.refNum}.${info.property} = ${info.updateExpr};`;
-								// If pattern-matched, replace the original prefix with actual
-								if (refCellCode !== call.cellCode) {
-									const originalPattern = extractPropertyPattern(refCellCode);
-									const actualPattern = extractPropertyPattern(call.cellCode);
-									if (originalPattern && actualPattern) {
-										const regex = new RegExp(
-											`\\b${originalPattern.prefix}\\.${originalPattern.pattern}\\b`,
-											'g'
-										);
-										update = update.replace(
-											regex,
-											`${actualPattern.prefix}.${actualPattern.pattern}`
-										);
-									}
-								}
-								return update;
-							})
-							.join(' ');
-
-						s.overwrite(call.start, call.end, `{ ${c}.v = ${v}; ${directUpdates} }`);
-					} else {
-						// No bind callbacks or refs - use the generic effect loop
-						s.overwrite(
-							call.start,
-							call.end,
-							`{ ${c}.v = ${v}; for (let i = 0; i < ${c}.e.length; i++) ${c}.e[i](${c}.v); }`
-						);
-					}
 				}
+
+				if (refInfos && refInfos.length > 0) {
+					return refInfos
+						.map((info) => {
+							let update = `${refCellCode}.ref_${info.refNum}.${info.property} = ${info.updateExpr};`;
+							if (refCellCode !== call.cellCode) {
+								const originalPattern = extractPropertyPattern(refCellCode);
+								const actualPattern = extractPropertyPattern(call.cellCode);
+								if (originalPattern && actualPattern) {
+									const regex = new RegExp(
+										`\\b${originalPattern.prefix}\\.${originalPattern.pattern}\\b`,
+										'g'
+									);
+									update = update.replace(
+										regex,
+										`${actualPattern.prefix}.${actualPattern.pattern}`
+									);
+								}
+							}
+							return update;
+						})
+						.join(' ');
+				}
+				return '';
+			};
+
+			// Collect all updates
+			const bindUpdates = generateBindCallbackUpdates();
+			const refUpdates = generateRefUpdates();
+			const forBlockUpdate = call.forBlockVar ? `${call.forBlockVar}.update();` : '';
+			
+			// Combine all updates
+			const allUpdates = [forBlockUpdate, bindUpdates, refUpdates].filter(Boolean).join(' ');
+
+			if (allUpdates) {
+				s.overwrite(call.start, call.end, `{ ${c}.v = ${v}; ${allUpdates} }`);
+			} else {
+				// No bind callbacks, refs, or for_block - use the generic effect loop
+				s.overwrite(
+					call.start,
+					call.end,
+					`{ ${c}.v = ${v}; for (let i = 0; i < ${c}.e.length; i++) ${c}.e[i](${c}.v); }`
+				);
 			}
 		}
 	}

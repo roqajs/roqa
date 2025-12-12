@@ -352,6 +352,9 @@ export function for_block(container, source_cell, render_fn) {
 	// Subscribe to cell changes
 	const unsubscribe = bind(source_cell, do_update);
 
+	// Initial render
+	do_update();
+
 	// Destroy function for cleanup
 	const destroy = () => {
 		unsubscribe();
