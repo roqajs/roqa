@@ -4,23 +4,17 @@ import _traverse from '@babel/traverse';
 
 // Handle CJS/ESM interop
 const traverse = _traverse.default || _traverse;
-const generate = _generate.default || _generate;
 import {
 	TemplateRegistry,
 	VariableNameGenerator,
 	extractTemplate,
 } from './transforms/jsx-to-template.js';
 import { extractForInfo, getCallbackPreamble } from './transforms/for-transform.js';
-import { processBindings, findGetCalls } from './transforms/bind-detector.js';
-import { processEvents, generateEventAssignment, collectEventTypes } from './transforms/events.js';
+import { processBindings } from './transforms/bind-detector.js';
+import { processEvents, generateEventAssignment } from './transforms/events.js';
 import {
 	isJSXElement,
-	isJSXFragment,
-	getJSXElementName,
-	isForComponent,
-	getJSXChildren,
-	extractJSXAttributes,
-	isJSXExpressionContainer,
+	isJSXFragment
 } from './parser.js';
 
 /**

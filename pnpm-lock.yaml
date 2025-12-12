@@ -60,6 +60,62 @@ importers:
         specifier: catalog:default
         version: 7.2.7(lightningcss@1.30.2)
 
+  samples/add-numbers:
+    dependencies:
+      rift-js:
+        specifier: workspace:*
+        version: link:../../packages/rift-js
+    devDependencies:
+      '@babel/generator':
+        specifier: ^7.28.5
+        version: 7.28.5
+      '@babel/parser':
+        specifier: ^7.28.5
+        version: 7.28.5
+      '@babel/traverse':
+        specifier: ^7.28.5
+        version: 7.28.5
+      '@babel/types':
+        specifier: ^7.28.5
+        version: 7.28.5
+      magic-string:
+        specifier: ^0.30.21
+        version: 0.30.21
+      rift-vite-plugin:
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(esbuild@0.25.12)
+
+  samples/counter:
+    dependencies:
+      rift-js:
+        specifier: workspace:*
+        version: link:../../packages/rift-js
+    devDependencies:
+      '@babel/generator':
+        specifier: ^7.28.5
+        version: 7.28.5
+      '@babel/parser':
+        specifier: ^7.28.5
+        version: 7.28.5
+      '@babel/traverse':
+        specifier: ^7.28.5
+        version: 7.28.5
+      '@babel/types':
+        specifier: ^7.28.5
+        version: 7.28.5
+      magic-string:
+        specifier: ^0.30.21
+        version: 0.30.21
+      rift-vite-plugin:
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(esbuild@0.25.12)
+
   samples/hello-world:
     dependencies:
       rift-js:
@@ -89,6 +145,62 @@ importers:
         version: rolldown-vite@7.2.5(esbuild@0.25.12)
 
   samples/js-benchmark:
+    dependencies:
+      rift-js:
+        specifier: workspace:*
+        version: link:../../packages/rift-js
+    devDependencies:
+      '@babel/generator':
+        specifier: ^7.28.5
+        version: 7.28.5
+      '@babel/parser':
+        specifier: ^7.28.5
+        version: 7.28.5
+      '@babel/traverse':
+        specifier: ^7.28.5
+        version: 7.28.5
+      '@babel/types':
+        specifier: ^7.28.5
+        version: 7.28.5
+      magic-string:
+        specifier: ^0.30.21
+        version: 0.30.21
+      rift-vite-plugin:
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(esbuild@0.25.12)
+
+  samples/stopwatch:
+    dependencies:
+      rift-js:
+        specifier: workspace:*
+        version: link:../../packages/rift-js
+    devDependencies:
+      '@babel/generator':
+        specifier: ^7.28.5
+        version: 7.28.5
+      '@babel/parser':
+        specifier: ^7.28.5
+        version: 7.28.5
+      '@babel/traverse':
+        specifier: ^7.28.5
+        version: 7.28.5
+      '@babel/types':
+        specifier: ^7.28.5
+        version: 7.28.5
+      magic-string:
+        specifier: ^0.30.21
+        version: 0.30.21
+      rift-vite-plugin:
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(esbuild@0.25.12)
+
+  samples/todo-list:
     dependencies:
       rift-js:
         specifier: workspace:*

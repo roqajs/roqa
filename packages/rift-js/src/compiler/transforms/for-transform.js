@@ -1,8 +1,4 @@
-import {
-  extractJSXAttributes,
-  getJSXChildren,
-  isJSXExpressionContainer,
-} from "../parser.js";
+import { extractJSXAttributes, getJSXChildren, isJSXExpressionContainer } from '../parser.js';
 
 /**
  * Transform <For> components into for_block() calls
@@ -34,54 +30,54 @@ import {
  * @returns {ForTransformResult}
  */
 export function extractForInfo(node, containerVar) {
-  const attrs = extractJSXAttributes(node.openingElement);
+	const attrs = extractJSXAttributes(node.openingElement);
 
-  // Get the `each` prop
-  const eachValue = attrs.get("each");
-  if (!eachValue || !isJSXExpressionContainer(eachValue)) {
-    throw createForError(node, "Missing required 'each' prop on <For> component");
-  }
-  const itemsExpression = eachValue.expression;
+	// Get the `each` prop
+	const eachValue = attrs.get('each');
+	if (!eachValue || !isJSXExpressionContainer(eachValue)) {
+		throw createForError(node, "Missing required 'each' prop on <For> component");
+	}
+	const itemsExpression = eachValue.expression;
 
-  // Get the children - should be a single expression container with arrow function
-  const children = getJSXChildren(node);
-  if (children.length !== 1) {
-    throw createForError(node, "<For> must have exactly one child (render callback)");
-  }
+	// Get the children - should be a single expression container with arrow function
+	const children = getJSXChildren(node);
+	if (children.length !== 1) {
+		throw createForError(node, '<For> must have exactly one child (render callback)');
+	}
 
-  const child = children[0];
-  if (!isJSXExpressionContainer(child)) {
-    throw createForError(node, "<For> child must be an expression: {(item) => <element>}");
-  }
+	const child = children[0];
+	if (!isJSXExpressionContainer(child)) {
+		throw createForError(node, '<For> child must be an expression: {(item) => <element>}');
+	}
 
-  const callback = child.expression;
-  if (callback.type !== "ArrowFunctionExpression" && callback.type !== "FunctionExpression") {
-    throw createForError(node, "<For> child must be an arrow function or function expression");
-  }
+	const callback = child.expression;
+	if (callback.type !== 'ArrowFunctionExpression' && callback.type !== 'FunctionExpression') {
+		throw createForError(node, '<For> child must be an arrow function or function expression');
+	}
 
-  // Extract callback parameters
-  const params = callback.params;
-  if (params.length < 1) {
-    throw createForError(node, "<For> callback must have at least one parameter (item)");
-  }
+	// Extract callback parameters
+	const params = callback.params;
+	if (params.length < 1) {
+		throw createForError(node, '<For> callback must have at least one parameter (item)');
+	}
 
-  const itemParam = extractParamName(params[0]);
-  const indexParam = params.length > 1 ? extractParamName(params[1]) : null;
+	const itemParam = extractParamName(params[0]);
+	const indexParam = params.length > 1 ? extractParamName(params[1]) : null;
 
-  // Extract the JSX from the callback body
-  const bodyJSX = extractCallbackJSX(callback);
-  if (!bodyJSX) {
-    throw createForError(node, "<For> callback must return JSX");
-  }
+	// Extract the JSX from the callback body
+	const bodyJSX = extractCallbackJSX(callback);
+	if (!bodyJSX) {
+		throw createForError(node, '<For> callback must return JSX');
+	}
 
-  return {
-    containerVar,
-    itemsExpression,
-    itemParam,
-    indexParam,
-    bodyJSX,
-    originalCallback: callback,
-  };
+	return {
+		containerVar,
+		itemsExpression,
+		itemParam,
+		indexParam,
+		bodyJSX,
+		originalCallback: callback,
+	};
 }
 
 /**
@@ -90,13 +86,13 @@ export function extractForInfo(node, containerVar) {
  * @returns {string}
  */
 function extractParamName(param) {
-  if (param.type === "Identifier") {
-    return param.name;
-  }
-  if (param.type === "AssignmentPattern" && param.left.type === "Identifier") {
-    return param.left.name;
-  }
-  throw new Error("Unsupported parameter type in <For> callback");
+	if (param.type === 'Identifier') {
+		return param.name;
+	}
+	if (param.type === 'AssignmentPattern' && param.left.type === 'Identifier') {
+		return param.left.name;
+	}
+	throw new Error('Unsupported parameter type in <For> callback');
 }
 
 /**
@@ -105,32 +101,32 @@ function extractParamName(param) {
  * @returns {import("@babel/types").JSXElement|null}
  */
 function extractCallbackJSX(callback) {
-  const body = callback.body;
+	const body = callback.body;
 
-  // Arrow function with expression body: (item) => <tr>...</tr>
-  if (body.type === "JSXElement") {
-    return body;
-  }
+	// Arrow function with expression body: (item) => <tr>...</tr>
+	if (body.type === 'JSXElement') {
+		return body;
+	}
 
-  // Block body: (item) => { return <tr>...</tr>; }
-  if (body.type === "BlockStatement") {
-    // Look for return statement with JSX
-    for (const stmt of body.body) {
-      if (stmt.type === "ReturnStatement" && stmt.argument) {
-        if (stmt.argument.type === "JSXElement") {
-          return stmt.argument;
-        }
-        // Handle parenthesized JSX: return (<tr>...</tr>)
-        if (stmt.argument.type === "ParenthesizedExpression") {
-          if (stmt.argument.expression.type === "JSXElement") {
-            return stmt.argument.expression;
-          }
-        }
-      }
-    }
-  }
+	// Block body: (item) => { return <tr>...</tr>; }
+	if (body.type === 'BlockStatement') {
+		// Look for return statement with JSX
+		for (const stmt of body.body) {
+			if (stmt.type === 'ReturnStatement' && stmt.argument) {
+				if (stmt.argument.type === 'JSXElement') {
+					return stmt.argument;
+				}
+				// Handle parenthesized JSX: return (<tr>...</tr>)
+				if (stmt.argument.type === 'ParenthesizedExpression') {
+					if (stmt.argument.expression.type === 'JSXElement') {
+						return stmt.argument.expression;
+					}
+				}
+			}
+		}
+	}
 
-  return null;
+	return null;
 }
 
 /**
@@ -140,60 +136,29 @@ function extractCallbackJSX(callback) {
  * @returns {import("@babel/types").Statement[]}
  */
 export function getCallbackPreamble(callback) {
-  const body = callback.body;
+	const body = callback.body;
 
-  if (body.type !== "BlockStatement") {
-    return [];
-  }
+	if (body.type !== 'BlockStatement') {
+		return [];
+	}
 
-  const preamble = [];
-  for (const stmt of body.body) {
-    if (stmt.type === "ReturnStatement") {
-      break;
-    }
-    preamble.push(stmt);
-  }
+	const preamble = [];
+	for (const stmt of body.body) {
+		if (stmt.type === 'ReturnStatement') {
+			break;
+		}
+		preamble.push(stmt);
+	}
 
-  return preamble;
+	return preamble;
 }
 
 /**
  * Create a formatted error for <For> component issues
  */
 function createForError(node, message) {
-  const error = new Error(message);
-  error.code = "FOR_COMPONENT_ERROR";
-  error.loc = node.loc;
-  return error;
-}
-
-/**
- * Generate for_block() call code
- * @param {ForTransformResult} forInfo
- * @param {string} innerCode - Generated code for rendering each item
- * @returns {string}
- */
-export function generateForBlockCall(forInfo, innerCode) {
-  const { containerVar, itemParam, indexParam } = forInfo;
-
-  // Build parameter list: (anchor, item, index) or (anchor, item)
-  const params = indexParam
-    ? `anchor, ${itemParam}, ${indexParam}`
-    : `anchor, ${itemParam}, index`;
-
-  return `for_block(${containerVar}, ${generateExpression(forInfo.itemsExpression)}, (${params}) => {
-${innerCode}
-});`;
-}
-
-/**
- * Generate JavaScript expression from AST node
- * This is a simplified version - the real codegen will use @babel/generator
- * @param {import("@babel/types").Node} node
- * @returns {string}
- */
-function generateExpression(node) {
-  // This will be replaced by proper code generation
-  // For now, return a placeholder that will be filled in by codegen
-  return `__EXPR_${node.start}_${node.end}__`;
+	const error = new Error(message);
+	error.code = 'FOR_COMPONENT_ERROR';
+	error.loc = node.loc;
+	return error;
 }

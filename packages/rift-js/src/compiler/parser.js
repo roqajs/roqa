@@ -1,4 +1,4 @@
-import * as parser from "@babel/parser";
+import * as parser from '@babel/parser';
 
 /**
  * Parse JSX source code into an AST
@@ -7,11 +7,11 @@ import * as parser from "@babel/parser";
  * @returns {import("@babel/types").File} - Babel AST
  */
 export function parse(code, filename) {
-  return parser.parse(code, {
-    sourceType: "module",
-    plugins: ["jsx"],
-    sourceFilename: filename,
-  });
+	return parser.parse(code, {
+		sourceType: 'module',
+		plugins: ['jsx'],
+		sourceFilename: filename,
+	});
 }
 
 /**
@@ -20,8 +20,8 @@ export function parse(code, filename) {
  * @returns {boolean}
  */
 export function isControlFlowComponent(node) {
-  const name = getJSXElementName(node);
-  return name === "For";
+	const name = getJSXElementName(node);
+	return name === 'For';
 }
 
 /**
@@ -30,7 +30,7 @@ export function isControlFlowComponent(node) {
  * @returns {boolean}
  */
 export function isForComponent(node) {
-  return getJSXElementName(node) === "For";
+	return getJSXElementName(node) === 'For';
 }
 
 /**
@@ -39,17 +39,7 @@ export function isForComponent(node) {
  * @returns {boolean}
  */
 export function isPascalCase(name) {
-  return /^[A-Z]/.test(name);
-}
-
-/**
- * Check if a JSX element is a native HTML element (lowercase)
- * @param {import("@babel/types").JSXElement} node
- * @returns {boolean}
- */
-export function isNativeElement(node) {
-  const name = getJSXElementName(node);
-  return name && /^[a-z]/.test(name);
+	return /^[A-Z]/.test(name);
 }
 
 /**
@@ -58,22 +48,22 @@ export function isNativeElement(node) {
  * @returns {string|null}
  */
 export function getJSXElementName(node) {
-  const openingElement = node.openingElement;
-  if (!openingElement) return null;
+	const openingElement = node.openingElement;
+	if (!openingElement) return null;
 
-  const nameNode = openingElement.name;
+	const nameNode = openingElement.name;
 
-  // <div>, <For>, <my-component>
-  if (nameNode.type === "JSXIdentifier") {
-    return nameNode.name;
-  }
+	// <div>, <For>, <my-component>
+	if (nameNode.type === 'JSXIdentifier') {
+		return nameNode.name;
+	}
 
-  // <Foo.Bar> - member expression
-  if (nameNode.type === "JSXMemberExpression") {
-    return getMemberExpressionName(nameNode);
-  }
+	// <Foo.Bar> - member expression
+	if (nameNode.type === 'JSXMemberExpression') {
+		return getMemberExpressionName(nameNode);
+	}
 
-  return null;
+	return null;
 }
 
 /**
@@ -82,19 +72,19 @@ export function getJSXElementName(node) {
  * @returns {string}
  */
 function getMemberExpressionName(node) {
-  const parts = [];
-  let current = node;
+	const parts = [];
+	let current = node;
 
-  while (current.type === "JSXMemberExpression") {
-    parts.unshift(current.property.name);
-    current = current.object;
-  }
+	while (current.type === 'JSXMemberExpression') {
+		parts.unshift(current.property.name);
+		current = current.object;
+	}
 
-  if (current.type === "JSXIdentifier") {
-    parts.unshift(current.name);
-  }
+	if (current.type === 'JSXIdentifier') {
+		parts.unshift(current.name);
+	}
 
-  return parts.join(".");
+	return parts.join('.');
 }
 
 /**
@@ -103,30 +93,20 @@ function getMemberExpressionName(node) {
  * @returns {Map<string, import("@babel/types").Node>}
  */
 export function extractJSXAttributes(openingElement) {
-  const attrs = new Map();
+	const attrs = new Map();
 
-  for (const attr of openingElement.attributes) {
-    if (attr.type === "JSXAttribute") {
-      const name = attr.name.name;
-      // Value can be: StringLiteral, JSXExpressionContainer, or null (boolean true)
-      attrs.set(name, attr.value);
-    } else if (attr.type === "JSXSpreadAttribute") {
-      // Mark spread attributes specially
-      attrs.set("...", attr.argument);
-    }
-  }
+	for (const attr of openingElement.attributes) {
+		if (attr.type === 'JSXAttribute') {
+			const name = attr.name.name;
+			// Value can be: StringLiteral, JSXExpressionContainer, or null (boolean true)
+			attrs.set(name, attr.value);
+		} else if (attr.type === 'JSXSpreadAttribute') {
+			// Mark spread attributes specially
+			attrs.set('...', attr.argument);
+		}
+	}
 
-  return attrs;
-}
-
-/**
- * Check if an attribute value contains a dynamic expression
- * @param {import("@babel/types").Node} value
- * @returns {boolean}
- */
-export function isDynamicAttribute(value) {
-  if (!value) return false;
-  return value.type === "JSXExpressionContainer";
+	return attrs;
 }
 
 /**
@@ -135,7 +115,7 @@ export function isDynamicAttribute(value) {
  * @returns {boolean}
  */
 export function isJSXElement(node) {
-  return node && node.type === "JSXElement";
+	return node && node.type === 'JSXElement';
 }
 
 /**
@@ -144,7 +124,7 @@ export function isJSXElement(node) {
  * @returns {boolean}
  */
 export function isJSXFragment(node) {
-  return node && node.type === "JSXFragment";
+	return node && node.type === 'JSXFragment';
 }
 
 /**
@@ -153,7 +133,7 @@ export function isJSXFragment(node) {
  * @returns {boolean}
  */
 export function isJSXText(node) {
-  return node && node.type === "JSXText";
+	return node && node.type === 'JSXText';
 }
 
 /**
@@ -162,7 +142,7 @@ export function isJSXText(node) {
  * @returns {boolean}
  */
 export function isJSXExpressionContainer(node) {
-  return node && node.type === "JSXExpressionContainer";
+	return node && node.type === 'JSXExpressionContainer';
 }
 
 /**
@@ -171,13 +151,13 @@ export function isJSXExpressionContainer(node) {
  * @returns {import("@babel/types").Node[]}
  */
 export function getJSXChildren(node) {
-  return node.children.filter((child) => {
-    // Filter out whitespace-only text nodes
-    if (child.type === "JSXText") {
-      return child.value.trim().length > 0;
-    }
-    return true;
-  });
+	return node.children.filter((child) => {
+		// Filter out whitespace-only text nodes
+		if (child.type === 'JSXText') {
+			return child.value.trim().length > 0;
+		}
+		return true;
+	});
 }
 
 /**
@@ -186,12 +166,12 @@ export function getJSXChildren(node) {
  * @returns {boolean}
  */
 export function isGetCall(node) {
-  return (
-    node &&
-    node.type === "CallExpression" &&
-    node.callee.type === "Identifier" &&
-    node.callee.name === "get"
-  );
+	return (
+		node &&
+		node.type === 'CallExpression' &&
+		node.callee.type === 'Identifier' &&
+		node.callee.name === 'get'
+	);
 }
 
 /**
@@ -200,6 +180,6 @@ export function isGetCall(node) {
  * @returns {import("@babel/types").Node|null}
  */
 export function extractGetCellArg(node) {
-  if (!isGetCall(node)) return null;
-  return node.arguments[0] || null;
+	if (!isGetCall(node)) return null;
+	return node.arguments[0] || null;
 }
