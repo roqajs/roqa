@@ -1,0 +1,83 @@
+* {
+	box-sizing: border-box;
+}
+body {
+	font-family: system-ui, sans-serif;
+	font-weight: 500;
+	display: grid;
+	place-content: center;
+	height: 100vh;
+	margin: 0;
+	padding: 0;
+}
+slider-math {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+}
+slider-math label {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+slider-math input[type='number'] {
+	font-family: inherit;
+	font-size: inherit;
+	font-weight: inherit;
+	color: black;
+	background-color: #efefef;
+	border: 2px solid #000;
+	border-radius: 6px;
+	padding: 6px 10px;
+}
+:root {
+	--slider-track-color: #cbcbcb;
+	--slider-track-radius: 4px;
+	--slider-track-height: 6px;
+	--slider-thumb-color: #5b5b5b;
+	--slider-thumb-size: 14px;
+	--slider-thumb-focus: 0 0 0 8px rgba(0, 0, 0, 0.2);
+}
+slider-math input[type='range'] {
+	-webkit-appearance: none;
+	appearance: none;
+	background: transparent;
+	cursor: pointer;
+	width: 200px;
+}
+slider-math input[type='range']:focus {
+	outline: none;
+}
+slider-math input[type='range']::-webkit-slider-runnable-track {
+	background-color: var(--slider-track-color);
+	border-radius: var(--slider-track-radius);
+	height: var(--slider-track-height);
+}
+slider-math input[type='range']::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	margin-top: -4px;
+	background-color: var(--slider-thumb-color);
+	border-radius: 50%;
+	height: var(--slider-thumb-size);
+	width: var(--slider-thumb-size);
+}
+slider-math input[type='range']:focus::-webkit-slider-thumb {
+	box-shadow: var(--slider-thumb-focus);
+}
+slider-math input[type='range']::-moz-range-track {
+	background-color: var(--slider-track-color);
+	border-radius: var(--slider-track-radius);
+	height: var(--slider-track-height);
+}
+slider-math input[type='range']::-moz-range-thumb {
+	border: none;
+	border-radius: 50%;
+	background-color: var(--slider-thumb-color);
+	height: var(--slider-thumb-size);
+	width: var(--slider-thumb-size);
+}
+slider-math input[type='range']:focus::-moz-range-thumb {
+	box-shadow: var(--slider-thumb-focus);
+}

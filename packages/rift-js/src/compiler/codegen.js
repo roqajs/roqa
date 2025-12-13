@@ -12,10 +12,7 @@ import {
 import { extractForInfo, getCallbackPreamble } from './transforms/for-transform.js';
 import { processBindings } from './transforms/bind-detector.js';
 import { processEvents, generateEventAssignment } from './transforms/events.js';
-import {
-	isJSXElement,
-	isJSXFragment
-} from './parser.js';
+import { isJSXElement, isJSXFragment } from './parser.js';
 
 /**
  * Code generator using magic-string for efficient string manipulation
@@ -186,7 +183,7 @@ function transformComponent(
 	const { templateVar, rootVar, traversal, bindings, events, forBlocks } = templateResult;
 
 	// Process bindings for bind() calls
-	const processedBindings = processBindings(bindings);
+	const processedBindings = processBindings(bindings, code);
 	for (const b of processedBindings) {
 		if (!b.isStatic) {
 			usedImports.add('bind');
@@ -431,7 +428,7 @@ function generateForBlock(
 	const { templateVar, rootVar, traversal, bindings, events } = innerTemplate;
 
 	// Process inner bindings (these need to reference the item parameter)
-	const processedBindings = processBindings(bindings);
+	const processedBindings = processBindings(bindings, code);
 	for (const b of processedBindings) {
 		if (!b.isStatic) {
 			usedImports.add('bind');
@@ -667,17 +664,10 @@ function generateContentPartsBinding(
 		return `${targetVar}.${targetProperty} = ${initialExpr};`;
 	}
 
-	// For reactive bindings, check if we can use ref-based updates
+	// For reactive bindings, use ref-based updates
 	const cellCode = generateExpr(code, cellArg);
 
-	// Check if this is a simple case: single dynamic expression that's just get(cell)
-	const dynamicParts = contentParts.filter((p) => p.type === 'dynamic');
-	const isSimple =
-		dynamicParts.length === 1 &&
-		dynamicParts[0].expression.type === 'CallExpression' &&
-		dynamicParts[0].expression.callee?.name === 'get';
-
-	if (isSimple && cellRefCounts) {
+	if (cellRefCounts) {
 		// Get or initialize the ref count for this cell
 		const currentCount = cellRefCounts.get(cellCode) || 0;
 		const refNum = currentCount + 1;
@@ -686,13 +676,13 @@ function generateContentPartsBinding(
 		// Determine indentation based on context
 		const indent = insideForBlock ? '      ' : '    ';
 
-		// For ref-based updates with concatenation, we need to store the full concat expression pattern
-		// The setter will need to rebuild the string - store parts info on the ref
+		// Store ref on cell for direct DOM updates
+		// The setter will recompute the full expression using the ref
 		return `${targetVar}.${targetProperty} = ${initialExpr};
 ${indent}${cellCode}.ref_${refNum} = ${targetVar};`;
 	}
 
-	// Fall back to bind() for complex bindings
+	// Fallback if no cellRefCounts provided (shouldn't happen in practice)
 	usedImports.add('bind');
 	usedImports.add('get');
 

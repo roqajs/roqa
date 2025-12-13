@@ -3,19 +3,20 @@
 // ============================================
 
 // Create a cell (reactive value container)
-// For values that don't need effects, compiler can inline as just { v }
+// Compiler will inline as just { v: v, e: [] }
 export const cell = (v) => ({ v, e: [] });
 
-// Get cell value - compiler can inline as s.v in hot paths
+// Get cell value
+// Compiler can inline as s.v
 export const get = (s) => s.v;
 
-// Put cell value without notification - compiler can inline as s.v = v in hot paths
+// Set cell value without notification
+// Compiler will inline as s.v = v
 export const put = (s, v) => {
 	s.v = v;
 };
 
 // Bind an effect to a cell (for reactive DOM updates)
-// Effects are stored in array for fast iteration
 // Returns an unsubscribe function for cleanup
 export const bind = (cell, fn) => {
 	cell.e.push(fn);
@@ -35,7 +36,6 @@ export const unbind = (cell, fn) => {
 };
 
 // Notify all effects bound to a cell
-// Compiler emits this after put() when effects exist
 export const notify = (cell) => {
 	for (let i = 0; i < cell.e.length; i++) cell.e[i](cell.v);
 };

@@ -86,6 +86,7 @@ export function findGetCalls(expression) {
 /**
  * Process bindings from template extraction and generate bind() info
  * @param {Array} bindings - Bindings from jsx-to-template
+ * @param {string} code - Original source code
  * @returns {ProcessedBinding[]}
  *
  * @typedef {Object} ProcessedBinding
@@ -96,7 +97,7 @@ export function findGetCalls(expression) {
  * @property {boolean} needsTransform - Whether to transform get(cell) to v in callback
  * @property {Array} contentParts - Array of content parts (static/dynamic) for concatenated text
  */
-export function processBindings(bindings) {
+export function processBindings(bindings, code) {
 	const processed = [];
 
 	for (const binding of bindings) {
@@ -135,18 +136,17 @@ export function processBindings(bindings) {
 			}
 
 			// Create a binding for each unique cell
-			// Track cells we've already created bindings for
+			// Track cells we've already created bindings for (by cell code, not position)
 			const seenCells = new Set();
 
 			for (const getCall of allGetCalls) {
-				// Create a unique key for this cell
-				const cellKey = JSON.stringify({
-					start: getCall.cellArg.start,
-					end: getCall.cellArg.end,
-				});
+				// Create a unique key for this cell based on its code representation
+				// Use the actual cell code (e.g., "a", "row.label") not position,
+				// since the same cell may appear multiple times at different positions
+				const cellCode = code.slice(getCall.cellArg.start, getCall.cellArg.end);
 
-				if (seenCells.has(cellKey)) continue;
-				seenCells.add(cellKey);
+				if (seenCells.has(cellCode)) continue;
+				seenCells.add(cellCode);
 
 				processed.push({
 					targetVar: textVarName,

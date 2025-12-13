@@ -37,6 +37,12 @@ export function put<T>(cell: Cell<T>, value: T): void;
 export function set<T>(cell: Cell<T>, value: T): void;
 
 /**
+ * Set a cell's value with batching support
+ * When batching, defers notification until batch completes
+ */
+export function set_with_batch<T>(cell: Cell<T>, value: T): void;
+
+/**
  * Bind an effect function to a cell
  * @returns Unsubscribe function
  */

@@ -1,5 +1,5 @@
 {
-  "name": "rift-js-benchmark",
+  "name": "rift-hello-world",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,11 +12,6 @@
     "rift-js": "workspace:*"
   },
   "devDependencies": {
-    "@babel/generator": "^7.28.5",
-    "@babel/parser": "^7.28.5",
-    "@babel/traverse": "^7.28.5",
-    "@babel/types": "^7.28.5",
-    "magic-string": "^0.30.21",
     "rift-vite-plugin": "workspace:*",
     "vite": "npm:rolldown-vite@7.2.5"
   },
