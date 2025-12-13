@@ -9,13 +9,26 @@ export function defineComponent(tagName, fn) {
 	customElements.define(
 		tagName,
 		class extends HTMLElement {
-			_connectedCallback;
+			_connectedCallbacks = [];
+			_disconnectedCallbacks = [];
+			_abortController;
 			connectedCallback() {
+				this._abortController = new AbortController();
 				fn.call(this);
-				if (this._connectedCallback) this._connectedCallback();
+				if (this._connectedCallbacks) for (const cb of this._connectedCallbacks) cb();
+			}
+			disconnectedCallback() {
+				if (this._disconnectedCallbacks) for (const cb of this._disconnectedCallbacks) cb();
+				this._abortController.abort();
 			}
 			connected(fn) {
-				this._connectedCallback = fn;
+				this._connectedCallbacks.push(fn);
+			}
+			disconnected(fn) {
+				this._disconnectedCallbacks.push(fn);
+			}
+			on(eventName, handler) {
+				this.addEventListener(eventName, handler, { signal: this._abortController.signal });
 			}
 		}
 	);
