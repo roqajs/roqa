@@ -76,14 +76,25 @@ export class VariableNameGenerator {
 	}
 
 	/**
+	 * Sanitize a tag name to be a valid JavaScript identifier
+	 * @param {string} tagName - The HTML tag name (may contain hyphens for custom elements)
+	 * @returns {string}
+	 */
+	sanitizeTagName(tagName) {
+		// Replace hyphens with underscores to make valid JS identifiers
+		return tagName.replace(/-/g, '_');
+	}
+
+	/**
 	 * Generate a unique variable name for an element type
 	 * @param {string} tagName - The HTML tag name
 	 * @returns {string}
 	 */
 	generate(tagName) {
-		const current = this.counters.get(tagName) || 0;
-		this.counters.set(tagName, current + 1);
-		return `${tagName}_${current + 1}`;
+		const sanitized = this.sanitizeTagName(tagName);
+		const current = this.counters.get(sanitized) || 0;
+		this.counters.set(sanitized, current + 1);
+		return `${sanitized}_${current + 1}`;
 	}
 
 	/**
