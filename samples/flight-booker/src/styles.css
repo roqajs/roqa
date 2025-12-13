@@ -1,0 +1,47 @@
+* {
+	box-sizing: border-box;
+}
+body {
+	font-family: system-ui, sans-serif;
+	font-weight: 500;
+	display: grid;
+	place-content: center;
+	height: 100vh;
+	margin: 0;
+	padding: 0;
+}
+flight-booker {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	width: 335px;
+}
+flight-booker select,
+flight-booker input,
+flight-booker button {
+	border: solid 2px black;
+	border-radius: 6px;
+	padding: 6px 10px;
+	font: inherit;
+}
+flight-booker button:hover,
+flight-booker button:active {
+	cursor: pointer;
+	background-color: #e6e6e6;
+}
+flight-booker button:disabled,
+flight-booker input:disabled {
+	cursor: not-allowed;
+}
+flight-booker .error {
+	display: none;
+	color: #ececec;
+	background-color: rgb(183, 19, 19);
+	border: solid 2px rgb(101, 26, 26);
+	border-radius: 8px;
+	padding: 6px 10px;
+	margin: 10px 0 0 0;
+}
+flight-booker .error.visible {
+	display: block;
+}
