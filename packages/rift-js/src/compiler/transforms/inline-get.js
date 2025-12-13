@@ -15,12 +15,98 @@ const traverse = _traverse.default || _traverse;
  * 3. At set() locations, inline the callback body with element vars replaced by cell.ref_N
  *
  * Transforms:
- *   get(cell) -> cell.v
+ *   get(cell) -> cell.v (or inlined function body for derived cells)
  *   cell(value) -> { v: value, e: [] }
+ *   cell(() => expr) -> { v: () => expr, e: [] } (derived cell - function stored)
  *   put(cell, value) -> cell.v = value
  *   set(cell, value) -> { cell.v = value; <inlined callback bodies> }
  *   bind(cell, callback) -> cell.ref_N = element; (callback inlined at set() locations)
  */
+
+/**
+ * Map to track derived cells: cellName -> { body: string, dependencies: string[] }
+ * body is the function body code (with get() already transformed to .v)
+ * dependencies is an array of cell names this derived cell depends on (direct dependencies only)
+ */
+const derivedCells = new Map();
+
+/**
+ * Get the fully expanded body for a derived cell, recursively resolving any
+ * references to other derived cells.
+ * @param {string} cellName - The name of the derived cell
+ * @param {Set<string>} visited - Set of already visited cells (to prevent infinite loops)
+ * @returns {string|null} - The fully expanded body, or null if not a derived cell
+ */
+function getExpandedDerivedBody(cellName, visited = new Set()) {
+	const info = derivedCells.get(cellName);
+	if (!info) return null;
+
+	// Prevent infinite loops from circular dependencies
+	if (visited.has(cellName)) {
+		return info.body;
+	}
+	visited.add(cellName);
+
+	let expandedBody = info.body;
+
+	// Replace any references to other derived cells with their expanded bodies
+	for (const [otherCellName, otherInfo] of derivedCells) {
+		if (otherCellName === cellName) continue;
+
+		// Check if this body references the other derived cell
+		const cellRefRegex = new RegExp(`\\b${otherCellName}\\.v\\b`, 'g');
+		if (cellRefRegex.test(expandedBody)) {
+			// Recursively get the expanded body for the other cell
+			const otherExpandedBody = getExpandedDerivedBody(otherCellName, visited);
+			if (otherExpandedBody) {
+				// Replace references with the expanded body (wrapped in parens for safety)
+				expandedBody = expandedBody.replace(
+					new RegExp(`\\b${otherCellName}\\.v\\b`, 'g'),
+					`(${otherExpandedBody})`
+				);
+			}
+		}
+	}
+
+	return expandedBody;
+}
+
+/**
+ * Get all cells that transitively depend on a given cell.
+ * This includes direct dependencies and dependencies of dependencies.
+ * @param {string} cellName - The source cell name
+ * @returns {Set<string>} - Set of all derived cell names that depend on this cell
+ */
+function getTransitiveDependents(cellName) {
+	const dependents = new Set();
+
+	// Find direct dependents
+	for (const [derivedCellName, derivedInfo] of derivedCells) {
+		if (derivedInfo.dependencies.includes(cellName)) {
+			dependents.add(derivedCellName);
+		}
+	}
+
+	// Find transitive dependents (cells that depend on our direct dependents)
+	let changed = true;
+	while (changed) {
+		changed = false;
+		for (const [derivedCellName, derivedInfo] of derivedCells) {
+			if (dependents.has(derivedCellName)) continue;
+
+			// Check if this cell depends on any of our current dependents
+			for (const dep of derivedInfo.dependencies) {
+				if (dependents.has(dep)) {
+					dependents.add(derivedCellName);
+					changed = true;
+					break;
+				}
+			}
+		}
+	}
+
+	return dependents;
+}
 
 /**
  * Check if a node is a get() call
@@ -447,6 +533,9 @@ function generateRefAssignment(cellCode, elementVar, refNum) {
  * Transform all get(), cell(), put(), set(), and bind() calls
  */
 export function inlineGetCalls(code, filename) {
+	// Clear derived cells map for each file
+	derivedCells.clear();
+
 	const ast = parse(code, {
 		sourceType: 'module',
 		plugins: ['jsx'],
@@ -487,15 +576,62 @@ export function inlineGetCalls(code, filename) {
 		}
 	}
 
+	// First pass: identify derived cells (cells with arrow function arguments)
+	traverse(ast, {
+		VariableDeclarator(path) {
+			if (path.node.id.type === 'Identifier' && path.node.init && isCellCall(path.node.init)) {
+				const cellName = path.node.id.name;
+				const arg = path.node.init.arguments[0];
+
+				// Check if the argument is an arrow function or function expression
+				if (arg && (arg.type === 'ArrowFunctionExpression' || arg.type === 'FunctionExpression')) {
+					// Extract the function body and transform get() calls to .v
+					const body = arg.body;
+					let bodyCode;
+					if (body.type === 'BlockStatement') {
+						// For block bodies, we'd need to handle return statements
+						// For now, skip these complex cases
+						return;
+					} else {
+						// Expression body - inline it directly
+						bodyCode = code.slice(body.start, body.end);
+					}
+
+					// Extract dependencies from get() calls
+					const dependencies = [];
+					const getCallRegex = /\bget\(([^)]+)\)/g;
+					let match;
+					while ((match = getCallRegex.exec(bodyCode)) !== null) {
+						dependencies.push(match[1].trim());
+					}
+
+					// Transform get() calls in the body to .v access
+					const transformedBody = bodyCode.replace(/\bget\(([^)]+)\)/g, '$1.v');
+					derivedCells.set(cellName, {
+						body: transformedBody,
+						dependencies,
+					});
+				}
+			}
+		},
+		noScope: true,
+	});
+
+	// Second pass: collect all calls to transform
 	traverse(ast, {
 		CallExpression(path) {
 			if (isGetCall(path.node)) {
 				const arg = path.node.arguments[0];
 				if (arg) {
+					const argCode = code.slice(arg.start, arg.end);
+					const derivedInfo = derivedCells.get(argCode);
 					getCalls.push({
 						start: path.node.start,
 						end: path.node.end,
-						argCode: code.slice(arg.start, arg.end),
+						argCode,
+						// Check if this is a derived cell
+						isDerived: !!derivedInfo,
+						derivedBody: derivedInfo?.body || null,
 					});
 				}
 			} else if (isCellCall(path.node)) {
@@ -564,7 +700,13 @@ export function inlineGetCalls(code, filename) {
 	// Process calls
 	for (const call of allCalls) {
 		if (call.type === 'get') {
-			s.overwrite(call.start, call.end, `${call.argCode}.v`);
+			// If this is a derived cell, inline the fully expanded function body
+			if (call.isDerived) {
+				const expandedBody = getExpandedDerivedBody(call.argCode);
+				s.overwrite(call.start, call.end, `(${expandedBody})`);
+			} else {
+				s.overwrite(call.start, call.end, `${call.argCode}.v`);
+			}
 		} else if (call.type === 'cell') {
 			const argCode = call.argStart != null ? s.slice(call.argStart, call.argEnd) : 'undefined';
 			s.overwrite(call.start, call.end, `{ v: ${argCode}, e: [] }`);
@@ -669,13 +811,52 @@ export function inlineGetCalls(code, filename) {
 				return '';
 			};
 
+			// Helper to generate updates for derived cells that depend on this cell (transitively)
+			const generateDerivedCellUpdates = () => {
+				const updates = [];
+				const seenUpdates = new Set(); // Deduplicate updates
+
+				// Get ALL cells that transitively depend on the cell being set
+				const transitiveDependents = getTransitiveDependents(call.cellCode);
+
+				for (const derivedCellName of transitiveDependents) {
+					// Find refs for the derived cell to update them
+					const derivedRefInfos = refWithoutBind.get(derivedCellName);
+					if (derivedRefInfos && derivedRefInfos.length > 0) {
+						// Get the fully expanded body for this derived cell
+						const expandedBody = getExpandedDerivedBody(derivedCellName);
+
+						for (const info of derivedRefInfos) {
+							// Replace references to the derived cell with its fully expanded body
+							// e.g., "Doubled: " + doubled.v -> "Doubled: " + count.v * 2
+							// e.g., "Quadrupled: " + quadrupled.v -> "Quadrupled: " + count.v * 2 * 2
+							let updateExpr = info.updateExpr.replace(
+								new RegExp(`\\b${derivedCellName}\\.v\\b`, 'g'),
+								`(${expandedBody})`
+							);
+							const updateCode = `${derivedCellName}.ref_${info.refNum}.${info.property} = ${updateExpr};`;
+
+							// Deduplicate
+							if (!seenUpdates.has(updateCode)) {
+								seenUpdates.add(updateCode);
+								updates.push(updateCode);
+							}
+						}
+					}
+				}
+				return updates.join(' ');
+			};
+
 			// Collect all updates
 			const bindUpdates = generateBindCallbackUpdates();
 			const refUpdates = generateRefUpdates();
+			const derivedUpdates = generateDerivedCellUpdates();
 			const forBlockUpdate = call.forBlockVar ? `${call.forBlockVar}.update();` : '';
-			
+
 			// Combine all updates
-			const allUpdates = [forBlockUpdate, bindUpdates, refUpdates].filter(Boolean).join(' ');
+			const allUpdates = [forBlockUpdate, bindUpdates, refUpdates, derivedUpdates]
+				.filter(Boolean)
+				.join(' ');
 
 			if (allUpdates) {
 				s.overwrite(call.start, call.end, `{ ${c}.v = ${v}; ${allUpdates} }`);
