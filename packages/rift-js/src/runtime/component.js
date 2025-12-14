@@ -36,7 +36,6 @@ export function defineComponent(tagName, fn) {
 			_abortController;
 			connectedCallback() {
 				this._abortController = new AbortController();
-				// Get props from WeakMap
 				const props = getProps(this);
 				fn.call(this, props);
 				if (this._connectedCallbacks) for (const cb of this._connectedCallbacks) cb();

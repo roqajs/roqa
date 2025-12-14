@@ -6,6 +6,7 @@ import {
 	isJSXExpressionContainer,
 	extractJSXAttributes,
 	isForComponent,
+	isShowComponent,
 	isJSXFragment,
 } from '../parser.js';
 
@@ -137,6 +138,7 @@ export class VariableNameGenerator {
  * @property {BindingPoint[]} bindings - Dynamic binding points
  * @property {EventBinding[]} events - Event handler bindings
  * @property {ForBlock[]} forBlocks - For loop blocks
+ * @property {ShowBlock[]} showBlocks - Show conditional blocks
  */
 export function extractTemplate(
 	node,
@@ -149,7 +151,7 @@ export function extractTemplate(
 		return extractFragmentTemplate(node, registry, nameGen, isComponentRoot);
 	}
 
-	const { html, bindings, events, forBlocks, structure } = jsxToHtml(node, nameGen);
+	const { html, bindings, events, forBlocks, showBlocks, structure } = jsxToHtml(node, nameGen);
 
 	const templateInfo = registry.register(html);
 	const rootVar = nameGen.generateRoot();
@@ -164,6 +166,7 @@ export function extractTemplate(
 		bindings,
 		events,
 		forBlocks,
+		showBlocks,
 	};
 }
 
@@ -179,6 +182,7 @@ function extractFragmentTemplate(node, registry, nameGen, isComponentRoot) {
 	const bindings = [];
 	const events = [];
 	const forBlocks = [];
+	const showBlocks = [];
 	const structures = [];
 	let html = '';
 
@@ -196,7 +200,15 @@ function extractFragmentTemplate(node, registry, nameGen, isComponentRoot) {
 			}
 		} else if (isJSXElement(child)) {
 			const childPath = [childIndex];
-			const childResult = processElement(child, nameGen, bindings, events, forBlocks, childPath);
+			const childResult = processElement(
+				child,
+				nameGen,
+				bindings,
+				events,
+				forBlocks,
+				showBlocks,
+				childPath
+			);
 			html += childResult.html;
 			structures.push(childResult.structure);
 			childIndex++;
@@ -240,6 +252,7 @@ function extractFragmentTemplate(node, registry, nameGen, isComponentRoot) {
 		bindings,
 		events,
 		forBlocks,
+		showBlocks,
 	};
 }
 
@@ -303,16 +316,25 @@ function generateFragmentTraversal(structures, rootVar, isComponentRoot) {
  * Convert JSX to HTML string and collect dynamic parts
  * @param {import("@babel/types").JSXElement} node
  * @param {VariableNameGenerator} nameGen
- * @returns {{ html: string, bindings: BindingPoint[], events: EventBinding[], forBlocks: ForBlock[], structure: ElementStructure }}
+ * @returns {{ html: string, bindings: BindingPoint[], events: EventBinding[], forBlocks: ForBlock[], showBlocks: ShowBlock[], structure: ElementStructure }}
  */
 function jsxToHtml(node, nameGen) {
 	const bindings = [];
 	const events = [];
 	const forBlocks = [];
+	const showBlocks = [];
 
-	const { html, structure } = processElement(node, nameGen, bindings, events, forBlocks, []);
+	const { html, structure } = processElement(
+		node,
+		nameGen,
+		bindings,
+		events,
+		forBlocks,
+		showBlocks,
+		[]
+	);
 
-	return { html, bindings, events, forBlocks, structure };
+	return { html, bindings, events, forBlocks, showBlocks, structure };
 }
 
 /**
@@ -339,10 +361,11 @@ function jsxToHtml(node, nameGen) {
  * @param {BindingPoint[]} bindings
  * @param {EventBinding[]} events
  * @param {ForBlock[]} forBlocks
+ * @param {ShowBlock[]} showBlocks
  * @param {number[]} path - Current path in the tree (for binding locations)
  * @returns {{ html: string, structure: ElementStructure }}
  */
-function processElement(node, nameGen, bindings, events, forBlocks, path) {
+function processElement(node, nameGen, bindings, events, forBlocks, showBlocks, path) {
 	const tagName = getJSXElementName(node);
 	const varName = nameGen.generate(tagName);
 	const attrs = extractJSXAttributes(node.openingElement);
@@ -487,12 +510,24 @@ function processElement(node, nameGen, bindings, events, forBlocks, path) {
 					node: child,
 					path: [...path, structure.children.length],
 				});
+			} else if (isShowComponent(child)) {
+				// Check if it's a <Show> component
+				showBlocks.push({
+					containerVarName: varName,
+					node: child,
+					path: [...path, structure.children.length],
+				});
 			} else {
 				// Regular child element
-				const childResult = processElement(child, nameGen, bindings, events, forBlocks, [
-					...path,
-					structure.children.length,
-				]);
+				const childResult = processElement(
+					child,
+					nameGen,
+					bindings,
+					events,
+					forBlocks,
+					showBlocks,
+					[...path, structure.children.length]
+				);
 				html += childResult.html;
 				structure.children.push(childResult.structure);
 			}

@@ -15,3 +15,6 @@ export { defineComponent, setProp, getProps } from './component.js';
 
 // List rendering
 export { for_block } from './for-block.js';
+
+// Conditional rendering
+export { show_block } from './show-block.js';

@@ -10,7 +10,8 @@ import {
 	extractTemplate,
 } from './transforms/jsx-to-template.js';
 import { extractForInfo, getCallbackPreamble } from './transforms/for-transform.js';
-import { processBindings } from './transforms/bind-detector.js';
+import { extractShowInfo } from './transforms/show-transform.js';
+import { processBindings, findGetCalls } from './transforms/bind-detector.js';
 import { processEvents, generateEventAssignment } from './transforms/events.js';
 import { isJSXElement, isJSXFragment } from './parser.js';
 
@@ -182,7 +183,8 @@ function transformComponent(
 	// Pass the fragment flag so extractTemplate can handle it properly
 	const isFragment = isJSXFragment(jsxNode);
 	const templateResult = extractTemplate(jsxNode, templateRegistry, nameGen, true, isFragment);
-	const { templateVar, rootVar, traversal, bindings, events, forBlocks } = templateResult;
+	const { templateVar, rootVar, traversal, bindings, events, forBlocks, showBlocks } =
+		templateResult;
 
 	// Process bindings for bind() calls
 	const processedBindings = processBindings(bindings, code);
@@ -211,6 +213,7 @@ function transformComponent(
 		processedBindings,
 		processedEvents,
 		forBlocks,
+		showBlocks,
 		nameGen,
 		templateRegistry,
 		usedImports,
@@ -261,9 +264,9 @@ function extractForBlockVars(code, forBlocks) {
 }
 
 /**
- * Collect all variable names that are actually used by bindings, events, or for blocks
+ * Collect all variable names that are actually used by bindings, events, for blocks, or show blocks
  */
-function collectUsedVars(bindings, events, forBlocks) {
+function collectUsedVars(bindings, events, forBlocks, showBlocks = []) {
 	const used = new Set();
 
 	for (const b of bindings) {
@@ -282,6 +285,10 @@ function collectUsedVars(bindings, events, forBlocks) {
 		used.add(f.containerVarName);
 	}
 
+	for (const s of showBlocks) {
+		used.add(s.containerVarName);
+	}
+
 	return used;
 }
 
@@ -290,8 +297,11 @@ function collectUsedVars(bindings, events, forBlocks) {
  * A step is needed if:
  * 1. Its variable is directly used by a binding/event/forBlock
  * 2. Its variable is referenced by another needed step's traversal code
+ * @param {Array} traversal - Traversal steps
+ * @param {Set} usedVars - Variables that are directly used
+ * @param {Set} alreadyDeclared - Variables that have already been declared (to avoid duplicates)
  */
-function filterTraversalSteps(traversal, usedVars) {
+function filterTraversalSteps(traversal, usedVars, alreadyDeclared = new Set()) {
 	// Start with directly used vars
 	const needed = new Set(usedVars);
 
@@ -320,8 +330,8 @@ function filterTraversalSteps(traversal, usedVars) {
 		}
 	}
 
-	// Filter traversal to only needed steps
-	return traversal.filter((step) => needed.has(step.varName));
+	// Filter traversal to only needed steps, excluding already declared vars
+	return traversal.filter((step) => needed.has(step.varName) && !alreadyDeclared.has(step.varName));
 }
 
 /**
@@ -335,6 +345,7 @@ function buildConnectedBody(
 	bindings,
 	events,
 	forBlocks,
+	showBlocks,
 	nameGen,
 	templateRegistry,
 	usedImports,
@@ -379,13 +390,20 @@ function buildConnectedBody(
 	lines.push(`    this.appendChild(${rootVar});`);
 	lines.push('');
 
-	// Filter traversal to only include steps that are actually needed (excluding prop vars already declared)
-	const usedVars = collectUsedVars(otherBindings, events, forBlocks);
-	// Remove vars already declared for props
-	for (const pb of propBindings) {
-		usedVars.delete(pb.targetVar);
+	// Track which vars have already been declared (from prop bindings)
+	const alreadyDeclared = new Set();
+	if (propBindings.length > 0) {
+		// Collect all vars that were declared for prop bindings
+		const propUsedVars = new Set(propBindings.map((b) => b.targetVar));
+		const propTraversalVars = filterTraversalSteps(traversal, propUsedVars);
+		for (const step of propTraversalVars) {
+			alreadyDeclared.add(step.varName);
+		}
 	}
-	const filteredTraversal = filterTraversalSteps(traversal, usedVars);
+
+	// Filter traversal to only include steps that are actually needed (excluding prop vars already declared)
+	const usedVars = collectUsedVars(otherBindings, events, forBlocks, showBlocks);
+	const filteredTraversal = filterTraversalSteps(traversal, usedVars, alreadyDeclared);
 
 	// DOM traversal - text nodes are now regular nodes (space placeholders), not markers
 	for (const step of filteredTraversal) {
@@ -421,6 +439,21 @@ function buildConnectedBody(
 			forBlockVar
 		);
 		lines.push(forCode);
+		lines.push('');
+	}
+
+	// Process show blocks
+	for (const showBlock of showBlocks) {
+		usedImports.add('show_block');
+		const showCode = generateShowBlock(
+			code,
+			showBlock,
+			nameGen,
+			templateRegistry,
+			usedImports,
+			allEventTypes
+		);
+		lines.push(showCode);
 		lines.push('');
 	}
 
@@ -541,6 +574,166 @@ function generateForBlock(
 	lines.push(`      anchor.before(${firstElementVar});`);
 	lines.push(`      return { start: ${firstElementVar}, end: ${firstElementVar} };`);
 	lines.push(`    });`);
+
+	return lines.join('\n');
+}
+
+/**
+ * Generate code for a show_block
+ */
+function generateShowBlock(code, showBlock, nameGen, templateRegistry, usedImports, allEventTypes) {
+	const { containerVarName, node } = showBlock;
+
+	// Extract <Show> component info
+	const showInfo = extractShowInfo(node, containerVarName);
+	const { conditionExpression, bodyJSX } = showInfo;
+
+	// Detect get() calls in the condition to determine if it's simple or complex
+	const getCalls = findGetCalls(conditionExpression);
+	const isSimpleCell = getCalls.length === 1 && getCalls[0].isOnlyExpression;
+
+	// Extract template for the show body (including nested forBlocks and showBlocks)
+	const innerTemplate = extractTemplate(bodyJSX, templateRegistry, nameGen);
+	const {
+		templateVar,
+		rootVar,
+		traversal,
+		bindings,
+		events,
+		forBlocks: innerForBlocks,
+		showBlocks: innerShowBlocks,
+	} = innerTemplate;
+
+	// Process inner bindings
+	const processedBindings = processBindings(bindings, code);
+	for (const b of processedBindings) {
+		if (!b.isStatic) {
+			usedImports.add('bind');
+			usedImports.add('get');
+		}
+	}
+
+	// Process inner events
+	const processedEvents = processEvents(events);
+	for (const e of processedEvents) {
+		allEventTypes.add(e.eventName);
+	}
+
+	// Build the show_block callback body
+	const lines = [];
+
+	// Generate the condition and dependencies based on complexity
+	let conditionCode;
+	let depsCode = '';
+
+	if (isSimpleCell) {
+		// Simple case: just pass the cell directly
+		conditionCode = generateExpr(code, getCalls[0].cellArg);
+	} else if (getCalls.length > 0) {
+		// Complex expression with get() calls - pass a getter function and deps array
+		conditionCode = `() => ${generateExpr(code, conditionExpression)}`;
+		const deps = getCalls.map((gc) => generateExpr(code, gc.cellArg));
+		depsCode = `, [${deps.join(', ')}]`;
+		usedImports.add('get');
+	} else {
+		// Static expression (no get() calls) - pass the value directly
+		conditionCode = generateExpr(code, conditionExpression);
+	}
+
+	lines.push(`    show_block(${containerVarName}, ${conditionCode}, (anchor) => {`);
+	lines.push(`      const ${rootVar} = ${templateVar}();`);
+
+	// Filter traversal to only include steps that are actually needed
+	const usedVars = collectUsedVars(
+		processedBindings,
+		processedEvents,
+		innerForBlocks || [],
+		innerShowBlocks || []
+	);
+	const filteredTraversal = filterTraversalSteps(traversal, usedVars);
+
+	// For start/end tracking, we need the actual first DOM element, not the fragment
+	// If there's no traversal, we need to grab firstChild before inserting
+	let firstElementVar;
+	if (filteredTraversal.length > 0) {
+		firstElementVar = filteredTraversal[0].varName;
+	} else {
+		// No traversal - get firstChild from the fragment before it's emptied by insertion
+		firstElementVar = `${rootVar}_first`;
+		lines.push(`      const ${firstElementVar} = ${rootVar}.firstChild;`);
+	}
+	lines.push('');
+
+	// Traversal
+	for (const step of filteredTraversal) {
+		lines.push(`      const ${step.varName} = ${step.code};`);
+	}
+
+	if (filteredTraversal.length > 0) {
+		lines.push('');
+	}
+
+	// Events inside show block
+	for (const event of processedEvents) {
+		const assignment = generateEventAssignment(event, (node) => generateExpr(code, node));
+		lines.push(`      ${assignment}`);
+	}
+
+	if (processedEvents.length > 0) {
+		lines.push('');
+	}
+
+	// Process nested for blocks inside show block
+	if (innerForBlocks && innerForBlocks.length > 0) {
+		for (const forBlock of innerForBlocks) {
+			usedImports.add('for_block');
+			const forCode = generateForBlock(
+				code,
+				forBlock,
+				nameGen,
+				templateRegistry,
+				usedImports,
+				allEventTypes,
+				null // no variable capture needed inside show_block
+			);
+			// Indent the for_block code by 2 extra spaces (it's inside show_block callback)
+			lines.push(forCode.replace(/^    /gm, '      '));
+			lines.push('');
+		}
+	}
+
+	// Process nested show blocks inside show block
+	if (innerShowBlocks && innerShowBlocks.length > 0) {
+		for (const nestedShowBlock of innerShowBlocks) {
+			usedImports.add('show_block');
+			const showCode = generateShowBlock(
+				code,
+				nestedShowBlock,
+				nameGen,
+				templateRegistry,
+				usedImports,
+				allEventTypes
+			);
+			// Indent the show_block code by 2 extra spaces (it's inside show_block callback)
+			lines.push(showCode.replace(/^    /gm, '      '));
+			lines.push('');
+		}
+	}
+
+	// Track ref counts per cell for numbered refs (ref_1, ref_2, etc.)
+	const cellRefCounts = new Map();
+
+	// Bindings inside show block
+	for (const binding of processedBindings) {
+		const bindCode = generateBinding(code, binding, usedImports, null, true, cellRefCounts);
+		lines.push(`      ${bindCode}`);
+	}
+
+	// Insert before anchor and return range
+	lines.push('');
+	lines.push(`      anchor.before(${firstElementVar});`);
+	lines.push(`      return { start: ${firstElementVar}, end: ${firstElementVar} };`);
+	lines.push(`    }${depsCode});`);
 
 	return lines.join('\n');
 }

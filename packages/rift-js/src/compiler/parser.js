@@ -15,13 +15,13 @@ export function parse(code, filename) {
 }
 
 /**
- * Check if a JSX element is a control flow component (<For>)
+ * Check if a JSX element is a control flow component (<For>, <Show>)
  * @param {import("@babel/types").JSXElement} node
  * @returns {boolean}
  */
 export function isControlFlowComponent(node) {
 	const name = getJSXElementName(node);
-	return name === 'For';
+	return name === 'For' || name === 'Show';
 }
 
 /**
@@ -31,6 +31,15 @@ export function isControlFlowComponent(node) {
  */
 export function isForComponent(node) {
 	return getJSXElementName(node) === 'For';
+}
+
+/**
+ * Check if a JSX element is the <Show> component
+ * @param {import("@babel/types").JSXElement} node
+ * @returns {boolean}
+ */
+export function isShowComponent(node) {
+	return getJSXElementName(node) === 'Show';
 }
 
 /**

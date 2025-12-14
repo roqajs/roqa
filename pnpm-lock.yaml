@@ -138,6 +138,19 @@ importers:
         specifier: npm:rolldown-vite@7.2.5
         version: rolldown-vite@7.2.5(esbuild@0.25.12)
 
+  samples/hacker-news:
+    dependencies:
+      rift-js:
+        specifier: workspace:*
+        version: link:../../packages/rift-js
+    devDependencies:
+      rift-vite-plugin:
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(esbuild@0.25.12)
+
   samples/hello-world:
     dependencies:
       rift-js:
