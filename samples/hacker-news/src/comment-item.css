@@ -1,0 +1,150 @@
+comment-item {
+	display: block;
+	margin-left: 16px;
+}
+
+/* Top-level comments (depth 0) have no left margin */
+comment-page .comments-list > comment-item {
+	margin-left: 0;
+}
+
+comment-item .comment-wrapper {
+	margin-bottom: 8px;
+}
+
+comment-item .comment {
+	background: #fff;
+	border-left: 2px solid #e6e6e6;
+	padding: 8px 12px;
+	margin-bottom: 4px;
+}
+
+comment-item .comment.collapsed {
+	padding-bottom: 4px;
+}
+
+comment-item .comment.deleted {
+	color: #828282;
+	font-style: italic;
+	padding: 8px 12px;
+	border-left: 2px solid #e6e6e6;
+}
+
+comment-item .comment-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+	margin-bottom: 6px;
+}
+
+comment-item .comment-header.hidden {
+	display: none;
+}
+
+comment-item .collapse-btn {
+	background: none;
+	border: none;
+	color: #828282;
+	cursor: pointer;
+	padding: 0;
+	font-family: monospace;
+	font-size: 12px;
+}
+
+comment-item .collapse-btn:hover {
+	color: #ff6600;
+}
+
+comment-item .comment-author {
+	color: #ff6600;
+	font-weight: bold;
+}
+
+comment-item .comment-time {
+	color: #828282;
+}
+
+comment-item .child-count {
+	color: #828282;
+	display: none;
+}
+
+comment-item .child-count.visible {
+	display: inline;
+}
+
+comment-item .comment-body {
+	font-size: 14px;
+	line-height: 1.5;
+	color: #000;
+}
+
+comment-item .comment-body.hidden {
+	display: none;
+}
+
+comment-item .comment-text {
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+}
+
+comment-item .comment-text a {
+	color: #0066cc;
+	text-decoration: none;
+}
+
+comment-item .comment-text a:hover {
+	text-decoration: underline;
+}
+
+comment-item .comment-text p {
+	margin: 0 0 8px 0;
+}
+
+comment-item .comment-text p:last-child {
+	margin-bottom: 0;
+}
+
+comment-item .comment-text pre,
+comment-item .comment-text code {
+	background: #f6f6ef;
+	padding: 2px 4px;
+	font-size: 13px;
+	border-radius: 2px;
+	overflow-x: auto;
+}
+
+comment-item .comment-text pre {
+	padding: 8px;
+	margin: 8px 0;
+}
+
+comment-item .comment-text.hidden,
+comment-item span.hidden {
+	display: none;
+}
+
+comment-item .deleted-text {
+	color: #828282;
+	font-style: italic;
+}
+
+comment-item .comment-children {
+	margin-top: 4px;
+}
+
+comment-item .comment-children.hidden {
+	display: none;
+}
+
+comment-item .loading-children {
+	display: none;
+	color: #828282;
+	font-size: 12px;
+	padding: 8px 12px;
+}
+
+comment-item .loading-children.visible {
+	display: block;
+}

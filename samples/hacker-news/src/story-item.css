@@ -1,0 +1,87 @@
+story-item {
+	display: block;
+}
+
+story-item .story {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 12px 0;
+	border-bottom: 1px solid #e6e6e6;
+}
+
+story-item .rank {
+	color: #828282;
+	font-size: 14px;
+	min-width: 28px;
+	text-align: right;
+	padding-top: 2px;
+}
+
+story-item .story-content {
+	flex: 1;
+	min-width: 0;
+}
+
+story-item .story-title {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px;
+	margin-bottom: 4px;
+}
+
+story-item .title-link {
+	font-size: 15px;
+	color: #000;
+	text-decoration: none;
+	line-height: 1.4;
+}
+
+story-item .title-link:hover {
+	text-decoration: underline;
+}
+
+story-item .title-link:visited {
+	color: #828282;
+}
+
+story-item .domain {
+	font-size: 12px;
+	color: #828282;
+	flex-shrink: 0;
+}
+
+story-item .story-meta {
+	font-size: 12px;
+	color: #828282;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+}
+
+story-item .separator {
+	color: #d0d0d0;
+}
+
+story-item .score {
+	color: #828282;
+}
+
+story-item .author {
+	color: #828282;
+}
+
+story-item .time {
+	color: #828282;
+}
+
+story-item .comments {
+	color: #828282;
+	text-decoration: none;
+}
+
+story-item .comments:hover {
+	text-decoration: underline;
+}

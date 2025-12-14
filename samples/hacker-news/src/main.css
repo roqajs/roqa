@@ -1,0 +1,41 @@
+* {
+	box-sizing: border-box;
+}
+
+body {
+	font-family: Verdana, Geneva, sans-serif;
+	font-size: 14px;
+	margin: 0;
+	padding: 0;
+	background-color: #f6f6ef;
+	color: #000;
+	min-height: 100vh;
+}
+
+hacker-news {
+	display: flex;
+	flex-direction: column;
+	min-height: 100vh;
+}
+
+hacker-news main {
+	flex: 1;
+}
+
+/* View visibility */
+story-list.visible,
+comment-page.visible {
+	display: block;
+}
+
+story-list.hidden,
+comment-page.hidden {
+	display: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+	hacker-news {
+		font-size: 13px;
+	}
+}
