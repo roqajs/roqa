@@ -73,7 +73,59 @@ importers:
         specifier: npm:rolldown-vite@7.2.5
         version: rolldown-vite@7.2.5(esbuild@0.25.12)
 
-  samples/counter:
+  samples/bound-values:
+    dependencies:
+      rift-js:
+        specifier: workspace:*
+        version: link:../../packages/rift-js
+    devDependencies:
+      rift-vite-plugin:
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(esbuild@0.25.12)
+
+  samples/component-props:
+    dependencies:
+      rift-js:
+        specifier: workspace:*
+        version: link:../../packages/rift-js
+    devDependencies:
+      rift-vite-plugin:
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(esbuild@0.25.12)
+
+  samples/counter-button:
+    dependencies:
+      rift-js:
+        specifier: workspace:*
+        version: link:../../packages/rift-js
+    devDependencies:
+      rift-vite-plugin:
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(esbuild@0.25.12)
+
+  samples/derived-count:
+    dependencies:
+      rift-js:
+        specifier: workspace:*
+        version: link:../../packages/rift-js
+    devDependencies:
+      rift-vite-plugin:
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(esbuild@0.25.12)
+
+  samples/flight-booker:
     dependencies:
       rift-js:
         specifier: workspace:*
@@ -100,6 +152,45 @@ importers:
         version: rolldown-vite@7.2.5(esbuild@0.25.12)
 
   samples/js-benchmark:
+    dependencies:
+      rift-js:
+        specifier: workspace:*
+        version: link:../../packages/rift-js
+    devDependencies:
+      rift-vite-plugin:
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(esbuild@0.25.12)
+
+  samples/life-cycle:
+    dependencies:
+      rift-js:
+        specifier: workspace:*
+        version: link:../../packages/rift-js
+    devDependencies:
+      rift-vite-plugin:
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(esbuild@0.25.12)
+
+  samples/message-passing:
+    dependencies:
+      rift-js:
+        specifier: workspace:*
+        version: link:../../packages/rift-js
+    devDependencies:
+      rift-vite-plugin:
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(esbuild@0.25.12)
+
+  samples/slider-math:
     dependencies:
       rift-js:
         specifier: workspace:*

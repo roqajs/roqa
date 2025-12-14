@@ -93,9 +93,42 @@ export function handle_root_events(target: EventTarget): () => void;
 // ============================================
 
 /**
- * Define a custom element component
+ * Props object passed to component functions
  */
-export function defineComponent(tagName: string, fn: (this: HTMLElement) => void): void;
+export type ComponentProps = Record<string, unknown>;
+
+/**
+ * Component function type
+ */
+export type ComponentFunction<P extends ComponentProps = ComponentProps> = (
+	this: HTMLElement & {
+		connected(callback: () => void): void;
+		disconnected(callback: () => void): void;
+		on(eventName: string, handler: EventListener): void;
+	},
+	props: P
+) => void;
+
+/**
+ * Set a prop on an element (works before element is upgraded)
+ * Props are stored in a WeakMap and retrieved when the element connects
+ */
+export function setProp(element: Element, propName: string, value: unknown): void;
+
+/**
+ * Get all props for an element
+ */
+export function getProps(element: Element): ComponentProps;
+
+/**
+ * Define a custom element component
+ * @param tagName - The custom element tag name (must contain a hyphen)
+ * @param fn - The component function that receives props as its first argument
+ */
+export function defineComponent<P extends ComponentProps = ComponentProps>(
+	tagName: string,
+	fn: ComponentFunction<P>
+): void;
 
 // ============================================
 // List Rendering

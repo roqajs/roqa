@@ -103,6 +103,53 @@ export function processBindings(bindings, code) {
 	for (const binding of bindings) {
 		const { type, varName } = binding;
 
+		// Handle prop bindings (for custom elements)
+		if (type === 'prop') {
+			const { propName, expression, isStatic } = binding;
+
+			// Check if expression is a string literal (static prop)
+			if (isStatic || expression.type === 'StringLiteral') {
+				processed.push({
+					type: 'prop',
+					targetVar: varName,
+					propName,
+					expression: expression,
+					isStatic: true,
+				});
+				continue;
+			}
+
+			// Find get() calls in the expression
+			const getCalls = findGetCalls(expression);
+
+			if (getCalls.length === 0) {
+				// No get() calls - static expression
+				processed.push({
+					type: 'prop',
+					targetVar: varName,
+					propName,
+					fullExpression: expression,
+					isStatic: true,
+				});
+				continue;
+			}
+
+			// Reactive prop
+			for (const getCall of getCalls) {
+				processed.push({
+					type: 'prop',
+					targetVar: varName,
+					propName,
+					cellArg: getCall.cellArg,
+					fullExpression: expression,
+					needsTransform: !getCall.isOnlyExpression,
+					isStatic: false,
+					getCallNode: getCall.callNode,
+				});
+			}
+			continue;
+		}
+
 		// Handle new contentParts format for text bindings
 		if (type === 'text' && binding.contentParts) {
 			const { textVarName, contentParts } = binding;

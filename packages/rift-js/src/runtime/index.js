@@ -11,7 +11,7 @@ export { batch, set, set_with_batch } from './batch.js';
 export { delegate, handle_root_events } from './events.js';
 
 // Component definition
-export { defineComponent } from './component.js';
+export { defineComponent, setProp, getProps } from './component.js';
 
 // List rendering
 export { for_block } from './for-block.js';

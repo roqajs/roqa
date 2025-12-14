@@ -347,6 +347,9 @@ function processElement(node, nameGen, bindings, events, forBlocks, path) {
 	const varName = nameGen.generate(tagName);
 	const attrs = extractJSXAttributes(node.openingElement);
 
+	// Check if this is a custom element (contains hyphen)
+	const isCustomElement = tagName.includes('-');
+
 	let html = `<${tagName}`;
 	const structure = {
 		varName,
@@ -382,7 +385,19 @@ function processElement(node, nameGen, bindings, events, forBlocks, path) {
 			html += ` ${name}`;
 		} else if (value.type === 'StringLiteral') {
 			// Static string: class="foo"
-			html += ` ${name}="${escapeAttr(value.value)}"`;
+			if (isCustomElement && name !== 'class' && name !== 'className') {
+				// For custom elements, use setProp() to pass data
+				bindings.push({
+					type: 'prop',
+					varName,
+					propName: name,
+					expression: value,
+					path: [...path],
+					isStatic: true,
+				});
+			} else {
+				html += ` ${name}="${escapeAttr(value.value)}"`;
+			}
 		} else if (value.type === 'JSXExpressionContainer') {
 			// Dynamic expression: class={expr}
 			// Add placeholder for static attributes, bind for dynamic
@@ -392,6 +407,15 @@ function processElement(node, nameGen, bindings, events, forBlocks, path) {
 					type: 'attribute',
 					varName,
 					attrName: 'className',
+					expression: value.expression,
+					path: [...path],
+				});
+			} else if (isCustomElement) {
+				// For custom elements, use setProp() to pass data
+				bindings.push({
+					type: 'prop',
+					varName,
+					propName: name,
 					expression: value.expression,
 					path: [...path],
 				});

@@ -35,41 +35,41 @@ export function generateOutput(code, ast, filename) {
 	// Track what framework imports are needed
 	const usedImports = new Set(['defineComponent']);
 
-	// Find the component function and its JSX return
-	let componentInfo = null;
+	// Find all component functions with JSX returns
+	const componentInfos = [];
 
 	traverse(ast, {
 		FunctionDeclaration(path) {
 			const jsxReturn = findJSXReturn(path.node.body);
 			if (jsxReturn) {
-				componentInfo = {
+				componentInfos.push({
 					type: 'declaration',
 					node: path.node,
 					name: path.node.id.name,
 					jsxReturn,
 					bodyStart: path.node.body.start,
 					bodyEnd: path.node.body.end,
-				};
-				path.stop();
+					params: path.node.params,
+				});
 			}
 		},
 		FunctionExpression(path) {
-			if (componentInfo) return;
 			const jsxReturn = findJSXReturn(path.node.body);
 			if (jsxReturn) {
-				componentInfo = {
+				componentInfos.push({
 					type: 'expression',
 					node: path.node,
 					jsxReturn,
 					bodyStart: path.node.body.start,
 					bodyEnd: path.node.body.end,
-				};
+					params: path.node.params,
+				});
 			}
 		},
 		noScope: true,
 	});
 
-	if (!componentInfo) {
+	if (componentInfos.length === 0) {
 		// No JSX found, return as-is
 		return {
 			code: s.toString(),
@@ -77,17 +77,19 @@ export function generateOutput(code, ast, filename) {
 		};
 	}
 
-	// Generate the transformed code
-	const result = transformComponent(
-		code,
-		s,
-		ast,
-		componentInfo,
-		templateRegistry,
-		nameGen,
-		usedImports,
-		allEventTypes
-	);
+	// Transform all components (process in reverse order to preserve positions)
+	for (const componentInfo of componentInfos.slice().reverse()) {
+		transformComponent(
+			code,
+			s,
+			ast,
+			componentInfo,
+			templateRegistry,
+			nameGen,
+			usedImports,
+			allEventTypes
+		);
+	}
 
 	// Collect all needed imports BEFORE calling updateImports
 	// Add delegate if we have events
@@ -341,13 +343,48 @@ function buildConnectedBody(
 ) {
 	const lines = [];
 
+	// Separate prop bindings (need to be set before appendChild)
+	const propBindings = bindings.filter((b) => b.type === 'prop');
+	const otherBindings = bindings.filter((b) => b.type !== 'prop');
+
 	// Template instantiation
 	lines.push(`    const ${rootVar} = ${templateVar}();`);
+
+	// If we have prop bindings, we need to set them BEFORE appendChild
+	// This requires getting element references from the template fragment
+	if (propBindings.length > 0) {
+		// Collect used vars for props
+		const propUsedVars = new Set(propBindings.map((b) => b.targetVar));
+		// Generate traversal that works on the template fragment (before appendChild)
+		const propTraversal = filterTraversalSteps(traversal, propUsedVars);
+
+		// Generate traversal code using rootVar instead of this.firstChild
+		for (const step of propTraversal) {
+			// Replace 'this.firstChild' with rootVar.firstChild for props
+			const propCode = step.code.replace('this.firstChild', `${rootVar}.firstChild`);
+			lines.push(`    const ${step.varName} = ${propCode};`);
+		}
+
+		lines.push('');
+
+		// Set props before appendChild (using WeakMap-based setProp)
+		for (const binding of propBindings) {
+			const bindCode = generateBinding(code, binding, usedImports, null, false, null);
+			lines.push(`    ${bindCode}`);
+		}
+
+		lines.push('');
+	}
+
 	lines.push(`    this.appendChild(${rootVar});`);
 	lines.push('');
 
-	// Filter traversal to only include steps that are actually needed
-	const usedVars = collectUsedVars(bindings, events, forBlocks);
+	// Filter traversal to only include steps that are actually needed (excluding prop vars already declared)
+	const usedVars = collectUsedVars(otherBindings, events, forBlocks);
+	// Remove vars already declared for props
+	for (const pb of propBindings) {
+		usedVars.delete(pb.targetVar);
+	}
 	const filteredTraversal = filterTraversalSteps(traversal, usedVars);
 
 	// DOM traversal - text nodes are now regular nodes (space placeholders), not markers
@@ -390,8 +427,8 @@ function buildConnectedBody(
 	// Track ref counts per cell for numbered refs (ref_1, ref_2, etc.)
 	const cellRefCounts = new Map();
 
-	// Bindings
-	for (const binding of bindings) {
+	// Other bindings (non-prop)
+	for (const binding of otherBindings) {
 		const bindCode = generateBinding(code, binding, usedImports, null, false, cellRefCounts);
 		lines.push(`    ${bindCode}`);
 	}
@@ -552,6 +589,11 @@ function generateBinding(
 	insideForBlock = false,
 	cellRefCounts = null
 ) {
+	// Handle prop bindings (for custom elements)
+	if (binding.type === 'prop') {
+		return generatePropBinding(code, binding, usedImports, insideForBlock);
+	}
+
 	const {
 		targetVar,
 		targetProperty,
@@ -705,6 +747,35 @@ function escapeStringLiteral(str) {
 		.replace(/\n/g, '\\n')
 		.replace(/\r/g, '\\r')
 		.replace(/\t/g, '\\t');
+}
+
+/**
+ * Generate code for a prop binding (for custom elements)
+ */
+function generatePropBinding(code, binding, usedImports, insideForBlock = false) {
+	const { targetVar, propName, expression, fullExpression, isStatic, cellArg } = binding;
+
+	// Mark that we need setProp import
+	usedImports.add('setProp');
+
+	// Handle string literal props
+	if (expression && expression.type === 'StringLiteral') {
+		return `setProp(${targetVar}, "${propName}", "${escapeStringLiteral(expression.value)}");`;
+	}
+
+	// Get the expression to use
+	const expr = fullExpression || expression;
+
+	if (isStatic) {
+		// Static expression (no get() calls)
+		const exprCode = generateExpr(code, expr);
+		return `setProp(${targetVar}, "${propName}", ${exprCode});`;
+	}
+
+	// Reactive prop - set initial value
+	// Note: Props are passed at connection time, so we just need the initial value
+	const exprCode = generateExpr(code, expr);
+	return `setProp(${targetVar}, "${propName}", ${exprCode});`;
 }
 
 /**
