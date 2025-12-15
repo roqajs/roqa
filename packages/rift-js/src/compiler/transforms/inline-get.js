@@ -720,6 +720,7 @@ export function inlineGetCalls(code, filename) {
 			const v = call.valueStart != null ? s.slice(call.valueStart, call.valueEnd) : 'undefined';
 
 			// Helper to generate inlined updates from bind callbacks
+			// Only include callbacks that were fully inlined (have element vars)
 			const generateBindCallbackUpdates = () => {
 				let callbacks = bindCallbacks.get(call.cellCode);
 				let callbackCellCode = call.cellCode;
@@ -740,7 +741,9 @@ export function inlineGetCalls(code, filename) {
 				}
 
 				if (callbacks && callbacks.length > 0) {
-					return callbacks
+					// Filter to only include callbacks that have element vars (were fully inlined)
+					const inlinableCallbacks = callbacks.filter((cb) => cb.elementVars.length > 0);
+					return inlinableCallbacks
 						.map((cb) => {
 							let body = transformCallbackBody(
 								cb.callbackBody,
@@ -853,8 +856,21 @@ export function inlineGetCalls(code, filename) {
 			const derivedUpdates = generateDerivedCellUpdates();
 			const forBlockUpdate = call.forBlockVar ? `${call.forBlockVar}.update();` : '';
 
+			// Check if there are non-inlined bind callbacks for this cell
+			// These are callbacks without element vars that were kept as runtime bind() calls
+			let hasNonInlinedBinds = false;
+			const cellCallbacks = bindCallbacks.get(call.cellCode);
+			if (cellCallbacks) {
+				hasNonInlinedBinds = cellCallbacks.some((cb) => cb.elementVars.length === 0);
+			}
+
+			// Effect loop needed for non-inlined bind() callbacks
+			const effectLoop = hasNonInlinedBinds
+				? `for (let i = 0; i < ${c}.e.length; i++) ${c}.e[i](${c}.v);`
+				: '';
+
 			// Combine all updates
-			const allUpdates = [forBlockUpdate, bindUpdates, refUpdates, derivedUpdates]
+			const allUpdates = [forBlockUpdate, bindUpdates, refUpdates, derivedUpdates, effectLoop]
 				.filter(Boolean)
 				.join(' ');
 
@@ -886,17 +902,18 @@ export function inlineGetCalls(code, filename) {
 		if (refAssignment) {
 			s.overwrite(start, end, refAssignment);
 		} else {
-			// No element vars found - just remove the bind statement
-			// Remove the whole line including newline
-			let removeEnd = end;
-			if (code[removeEnd] === '\n') removeEnd++;
-			s.remove(start, removeEnd);
+			// No element vars found - bind() can't be fully inlined
+			// Keep the bind() call but wrap it to run immediately AND register for updates
+			// This handles complex callbacks like d3.select().call() patterns
+			// Don't remove - leave bind() in place (runtime handles immediate execution)
 		}
 	}
 
 	// Remove imports that are no longer needed
 	// Collect all imports to remove first
-	const shouldRemoveBind = bindStatementsToRemove.length > 0;
+	// Only remove bind import if ALL bind calls were fully inlined (had element vars)
+	const allBindsInlined = bindStatementsToRemove.every((b) => b.callback.elementVars.length > 0);
+	const shouldRemoveBind = bindStatementsToRemove.length > 0 && allBindsInlined;
 	const importsToActuallyRemove = importsToRemove.filter(({ name }) => {
 		return (
 			(name === 'get' && getCalls.length > 0) ||

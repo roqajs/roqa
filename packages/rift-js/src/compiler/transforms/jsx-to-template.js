@@ -20,30 +20,108 @@ import {
  */
 
 /**
+ * Set of SVG element tag names
+ */
+const SVG_ELEMENTS = new Set([
+	'svg',
+	'circle',
+	'ellipse',
+	'line',
+	'path',
+	'polygon',
+	'polyline',
+	'rect',
+	'g',
+	'defs',
+	'symbol',
+	'use',
+	'text',
+	'tspan',
+	'textPath',
+	'image',
+	'clipPath',
+	'mask',
+	'pattern',
+	'marker',
+	'linearGradient',
+	'radialGradient',
+	'stop',
+	'filter',
+	'feBlend',
+	'feColorMatrix',
+	'feComponentTransfer',
+	'feComposite',
+	'feConvolveMatrix',
+	'feDiffuseLighting',
+	'feDisplacementMap',
+	'feDistantLight',
+	'feDropShadow',
+	'feFlood',
+	'feFuncA',
+	'feFuncB',
+	'feFuncG',
+	'feFuncR',
+	'feGaussianBlur',
+	'feImage',
+	'feMerge',
+	'feMergeNode',
+	'feMorphology',
+	'feOffset',
+	'fePointLight',
+	'feSpecularLighting',
+	'feSpotLight',
+	'feTile',
+	'feTurbulence',
+	'foreignObject',
+	'animate',
+	'animateMotion',
+	'animateTransform',
+	'set',
+	'desc',
+	'metadata',
+	'title',
+	'a',
+	'switch',
+	'view',
+]);
+
+/**
+ * Check if a tag name is an SVG element
+ * @param {string} tagName
+ * @returns {boolean}
+ */
+export function isSvgElement(tagName) {
+	return SVG_ELEMENTS.has(tagName);
+}
+
+/**
  * Per-file template registry for deduplication
  */
 export class TemplateRegistry {
 	constructor() {
-		this.templates = new Map(); // html -> { id, varName }
+		this.templates = new Map(); // html -> { id, varName, isSvg }
 		this.counter = 0;
 	}
 
 	/**
 	 * Register a template and return its info
 	 * @param {string} html - The HTML string
-	 * @returns {{ id: number, varName: string, isNew: boolean }}
+	 * @param {boolean} isSvg - Whether this is an SVG template
+	 * @returns {{ id: number, varName: string, isNew: boolean, isSvg: boolean }}
 	 */
-	register(html) {
-		if (this.templates.has(html)) {
-			return { ...this.templates.get(html), isNew: false };
+	register(html, isSvg = false) {
+		const key = isSvg ? `svg:${html}` : html;
+		if (this.templates.has(key)) {
+			return { ...this.templates.get(key), isNew: false };
 		}
 
 		this.counter++;
 		const info = {
 			id: this.counter,
 			varName: `$tmpl_${this.counter}`,
+			isSvg,
 		};
-		this.templates.set(html, info);
+		this.templates.set(key, info);
 		return { ...info, isNew: true };
 	}
 
@@ -53,10 +131,23 @@ export class TemplateRegistry {
 	 */
 	getDeclarations() {
 		const declarations = [];
-		for (const [html, info] of this.templates) {
-			declarations.push(`const ${info.varName} = template('${escapeTemplateString(html)}');`);
+		for (const [key, info] of this.templates) {
+			const html = info.isSvg ? key.slice(4) : key; // Remove 'svg:' prefix if present
+			const templateFn = info.isSvg ? 'svg_template' : 'template';
+			declarations.push(`const ${info.varName} = ${templateFn}('${escapeTemplateString(html)}');`);
 		}
 		return declarations;
+	}
+
+	/**
+	 * Check if any templates use SVG
+	 * @returns {boolean}
+	 */
+	hasSvgTemplates() {
+		for (const info of this.templates.values()) {
+			if (info.isSvg) return true;
+		}
+		return false;
 	}
 }
 
@@ -153,13 +244,13 @@ export function extractTemplate(
 		return extractFragmentTemplate(node, registry, nameGen, isComponentRoot, riftComponentTags);
 	}
 
-	const { html, bindings, events, forBlocks, showBlocks, structure } = jsxToHtml(
+	const { html, bindings, events, forBlocks, showBlocks, structure, isSvg } = jsxToHtml(
 		node,
 		nameGen,
 		riftComponentTags
 	);
 
-	const templateInfo = registry.register(html);
+	const templateInfo = registry.register(html, isSvg);
 	const rootVar = nameGen.generateRoot();
 
 	// Generate traversal code
@@ -214,6 +305,9 @@ function extractFragmentTemplate(
 			}
 		} else if (isJSXElement(child)) {
 			const childPath = [childIndex];
+			// Check if this child is an SVG element (for fragment children)
+			const childTagName = getJSXElementName(child);
+			const childInSvg = isSvgElement(childTagName);
 			const childResult = processElement(
 				child,
 				nameGen,
@@ -222,7 +316,8 @@ function extractFragmentTemplate(
 				forBlocks,
 				showBlocks,
 				childPath,
-				riftComponentTags
+				riftComponentTags,
+				childInSvg
 			);
 			html += childResult.html;
 			structures.push(childResult.structure);
@@ -332,13 +427,17 @@ function generateFragmentTraversal(structures, rootVar, isComponentRoot) {
  * @param {import("@babel/types").JSXElement} node
  * @param {VariableNameGenerator} nameGen
  * @param {Set<string>} riftComponentTags - Set of tag names defined via defineComponent (Rift components)
- * @returns {{ html: string, bindings: BindingPoint[], events: EventBinding[], forBlocks: ForBlock[], showBlocks: ShowBlock[], structure: ElementStructure }}
+ * @returns {{ html: string, bindings: BindingPoint[], events: EventBinding[], forBlocks: ForBlock[], showBlocks: ShowBlock[], structure: ElementStructure, isSvg: boolean }}
  */
 function jsxToHtml(node, nameGen, riftComponentTags = new Set()) {
 	const bindings = [];
 	const events = [];
 	const forBlocks = [];
 	const showBlocks = [];
+
+	// Check if root element is an SVG element
+	const rootTagName = getJSXElementName(node);
+	const isSvg = isSvgElement(rootTagName);
 
 	const { html, structure } = processElement(
 		node,
@@ -348,10 +447,11 @@ function jsxToHtml(node, nameGen, riftComponentTags = new Set()) {
 		forBlocks,
 		showBlocks,
 		[],
-		riftComponentTags
+		riftComponentTags,
+		isSvg
 	);
 
-	return { html, bindings, events, forBlocks, showBlocks, structure };
+	return { html, bindings, events, forBlocks, showBlocks, structure, isSvg };
 }
 
 /**
@@ -381,6 +481,7 @@ function jsxToHtml(node, nameGen, riftComponentTags = new Set()) {
  * @param {ShowBlock[]} showBlocks
  * @param {number[]} path - Current path in the tree (for binding locations)
  * @param {Set<string>} riftComponentTags - Set of tag names defined via defineComponent (Rift components)
+ * @param {boolean} inSvg - Whether we're inside an SVG context
  * @returns {{ html: string, structure: ElementStructure }}
  */
 function processElement(
@@ -391,7 +492,8 @@ function processElement(
 	forBlocks,
 	showBlocks,
 	path,
-	riftComponentTags = new Set()
+	riftComponentTags = new Set(),
+	inSvg = false
 ) {
 	const tagName = getJSXElementName(node);
 	const varName = nameGen.generate(tagName);
@@ -400,6 +502,9 @@ function processElement(
 	// Check if this is a Rift-defined custom element (registered via defineComponent)
 	// Only Rift components get special prop handling; external custom elements are left alone
 	const isRiftComponent = riftComponentTags.has(tagName);
+
+	// Check if we're entering or already in SVG context
+	const isInSvgContext = inSvg || isSvgElement(tagName);
 
 	let html = `<${tagName}`;
 	const structure = {
@@ -450,6 +555,7 @@ function processElement(
 					attrName: 'className',
 					expression: value.expression,
 					path: [...path],
+					isSvg: isInSvgContext,
 				});
 			} else if (isRiftComponent) {
 				// For Rift-defined custom elements, use setProp() to pass data
@@ -467,6 +573,7 @@ function processElement(
 					attrName: name,
 					expression: value.expression,
 					path: [...path],
+					isSvg: isInSvgContext,
 				});
 			}
 		}
@@ -545,7 +652,8 @@ function processElement(
 					forBlocks,
 					showBlocks,
 					[...path, structure.children.length],
-					riftComponentTags
+					riftComponentTags,
+					isInSvgContext
 				);
 				html += childResult.html;
 				structure.children.push(childResult.structure);

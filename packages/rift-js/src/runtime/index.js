@@ -1,7 +1,7 @@
 // Barrel export for Rift framework primitives
 
 // Template
-export { template } from './template.js';
+export { template, svg_template } from './template.js';
 
 // Reactive primitives
 export { cell, get, put, bind, unbind, notify } from './cell.js';

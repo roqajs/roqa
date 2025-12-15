@@ -227,6 +227,8 @@ export function processBindings(bindings, code) {
 				isStatic: true,
 				staticPrefix: staticPrefix || '',
 				usesMarker: usesMarker || false,
+				// Pass through SVG flag for proper attribute setting
+				isSvg: binding.isSvg || false,
 			});
 			continue;
 		}
@@ -255,6 +257,8 @@ export function processBindings(bindings, code) {
 				staticPrefix: staticPrefix || '',
 				// Pass through marker flag
 				usesMarker: usesMarker || false,
+				// Pass through SVG flag for proper attribute setting
+				isSvg: binding.isSvg || false,
 			});
 		}
 	}

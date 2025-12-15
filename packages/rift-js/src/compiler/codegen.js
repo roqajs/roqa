@@ -106,6 +106,10 @@ export function generateOutput(code, ast, filename) {
 	const templateDecls = templateRegistry.getDeclarations();
 	if (templateDecls.length > 0) {
 		usedImports.add('template');
+		// Also add svg_template if any SVG templates are used
+		if (templateRegistry.hasSvgTemplates()) {
+			usedImports.add('svg_template');
+		}
 	}
 
 	// NOW update imports with the complete set
@@ -886,6 +890,7 @@ function generateBinding(
 		getCallNode,
 		staticPrefix,
 		contentParts,
+		isSvg,
 	} = binding;
 
 	// Handle new contentParts format (concatenated text content)
@@ -896,9 +901,17 @@ function generateBinding(
 	// Build prefix string if we have static text before the dynamic expression
 	const prefixCode = staticPrefix ? `"${escapeStringLiteral(staticPrefix)}" + ` : '';
 
+	// For SVG elements, use setAttribute instead of property assignment
+	// (except for className which works as a property)
+	const useSvgSetAttribute =
+		isSvg && targetProperty !== 'className' && targetProperty !== 'nodeValue';
+
 	if (isStatic) {
 		// Static assignment
 		const exprCode = generateExpr(code, fullExpression);
+		if (useSvgSetAttribute) {
+			return `${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${exprCode});`;
+		}
 		return `${targetVar}.${targetProperty} = ${prefixCode}${exprCode};`;
 	}
 
@@ -910,7 +923,8 @@ function generateBinding(
 
 	// Check if this is a simple direct binding (works for both for_block and component level)
 	// If so, we can use ref-based direct DOM updates instead of bind()
-	if (isSimpleDirectBinding(binding) && cellRefCounts) {
+	// Note: For SVG we skip ref optimization since setAttribute needs different handling
+	if (isSimpleDirectBinding(binding) && cellRefCounts && !useSvgSetAttribute) {
 		// Get or initialize the ref count for this cell
 		const currentCount = cellRefCounts.get(cellCode) || 0;
 		const refNum = currentCount + 1;
@@ -925,7 +939,7 @@ function generateBinding(
 ${indent}${cellCode}.ref_${refNum} = ${targetVar};`;
 	}
 
-	// Fall back to bind() for complex bindings
+	// Fall back to bind() for complex bindings (or SVG attributes)
 	usedImports.add('bind');
 	usedImports.add('get');
 
@@ -940,6 +954,13 @@ ${indent}${cellCode}.ref_${refNum} = ${targetVar};`;
 	}
 
 	// Set initial value AND bind for updates
+	if (useSvgSetAttribute) {
+		return `${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${initialExprCode});
+    bind(${cellCode}, (v) => {
+      ${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${bindExprCode});
+    });`;
+	}
+
 	return `${targetVar}.${targetProperty} = ${prefixCode}${initialExprCode};
     bind(${cellCode}, (v) => {
       ${targetVar}.${targetProperty} = ${prefixCode}${bindExprCode};

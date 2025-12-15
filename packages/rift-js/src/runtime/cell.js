@@ -17,8 +17,10 @@ export const put = (s, v) => {
 };
 
 // Bind an effect to a cell (for reactive DOM updates)
+// Calls the effect immediately with the current value, then on each change
 // Returns an unsubscribe function for cleanup
 export const bind = (cell, fn) => {
+	fn(cell.v); // Run immediately with current value
 	cell.e.push(fn);
 	return () => {
 		const idx = cell.e.indexOf(fn);
