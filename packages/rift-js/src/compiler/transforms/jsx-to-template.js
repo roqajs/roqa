@@ -499,6 +499,9 @@ function processElement(
 	const varName = nameGen.generate(tagName);
 	const attrs = extractJSXAttributes(node.openingElement);
 
+	// Check if this is a custom element (has hyphen in name - web component standard)
+	const isCustomElement = tagName.includes('-');
+
 	// Check if this is a Rift-defined custom element (registered via defineComponent)
 	// Only Rift components get special prop handling; external custom elements are left alone
 	const isRiftComponent = riftComponentTags.has(tagName);
@@ -565,6 +568,17 @@ function processElement(
 					propName: name,
 					expression: value.expression,
 					path: [...path],
+				});
+			} else if (isCustomElement) {
+				// For other custom elements (third-party web components),
+				// set properties directly on the element before it connects
+				bindings.push({
+					type: 'prop',
+					varName,
+					propName: name,
+					expression: value.expression,
+					path: [...path],
+					isThirdParty: true, // Mark as third-party (no WeakMap, direct property)
 				});
 			} else {
 				bindings.push({

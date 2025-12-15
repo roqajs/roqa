@@ -7,6 +7,42 @@ import { handle_root_events } from './events.js';
 // WeakMap to store props for elements before they're upgraded
 const elementProps = new WeakMap();
 
+// Set of known element property names to exclude when collecting props
+const EXCLUDED_PROPS = new Set([
+	// Standard HTMLElement properties
+	'accessKey',
+	'autocapitalize',
+	'autofocus',
+	'className',
+	'contentEditable',
+	'dir',
+	'draggable',
+	'enterKeyHint',
+	'hidden',
+	'id',
+	'inert',
+	'innerText',
+	'inputMode',
+	'lang',
+	'nonce',
+	'outerText',
+	'popover',
+	'spellcheck',
+	'style',
+	'tabIndex',
+	'title',
+	'translate',
+	// Common DOM properties
+	'innerHTML',
+	'outerHTML',
+	'textContent',
+	'nodeValue',
+	// Internal Rift properties
+	'_connectedCallbacks',
+	'_disconnectedCallbacks',
+	'_abortController',
+]);
+
 /**
  * Set a prop on an element (works before or after upgrade)
  */
@@ -21,9 +57,21 @@ export function setProp(element, propName, value) {
 
 /**
  * Get all props for an element
+ * Merges props from WeakMap with any properties set directly on the element
  */
 export function getProps(element) {
-	return elementProps.get(element) || {};
+	const weakMapProps = elementProps.get(element) || {};
+
+	// Collect own properties set directly on the element (not inherited)
+	const directProps = {};
+	for (const key of Object.keys(element)) {
+		if (!EXCLUDED_PROPS.has(key) && !key.startsWith('_')) {
+			directProps[key] = element[key];
+		}
+	}
+
+	// Direct props take precedence (they're set closer to usage time)
+	return { ...weakMapProps, ...directProps };
 }
 
 export function defineComponent(tagName, fn) {

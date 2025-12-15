@@ -1106,7 +1106,20 @@ function escapeStringLiteral(str) {
  * Generate code for a prop binding (for custom elements)
  */
 function generatePropBinding(code, binding, usedImports, insideForBlock = false) {
-	const { targetVar, propName, expression, fullExpression, isStatic, cellArg } = binding;
+	const { targetVar, propName, expression, fullExpression, isStatic, cellArg, isThirdParty } =
+		binding;
+
+	// For third-party web components, set property directly on the element
+	// For Rift components, use setProp() with WeakMap for pre-upgrade storage
+	if (isThirdParty) {
+		// Handle string literal props
+		if (expression && expression.type === 'StringLiteral') {
+			return `${targetVar}.${propName} = "${escapeStringLiteral(expression.value)}";`;
+		}
+		const expr = fullExpression || expression;
+		const exprCode = generateExpr(code, expr);
+		return `${targetVar}.${propName} = ${exprCode};`;
+	}
 
 	// Mark that we need setProp import
 	usedImports.add('setProp');
