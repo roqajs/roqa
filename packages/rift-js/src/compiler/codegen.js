@@ -36,6 +36,9 @@ export function generateOutput(code, ast, filename) {
 	// Track what framework imports are needed
 	const usedImports = new Set(['defineComponent']);
 
+	// Find all Rift-defined component tag names (from defineComponent calls)
+	const riftComponentTags = findRiftComponentTags(ast, code);
+
 	// Find all component functions with JSX returns
 	const componentInfos = [];
 
@@ -88,7 +91,8 @@ export function generateOutput(code, ast, filename) {
 			templateRegistry,
 			nameGen,
 			usedImports,
-			allEventTypes
+			allEventTypes,
+			riftComponentTags
 		);
 	}
 
@@ -162,6 +166,38 @@ function findJSXReturn(body) {
 }
 
 /**
+ * Find all Rift-defined component tag names from defineComponent calls
+ * @param {import("@babel/types").File} ast - Babel AST
+ * @param {string} code - Original source code
+ * @returns {Set<string>} Set of tag names defined via defineComponent
+ */
+function findRiftComponentTags(ast, code) {
+	const tags = new Set();
+
+	traverse(ast, {
+		CallExpression(path) {
+			const node = path.node;
+			// Check if this is a defineComponent call
+			if (
+				node.callee &&
+				node.callee.type === 'Identifier' &&
+				node.callee.name === 'defineComponent' &&
+				node.arguments.length >= 1
+			) {
+				const firstArg = node.arguments[0];
+				// Extract the tag name from the first argument (should be a string literal)
+				if (firstArg.type === 'StringLiteral') {
+					tags.add(firstArg.value);
+				}
+			}
+		},
+		noScope: true,
+	});
+
+	return tags;
+}
+
+/**
  * Transform a component function
  */
 function transformComponent(
@@ -172,7 +208,8 @@ function transformComponent(
 	templateRegistry,
 	nameGen,
 	usedImports,
-	allEventTypes
+	allEventTypes,
+	riftComponentTags
 ) {
 	const { jsxReturn, bodyStart, bodyEnd, name } = componentInfo;
 
@@ -182,7 +219,14 @@ function transformComponent(
 	// Extract template info (isComponentRoot = true for main component)
 	// Pass the fragment flag so extractTemplate can handle it properly
 	const isFragment = isJSXFragment(jsxNode);
-	const templateResult = extractTemplate(jsxNode, templateRegistry, nameGen, true, isFragment);
+	const templateResult = extractTemplate(
+		jsxNode,
+		templateRegistry,
+		nameGen,
+		true,
+		isFragment,
+		riftComponentTags
+	);
 	const { templateVar, rootVar, traversal, bindings, events, forBlocks, showBlocks } =
 		templateResult;
 

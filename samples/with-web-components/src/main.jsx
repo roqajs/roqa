@@ -13,9 +13,9 @@ function App() {
 	return (
 		<>
 			<p>Vanilla Web Component</p>
-			<vanilla-counter></vanilla-counter>
+			<vanilla-counter increment-amount="2"></vanilla-counter>
 			<p>Lit Web Component</p>
-			<lit-counter></lit-counter>
+			<lit-counter increment-amount="3"></lit-counter>
 			<p>Shoelace Web Component</p>
 			<sl-button onclick={() => (count.textContent = parseInt(count.textContent) + 1)}>
 				Increment

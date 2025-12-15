@@ -25,8 +25,10 @@ class VanillaCounter extends HTMLElement {
   }
 
   connectedCallback() {
+    this.incrementAmount = parseInt(this.getAttribute('increment-amount')) || 1;
+    
     this.shadowRoot.getElementById('increment').addEventListener('click', () => {
-      this.count++;
+      this.count += this.incrementAmount;
       this.shadowRoot.getElementById('value').textContent = this.count;
     });
   }

@@ -129,6 +129,7 @@ export class VariableNameGenerator {
  * @param {VariableNameGenerator} nameGen - Variable name generator
  * @param {boolean} isComponentRoot - If true, traversal uses 'this.firstChild' for root
  * @param {boolean} isFragment - If true, the node is a JSX fragment
+ * @param {Set<string>} riftComponentTags - Set of tag names defined via defineComponent (Rift components)
  * @returns {TemplateExtractionResult}
  *
  * @typedef {Object} TemplateExtractionResult
@@ -145,13 +146,18 @@ export function extractTemplate(
 	registry,
 	nameGen,
 	isComponentRoot = false,
-	isFragment = false
+	isFragment = false,
+	riftComponentTags = new Set()
 ) {
 	if (isFragment || isJSXFragment(node)) {
-		return extractFragmentTemplate(node, registry, nameGen, isComponentRoot);
+		return extractFragmentTemplate(node, registry, nameGen, isComponentRoot, riftComponentTags);
 	}
 
-	const { html, bindings, events, forBlocks, showBlocks, structure } = jsxToHtml(node, nameGen);
+	const { html, bindings, events, forBlocks, showBlocks, structure } = jsxToHtml(
+		node,
+		nameGen,
+		riftComponentTags
+	);
 
 	const templateInfo = registry.register(html);
 	const rootVar = nameGen.generateRoot();
@@ -176,9 +182,16 @@ export function extractTemplate(
  * @param {TemplateRegistry} registry - Template registry for deduplication
  * @param {VariableNameGenerator} nameGen - Variable name generator
  * @param {boolean} isComponentRoot - If true, traversal uses 'this.firstChild' for root
+ * @param {Set<string>} riftComponentTags - Set of tag names defined via defineComponent (Rift components)
  * @returns {TemplateExtractionResult}
  */
-function extractFragmentTemplate(node, registry, nameGen, isComponentRoot) {
+function extractFragmentTemplate(
+	node,
+	registry,
+	nameGen,
+	isComponentRoot,
+	riftComponentTags = new Set()
+) {
 	const bindings = [];
 	const events = [];
 	const forBlocks = [];
@@ -208,7 +221,8 @@ function extractFragmentTemplate(node, registry, nameGen, isComponentRoot) {
 				events,
 				forBlocks,
 				showBlocks,
-				childPath
+				childPath,
+				riftComponentTags
 			);
 			html += childResult.html;
 			structures.push(childResult.structure);
@@ -317,9 +331,10 @@ function generateFragmentTraversal(structures, rootVar, isComponentRoot) {
  * Convert JSX to HTML string and collect dynamic parts
  * @param {import("@babel/types").JSXElement} node
  * @param {VariableNameGenerator} nameGen
+ * @param {Set<string>} riftComponentTags - Set of tag names defined via defineComponent (Rift components)
  * @returns {{ html: string, bindings: BindingPoint[], events: EventBinding[], forBlocks: ForBlock[], showBlocks: ShowBlock[], structure: ElementStructure }}
  */
-function jsxToHtml(node, nameGen) {
+function jsxToHtml(node, nameGen, riftComponentTags = new Set()) {
 	const bindings = [];
 	const events = [];
 	const forBlocks = [];
@@ -332,7 +347,8 @@ function jsxToHtml(node, nameGen) {
 		events,
 		forBlocks,
 		showBlocks,
-		[]
+		[],
+		riftComponentTags
 	);
 
 	return { html, bindings, events, forBlocks, showBlocks, structure };
@@ -364,15 +380,26 @@ function jsxToHtml(node, nameGen) {
  * @param {ForBlock[]} forBlocks
  * @param {ShowBlock[]} showBlocks
  * @param {number[]} path - Current path in the tree (for binding locations)
+ * @param {Set<string>} riftComponentTags - Set of tag names defined via defineComponent (Rift components)
  * @returns {{ html: string, structure: ElementStructure }}
  */
-function processElement(node, nameGen, bindings, events, forBlocks, showBlocks, path) {
+function processElement(
+	node,
+	nameGen,
+	bindings,
+	events,
+	forBlocks,
+	showBlocks,
+	path,
+	riftComponentTags = new Set()
+) {
 	const tagName = getJSXElementName(node);
 	const varName = nameGen.generate(tagName);
 	const attrs = extractJSXAttributes(node.openingElement);
 
-	// Check if this is a custom element (contains hyphen)
-	const isCustomElement = tagName.includes('-');
+	// Check if this is a Rift-defined custom element (registered via defineComponent)
+	// Only Rift components get special prop handling; external custom elements are left alone
+	const isRiftComponent = riftComponentTags.has(tagName);
 
 	let html = `<${tagName}`;
 	const structure = {
@@ -409,19 +436,9 @@ function processElement(node, nameGen, bindings, events, forBlocks, showBlocks, 
 			html += ` ${name}`;
 		} else if (value.type === 'StringLiteral') {
 			// Static string: class="foo"
-			if (isCustomElement && name !== 'class' && name !== 'className') {
-				// For custom elements, use setProp() to pass data
-				bindings.push({
-					type: 'prop',
-					varName,
-					propName: name,
-					expression: value,
-					path: [...path],
-					isStatic: true,
-				});
-			} else {
-				html += ` ${name}="${escapeAttr(value.value)}"`;
-			}
+			// Always include static attributes in the HTML template
+			// This ensures getAttribute() works for all elements including custom elements
+			html += ` ${name}="${escapeAttr(value.value)}"`;
 		} else if (value.type === 'JSXExpressionContainer') {
 			// Dynamic expression: class={expr}
 			// Add placeholder for static attributes, bind for dynamic
@@ -434,8 +451,8 @@ function processElement(node, nameGen, bindings, events, forBlocks, showBlocks, 
 					expression: value.expression,
 					path: [...path],
 				});
-			} else if (isCustomElement) {
-				// For custom elements, use setProp() to pass data
+			} else if (isRiftComponent) {
+				// For Rift-defined custom elements, use setProp() to pass data
 				bindings.push({
 					type: 'prop',
 					varName,
@@ -527,7 +544,8 @@ function processElement(node, nameGen, bindings, events, forBlocks, showBlocks, 
 					events,
 					forBlocks,
 					showBlocks,
-					[...path, structure.children.length]
+					[...path, structure.children.length],
+					riftComponentTags
 				);
 				html += childResult.html;
 				structure.children.push(childResult.structure);
