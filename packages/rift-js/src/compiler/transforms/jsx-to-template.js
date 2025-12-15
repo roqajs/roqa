@@ -753,45 +753,16 @@ function generateTraversal(structure, rootVar, isComponentRoot = false) {
 function generateChildTraversal(structure, steps) {
 	const { varName, children, textNodes } = structure;
 
-	// Process text nodes that need variables (dynamic expressions)
-	// With the new approach, dynamic content uses a space placeholder that creates
-	// a text node at parse time - we just need to grab that firstChild text node
+	// Process text nodes that come BEFORE any child elements first
+	// These can use firstChild traversal and don't depend on element variables
 	for (let i = 0; i < textNodes.length; i++) {
 		const textNode = textNodes[i];
-		if (textNode.isDynamic) {
-			// The text node is the space placeholder - access it directly
-			if (textNode.childIndex === 0 && children.length === 0) {
-				// Text is the only/first child
-				steps.push({
-					varName: textNode.varName,
-					code: `${varName}.firstChild`,
-				});
-			} else if (textNode.childIndex === 0) {
-				// Text comes before elements
-				steps.push({
-					varName: textNode.varName,
-					code: `${varName}.firstChild`,
-				});
-			} else {
-				// Text comes after elements - traverse from last element
-				const prevChild = children[textNode.childIndex - 1];
-				if (prevChild) {
-					steps.push({
-						varName: textNode.varName,
-						code: `${prevChild.varName}.nextSibling`,
-					});
-				} else {
-					// Fallback - traverse from parent
-					let traversal = `${varName}.firstChild`;
-					for (let j = 0; j < textNode.childIndex; j++) {
-						traversal += '.nextSibling';
-					}
-					steps.push({
-						varName: textNode.varName,
-						code: traversal,
-					});
-				}
-			}
+		if (textNode.isDynamic && textNode.childIndex === 0) {
+			// Text is the first child - access it directly
+			steps.push({
+				varName: textNode.varName,
+				code: `${varName}.firstChild`,
+			});
 		}
 	}
 
@@ -828,6 +799,32 @@ function generateChildTraversal(structure, steps) {
 
 		// Recurse into this child
 		generateChildTraversal(child, steps);
+	}
+
+	// Process text nodes that come AFTER child elements
+	// These need to reference the previous element variable, which is now declared
+	for (let i = 0; i < textNodes.length; i++) {
+		const textNode = textNodes[i];
+		if (textNode.isDynamic && textNode.childIndex > 0) {
+			// Text comes after elements - traverse from last element before it
+			const prevChild = children[textNode.childIndex - 1];
+			if (prevChild) {
+				steps.push({
+					varName: textNode.varName,
+					code: `${prevChild.varName}.nextSibling`,
+				});
+			} else {
+				// Fallback - traverse from parent
+				let traversal = `${varName}.firstChild`;
+				for (let j = 0; j < textNode.childIndex; j++) {
+					traversal += '.nextSibling';
+				}
+				steps.push({
+					varName: textNode.varName,
+					code: traversal,
+				});
+			}
+		}
 	}
 }
 

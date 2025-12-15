@@ -109,15 +109,16 @@ function analyzeHandler(expression, varName, eventName, itemParam) {
  * Check if an expression is "static" - safe to extract as a parameter
  * that can be evaluated at setup time rather than click time.
  * @param {import("@babel/types").Node} node
+ * @param {Set<string>} boundParams - Parameter names bound by the arrow function
  * @returns {boolean}
  */
-function isStaticExpression(node) {
+function isStaticExpression(node, boundParams = new Set()) {
 	if (!node) return true;
 
 	switch (node.type) {
-		// Identifiers are static (they reference a variable)
+		// Identifiers are static ONLY if they are not bound parameters
 		case 'Identifier':
-			return true;
+			return !boundParams.has(node.name);
 
 		// Literals are always static
 		case 'NumericLiteral':
@@ -126,9 +127,12 @@ function isStaticExpression(node) {
 		case 'NullLiteral':
 			return true;
 
-		// Member expressions like obj.prop are static
+		// Member expressions like obj.prop are static only if obj is static
 		case 'MemberExpression':
-			return isStaticExpression(node.object) && isStaticExpression(node.property);
+			return (
+				isStaticExpression(node.object, boundParams) &&
+				isStaticExpression(node.property, boundParams)
+			);
 
 		// Function calls are NOT static - they need to be evaluated at click time
 		case 'CallExpression':
@@ -137,29 +141,31 @@ function isStaticExpression(node) {
 		// Binary/unary expressions containing calls are not static
 		case 'BinaryExpression':
 		case 'LogicalExpression':
-			return isStaticExpression(node.left) && isStaticExpression(node.right);
+			return (
+				isStaticExpression(node.left, boundParams) && isStaticExpression(node.right, boundParams)
+			);
 
 		case 'UnaryExpression':
-			return isStaticExpression(node.argument);
+			return isStaticExpression(node.argument, boundParams);
 
 		// Conditional expressions need all parts to be static
 		case 'ConditionalExpression':
 			return (
-				isStaticExpression(node.test) &&
-				isStaticExpression(node.consequent) &&
-				isStaticExpression(node.alternate)
+				isStaticExpression(node.test, boundParams) &&
+				isStaticExpression(node.consequent, boundParams) &&
+				isStaticExpression(node.alternate, boundParams)
 			);
 
 		// Array/object literals - check all elements
 		case 'ArrayExpression':
-			return node.elements.every((el) => el === null || isStaticExpression(el));
+			return node.elements.every((el) => el === null || isStaticExpression(el, boundParams));
 
 		case 'ObjectExpression':
 			return node.properties.every(
 				(prop) =>
 					prop.type === 'ObjectProperty' &&
-					isStaticExpression(prop.key) &&
-					isStaticExpression(prop.value)
+					isStaticExpression(prop.key, boundParams) &&
+					isStaticExpression(prop.value, boundParams)
 			);
 
 		// Default: not static (be conservative)
@@ -179,10 +185,19 @@ function isStaticExpression(node) {
 function analyzeArrowHandler(arrow, varName, eventName, itemParam) {
 	const body = arrow.body;
 
+	// Collect parameter names that are bound by this arrow function
+	const boundParams = new Set();
+	for (const param of arrow.params) {
+		if (param.type === 'Identifier') {
+			boundParams.add(param.name);
+		}
+	}
+
 	// Check if it's a simple call expression: () => fn(args)
 	// Transform to array format: [fn, ...args] ONLY if all args are static
+	// (don't reference arrow function parameters)
 	if (body.type === 'CallExpression' && body.callee.type === 'Identifier') {
-		const allArgsStatic = body.arguments.every((arg) => isStaticExpression(arg));
+		const allArgsStatic = body.arguments.every((arg) => isStaticExpression(arg, boundParams));
 
 		if (allArgsStatic) {
 			return {
@@ -198,6 +213,7 @@ function analyzeArrowHandler(arrow, varName, eventName, itemParam) {
 	// For more complex arrow functions, keep them as-is
 	// e.g., () => { multiple; statements; } or () => obj.method()
 	// or when arguments contain dynamic expressions like get(count) + 1
+	// or when arguments reference arrow function parameters like e.target.value
 	return {
 		varName,
 		eventName,

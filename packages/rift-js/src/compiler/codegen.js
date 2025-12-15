@@ -586,9 +586,17 @@ function generateForBlock(
 		.map((stmt) => '      ' + code.slice(stmt.start, stmt.end))
 		.join('\n');
 
-	// Extract template for the loop body
+	// Extract template for the loop body (including nested forBlocks and showBlocks)
 	const innerTemplate = extractTemplate(bodyJSX, templateRegistry, nameGen);
-	const { templateVar, rootVar, traversal, bindings, events } = innerTemplate;
+	const {
+		templateVar,
+		rootVar,
+		traversal,
+		bindings,
+		events,
+		forBlocks: innerForBlocks,
+		showBlocks: innerShowBlocks,
+	} = innerTemplate;
 
 	// Process inner bindings (these need to reference the item parameter)
 	const processedBindings = processBindings(bindings, code);
@@ -622,7 +630,12 @@ function generateForBlock(
 	lines.push('');
 
 	// Filter traversal to only include steps that are actually needed
-	const usedVars = collectUsedVars(processedBindings, processedEvents, []);
+	const usedVars = collectUsedVars(
+		processedBindings,
+		processedEvents,
+		innerForBlocks || [],
+		innerShowBlocks || []
+	);
 	const filteredTraversal = filterTraversalSteps(traversal, usedVars);
 
 	// Traversal - text nodes are now regular nodes (space placeholders), not markers
@@ -645,6 +658,43 @@ function generateForBlock(
 
 	if (processedEvents.length > 0) {
 		lines.push('');
+	}
+
+	// Process nested for blocks inside for block
+	if (innerForBlocks && innerForBlocks.length > 0) {
+		for (const nestedForBlock of innerForBlocks) {
+			usedImports.add('for_block');
+			const nestedForCode = generateForBlock(
+				code,
+				nestedForBlock,
+				nameGen,
+				templateRegistry,
+				usedImports,
+				allEventTypes,
+				null // no variable capture needed inside nested for_block
+			);
+			// Indent the for_block code by 2 extra spaces (it's inside another for_block callback)
+			lines.push(nestedForCode.replace(/^    /gm, '      '));
+			lines.push('');
+		}
+	}
+
+	// Process nested show blocks inside for block
+	if (innerShowBlocks && innerShowBlocks.length > 0) {
+		for (const nestedShowBlock of innerShowBlocks) {
+			usedImports.add('show_block');
+			const showCode = generateShowBlock(
+				code,
+				nestedShowBlock,
+				nameGen,
+				templateRegistry,
+				usedImports,
+				allEventTypes
+			);
+			// Indent the show_block code by 2 extra spaces (it's inside for_block callback)
+			lines.push(showCode.replace(/^    /gm, '      '));
+			lines.push('');
+		}
 	}
 
 	// Preamble (local variables from original callback)

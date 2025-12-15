@@ -1,0 +1,136 @@
+* {
+	box-sizing: border-box;
+}
+body {
+	font-family: system-ui, sans-serif;
+	font-weight: 500;
+	margin: 0;
+	padding: 20px;
+	min-height: 100vh;
+}
+kanban-board h1 {
+	margin: 0 0 5px 0;
+	font-size: 2rem;
+}
+kanban-board .subtitle {
+	margin: 0 0 20px 0;
+	color: #666;
+	font-size: 0.9rem;
+}
+kanban-board .add-task {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 20px;
+}
+kanban-board .add-task input {
+	flex: 1;
+	max-width: 300px;
+	padding: 10px 15px;
+	border: 2px solid #000;
+	border-radius: 8px;
+	background: #efefef;
+	color: black;
+	font-family: inherit;
+	font-size: 1rem;
+}
+kanban-board .add-task input:focus {
+	outline: none;
+	border-color: #015fcc;
+}
+kanban-board .add-task button {
+	font-family: inherit;
+	font-size: 1rem;
+	font-weight: inherit;
+	padding: 10px 20px;
+	border: 2px solid #000;
+	border-radius: 8px;
+	background: #efefef;
+	color: black;
+	cursor: pointer;
+}
+kanban-board .add-task button:hover {
+	background: #e6e6e6;
+}
+kanban-board .board {
+	display: flex;
+	gap: 20px;
+	overflow-x: auto;
+	padding-bottom: 20px;
+}
+kanban-board .column {
+	flex: 0 0 280px;
+	background: #efefef;
+	border: 2px solid #000;
+	border-radius: 12px;
+	padding: 15px;
+}
+kanban-board .column h2 {
+	margin: 0 0 5px 0;
+	font-size: 1.1rem;
+	font-weight: 600;
+}
+kanban-board .task-count {
+	font-size: 0.8rem;
+	color: #666;
+	margin-bottom: 15px;
+}
+kanban-board .tasks {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-height: 100px;
+}
+kanban-board .task {
+	background: #fff;
+	border: 2px solid #000;
+	border-radius: 8px;
+	padding: 12px;
+}
+kanban-board .task-text {
+	display: block;
+	width: 100%;
+	padding: 8px;
+	color: black;
+	font-size: 0.95rem;
+	margin-bottom: 8px;
+}
+kanban-board .task-actions {
+	display: flex;
+	gap: 5px;
+}
+kanban-board .move-btn,
+kanban-board .delete-btn {
+	font-family: inherit;
+	font-weight: inherit;
+	padding: 5px 10px;
+	border: 2px solid #000;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 0.9rem;
+	background: #efefef;
+	color: black;
+}
+kanban-board .move-btn:hover:not(:disabled) {
+	background: #e6e6e6;
+}
+kanban-board .move-btn:disabled {
+	opacity: 0.3;
+	cursor: not-allowed;
+}
+kanban-board .delete-btn {
+	margin-left: auto;
+}
+kanban-board .delete-btn:hover {
+	background: #e6e6e6;
+}
+kanban-board .stats {
+	margin-top: 20px;
+	padding: 15px;
+	background: #efefef;
+	border: 2px solid #000;
+	border-radius: 8px;
+	font-size: 0.95rem;
+}
+kanban-board .stats strong {
+	color: black;
+}

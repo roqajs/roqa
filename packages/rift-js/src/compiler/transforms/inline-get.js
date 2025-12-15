@@ -358,33 +358,44 @@ function findGetCallCells(node, code) {
 }
 
 /**
- * Find all for_block variable assignments and map cell names to for_block variable names
- * Looks for patterns like: rows_for_block = for_block(container, rows, ...)
+ * Find all for_block calls and collect:
+ * 1. Cells that are sources for for_block (need effect loop at set())
+ * 2. Variable assignments for for_block calls (for explicit .update() calls)
+ *
+ * Returns { sourceCells: Set<string>, variableMappings: Map<string, string> }
  */
-function findForBlockMappings(ast, code) {
-	const mappings = new Map();
+function findForBlockInfo(ast, code) {
+	const sourceCells = new Set();
+	const variableMappings = new Map();
 
 	traverse(ast, {
-		AssignmentExpression(path) {
+		CallExpression(path) {
 			const node = path.node;
 			if (
-				node.left.type === 'Identifier' &&
-				node.left.name.endsWith('_for_block') &&
-				node.right.type === 'CallExpression' &&
-				node.right.callee?.type === 'Identifier' &&
-				node.right.callee.name === 'for_block' &&
-				node.right.arguments.length >= 2
+				node.callee?.type === 'Identifier' &&
+				node.callee.name === 'for_block' &&
+				node.arguments.length >= 2
 			) {
-				const forBlockVarName = node.left.name;
-				const cellArg = node.right.arguments[1];
+				// Always track the source cell
+				const cellArg = node.arguments[1];
 				const cellCode = code.slice(cellArg.start, cellArg.end);
-				mappings.set(cellCode, forBlockVarName);
+				sourceCells.add(cellCode);
+
+				// Check if this is an assignment: rows_for_block = for_block(...)
+				const parent = path.parent;
+				if (
+					parent?.type === 'AssignmentExpression' &&
+					parent.left?.type === 'Identifier' &&
+					parent.left.name.endsWith('_for_block')
+				) {
+					variableMappings.set(cellCode, parent.left.name);
+				}
 			}
 		},
 		noScope: true,
 	});
 
-	return mappings;
+	return { sourceCells, variableMappings };
 }
 
 /**
@@ -543,8 +554,11 @@ export function inlineGetCalls(code, filename) {
 
 	const s = new MagicString(code);
 
-	// Find for_block mappings (cell name -> for_block variable name)
-	const forBlockMappings = findForBlockMappings(ast, code);
+	// Find for_block info (source cells and variable mappings)
+	const { sourceCells: forBlockSourceCells, variableMappings: forBlockMappings } = findForBlockInfo(
+		ast,
+		code
+	);
 
 	// Find all bind() callbacks for inlining
 	const bindCallbacks = findBindCallbacks(ast, code);
@@ -864,8 +878,31 @@ export function inlineGetCalls(code, filename) {
 				hasNonInlinedBinds = cellCallbacks.some((cb) => cb.elementVars.length === 0);
 			}
 
-			// Effect loop needed for non-inlined bind() callbacks
-			const effectLoop = hasNonInlinedBinds
+			// Check if this cell is a source for for_block (needs effect loop for runtime subscription)
+			// First check exact match
+			let isForBlockSource = forBlockSourceCells.has(call.cellCode);
+
+			// If not an exact match and this is a member expression (foo.bar), check if any
+			// for_block source has the same property name (pattern matching)
+			// e.g., todoColumn.tasks should match column.tasks
+			if (!isForBlockSource && call.cellCode.includes('.')) {
+				const callPattern = extractPropertyPattern(call.cellCode);
+				if (callPattern) {
+					for (const sourceCell of forBlockSourceCells) {
+						const sourcePattern = extractPropertyPattern(sourceCell);
+						if (sourcePattern && sourcePattern.pattern === callPattern.pattern) {
+							isForBlockSource = true;
+							break;
+						}
+					}
+				}
+			}
+
+			// Effect loop needed for:
+			// 1. Non-inlined bind() callbacks
+			// 2. Cells that are sources for for_block() (for_block subscribes via bind() at runtime)
+			const needsEffectLoop = hasNonInlinedBinds || isForBlockSource;
+			const effectLoop = needsEffectLoop
 				? `for (let i = 0; i < ${c}.e.length; i++) ${c}.e[i](${c}.v);`
 				: '';
 
