@@ -1,0 +1,26 @@
+* {
+	box-sizing: border-box;
+}
+body {
+	background: #bfe3dd;
+	font-family: system-ui, sans-serif;
+	font-weight: 500;
+	display: grid;
+	place-content: center;
+	height: 100vh;
+	margin: 0;
+	padding: 0;
+}
+#info {
+	position: absolute;
+	top: 0;
+	left: 50%;
+	transform: translateX(-50%);
+	color: #000;
+	background: rgba(255, 255, 255, 0.7);
+	padding: 10px;
+	border-radius: 8px;
+	font-size: 14px;
+	line-height: 1.4;
+	max-width: 300px;
+}
