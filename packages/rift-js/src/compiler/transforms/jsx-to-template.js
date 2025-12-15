@@ -192,10 +192,11 @@ function extractFragmentTemplate(node, registry, nameGen, isComponentRoot) {
 
 	for (const child of children) {
 		if (isJSXText(child)) {
-			// Skip whitespace-only text nodes
-			const text = child.value.replace(/\s+/g, ' ').trim();
-			if (text) {
-				// Static text between elements - add to HTML
+			// Normalize whitespace, preserve spaces between sibling elements
+			const text = child.value.replace(/\s+/g, ' ');
+			if (text && text !== ' ') {
+				// Non-whitespace text between fragment children - add to HTML
+				// (Single space-only text nodes between block elements can be dropped)
 				html += escapeHtml(text);
 			}
 		} else if (isJSXElement(child)) {
@@ -463,9 +464,9 @@ function processElement(node, nameGen, bindings, events, forBlocks, showBlocks, 
 
 	for (const child of children) {
 		if (isJSXText(child)) {
-			// Static text - normalize whitespace
+			// Static text - normalize whitespace but preserve spaces between elements
 			const text = child.value.replace(/\s+/g, ' ');
-			if (text && text !== ' ') {
+			if (text) {
 				contentParts.push({ type: 'static', value: text });
 			}
 		} else if (isJSXExpressionContainer(child)) {
@@ -494,9 +495,9 @@ function processElement(node, nameGen, bindings, events, forBlocks, showBlocks, 
 						path: [...path],
 					});
 				} else {
-					// All static - just add to HTML
+					// All static - just add to HTML (preserve whitespace between elements)
 					for (const part of contentParts) {
-						html += escapeHtml(part.value.trim());
+						html += escapeHtml(part.value);
 					}
 				}
 				contentParts.length = 0;
@@ -555,13 +556,13 @@ function processElement(node, nameGen, bindings, events, forBlocks, showBlocks, 
 				path: [...path],
 			});
 		} else {
-			// All static content - just add to HTML (trimmed)
-			const staticContent = contentParts
-				.map((p) => p.value)
-				.join('')
-				.trim();
-			if (staticContent) {
-				html += escapeHtml(staticContent);
+			// All static content - join and trim only leading/trailing whitespace
+			const staticContent = contentParts.map((p) => p.value).join('');
+			// Only trim if this is trailing content (after last element)
+			// We need to preserve internal spacing but can trim the end
+			const trimmedContent = structure.children.length > 0 ? staticContent : staticContent.trim();
+			if (trimmedContent) {
+				html += escapeHtml(trimmedContent);
 			}
 		}
 	}
