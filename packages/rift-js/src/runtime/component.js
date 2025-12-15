@@ -53,6 +53,10 @@ export function defineComponent(tagName, fn) {
 			on(eventName, handler) {
 				this.addEventListener(eventName, handler, { signal: this._abortController.signal });
 			}
+			emit(eventName, detail = undefined, options = {}) {
+				const { bubbles = true, composed = false } = options;
+				this.dispatchEvent(new CustomEvent(eventName, { detail, bubbles, composed }));
+			}
 		}
 	);
 	handle_root_events(document);

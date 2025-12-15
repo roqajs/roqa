@@ -1,39 +1,9 @@
 import { defineComponent } from 'rift-js';
+import { timeAgo } from './utils/timeAgo';
+import { getDomain } from './utils/getDomain.js';
 import './story-item.css';
 
 function StoryItem({ story, index }) {
-	const timeAgo = (timestamp) => {
-		const seconds = Math.floor(Date.now() / 1000 - timestamp);
-		if (seconds < 60) return `${seconds}s ago`;
-		const minutes = Math.floor(seconds / 60);
-		if (minutes < 60) return `${minutes}m ago`;
-		const hours = Math.floor(minutes / 60);
-		if (hours < 24) return `${hours}h ago`;
-		const days = Math.floor(hours / 24);
-		return `${days}d ago`;
-	};
-
-	const getDomain = (url) => {
-		if (!url) return '';
-		try {
-			const domain = new URL(url).hostname.replace('www.', '');
-			return domain;
-		} catch {
-			return '';
-		}
-	};
-
-	const handleCommentsClick = (e) => {
-		e.preventDefault();
-		// Dispatch custom event to parent
-		this.dispatchEvent(
-			new CustomEvent('viewcomments', {
-				bubbles: true,
-				detail: { storyId: story.id },
-			})
-		);
-	};
-
 	const storyUrl = story.url || `https://news.ycombinator.com/item?id=${story.id}`;
 	const domain = getDomain(story.url);
 	const domainDisplay = domain ? `(${domain})` : '';
@@ -55,7 +25,11 @@ function StoryItem({ story, index }) {
 					<span class="separator">|</span>
 					<span class="time">{timeAgo(story.time)}</span>
 					<span class="separator">|</span>
-					<a href="#" onclick={handleCommentsClick} class="comments">
+					<a
+						href="#"
+						onclick={() => this.emit('viewcomments', { storyId: story.id })}
+						class="comments"
+					>
 						{(story.descendants || 0) + ' comments'}
 					</a>
 				</div>

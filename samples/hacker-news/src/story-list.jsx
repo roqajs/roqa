@@ -14,13 +14,13 @@ function StoryList() {
 
 	return (
 		<section class="story-list">
-			<Show when={loading}>
+			<Show when={get(loading)}>
 				<div class="loading visible">
 					<div class="loading-spinner"></div>
 					<span>Loading stories...</span>
 				</div>
 			</Show>
-			<Show when={error}>
+			<Show when={get(error)}>
 				<div class="error visible">
 					<p>Failed to load stories. Please try again.</p>
 				</div>

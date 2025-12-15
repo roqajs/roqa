@@ -1,4 +1,6 @@
 import { defineComponent, cell, get, set } from 'rift-js';
+import { HN_API_BASE } from './feeds.js';
+import { timeAgo } from './utils/timeAgo.js';
 import './comment-item.css';
 
 function CommentItem({ comment, depth = 0 }) {
@@ -6,20 +8,6 @@ function CommentItem({ comment, depth = 0 }) {
 	const childComments = cell([]);
 	const loadingChildren = cell(false);
 	const childrenLoaded = cell(false);
-
-	const HN_API_BASE = 'https://hacker-news.firebaseio.com/v0';
-
-	const timeAgo = (timestamp) => {
-		if (!timestamp) return '';
-		const seconds = Math.floor(Date.now() / 1000 - timestamp);
-		if (seconds < 60) return `${seconds}s ago`;
-		const minutes = Math.floor(seconds / 60);
-		if (minutes < 60) return `${minutes}m ago`;
-		const hours = Math.floor(minutes / 60);
-		if (hours < 24) return `${hours}h ago`;
-		const days = Math.floor(hours / 24);
-		return `${days}d ago`;
-	};
 
 	const fetchChildComments = async () => {
 		if (!comment || !comment.kids || comment.kids.length === 0) return;
