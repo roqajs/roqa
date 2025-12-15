@@ -1,0 +1,22 @@
+* {
+	box-sizing: border-box;
+}
+body {
+	font-family: system-ui, sans-serif;
+	font-weight: 500;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100vh;
+	margin: 0;
+	padding: 0;
+}
+mouse-position {
+	background-color: #efefef;
+	border: 2px solid #000;
+	border-radius: 6px;
+	width: 80%;
+	height: 80%;
+	display: grid;
+	place-content: center;
+}
