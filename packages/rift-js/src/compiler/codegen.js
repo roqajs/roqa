@@ -233,7 +233,52 @@ function transformComponent(
 ${connectedBody}
   });`;
 
-	s.overwrite(returnStart, returnEnd, connectedCode);
+	// Ensure the generated this.connected (which appends the root template)
+	// is the first this.connected() call inside the component body. If the
+	// original source already contained one or more this.connected() calls
+	// earlier in the function, move those after our generated connected.
+	const existingConnected = [];
+
+	traverse(ast, {
+		CallExpression(path) {
+			const node = path.node;
+			if (
+				node.callee &&
+				node.callee.type === 'MemberExpression' &&
+				node.callee.object &&
+				node.callee.object.type === 'ThisExpression' &&
+				node.callee.property &&
+				node.callee.property.type === 'Identifier' &&
+				node.callee.property.name === 'connected' &&
+				node.start >= bodyStart &&
+				node.end <= bodyEnd
+			) {
+				existingConnected.push({ start: node.start, end: node.end });
+			}
+		},
+		noScope: true,
+	});
+
+	existingConnected.sort((a, b) => a.start - b.start);
+
+	const leadingConnected = existingConnected.filter((c) => c.start < returnStart);
+
+	if (leadingConnected.length > 0) {
+		const snippets = leadingConnected.map((c) => code.slice(c.start, c.end));
+
+		for (let i = leadingConnected.length - 1; i >= 0; i--) {
+			const c = leadingConnected[i];
+			s.remove(c.start, c.end);
+		}
+
+		s.overwrite(returnStart, returnEnd, '');
+
+		const insertPos = leadingConnected[0].start;
+		const combined = `${connectedCode}\n\n${snippets.join('\n\n')}`;
+		s.appendLeft(insertPos, combined);
+	} else {
+		s.overwrite(returnStart, returnEnd, connectedCode);
+	}
 
 	return { componentName: name };
 }
