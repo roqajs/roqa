@@ -5,22 +5,13 @@ function ChildComponent() {
 
 	const increment = () => {
 		set(count, get(count) + 1);
-    dispatchCount();
+		this.emit('child-count-changed', { count: get(count) });
 	};
 
 	// Attach setCount method to child-component custom element class for parent to call
 	this.setCount = (value) => {
 		set(count, value);
-    dispatchCount();
-	};
-
-  const dispatchCount = () => {
-    this.dispatchEvent(
-			new CustomEvent('child-count-changed', {
-				bubbles: true,
-				detail: { count: get(count) },
-			})
-		);
+		this.emit('child-count-changed', { count: get(count) });
 	};
 
 	return (
