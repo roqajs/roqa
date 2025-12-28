@@ -1,0 +1,397 @@
+---
+title: Component Communication
+description: Pass data between parent and child components
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Since Rift components are web components, they communicate using standard web platform patterns: props, attributes, and custom events.
+
+## Passing Props to Children
+
+### Using `setProp()`
+
+For complex data (objects, arrays, functions), use `setProp()`:
+
+```jsx
+import { defineComponent, cell, get, setProp } from 'rift-js';
+
+// Child component
+function UserCard(props) {
+  const { user, onSelect } = props;
+
+  return (
+    <div class="card" onclick={() => onSelect(user)}>
+      <h3>{user.name}</h3>
+      <p>{user.email}</p>
+    </div>
+  );
+}
+
+defineComponent('user-card', UserCard);
+
+// Parent component
+function UserList() {
+  const users = cell([
+    { id: 1, name: 'Alice', email: 'alice@example.com' },
+    { id: 2, name: 'Bob', email: 'bob@example.com' },
+  ]);
+
+  const handleSelect = (user) => {
+    console.log('Selected:', user);
+  };
+
+  this.connected(() => {
+    // Set props on each card
+    this.querySelectorAll('user-card').forEach((card, i) => {
+      setProp(card, 'user', get(users)[i]);
+      setProp(card, 'onSelect', handleSelect);
+    });
+  });
+
+  return (
+    <div>
+      <For each={users}>
+        {() => <user-card></user-card>}
+      </For>
+    </div>
+  );
+}
+
+defineComponent('user-list', UserList);
+```
+
+<Aside>
+`setProp()` stores props in a WeakMap, so they're accessible to the child before it upgrades to a custom element.
+</Aside>
+
+### Using HTML Attributes
+
+For simple string values, use regular attributes:
+
+```jsx
+// Child reads from props
+function Greeting(props) {
+  const { name, greeting = 'Hello' } = props;
+  
+  return <p>{greeting}, {name}!</p>;
+}
+
+defineComponent('my-greeting', Greeting);
+
+// Parent sets attributes
+function App() {
+  return (
+    <div>
+      <my-greeting name="Alice"></my-greeting>
+      <my-greeting name="Bob" greeting="Hi"></my-greeting>
+    </div>
+  );
+}
+```
+
+<Aside type="caution">
+HTML attributes are always strings. For numbers, booleans, or objects, use `setProp()` or parse the string in the child.
+</Aside>
+
+## Child-to-Parent Communication
+
+### Using Custom Events
+
+Children emit events, parents listen:
+
+```jsx
+// Child component
+function ColorPicker() {
+  const colors = ['red', 'green', 'blue', 'yellow'];
+
+  const selectColor = (color) => {
+    // Emit custom event with data
+    this.emit('color-change', { color });
+  };
+
+  return (
+    <div class="picker">
+      <For each={cell(colors)}>
+        {(color) => (
+          <button
+            style={`background: ${color}`}
+            onclick={() => selectColor(color)}
+          >
+            {color}
+          </button>
+        )}
+      </For>
+    </div>
+  );
+}
+
+defineComponent('color-picker', ColorPicker);
+
+// Parent component
+function App() {
+  const selectedColor = cell('none');
+
+  this.connected(() => {
+    const picker = this.querySelector('color-picker');
+    
+    picker.addEventListener('color-change', (e) => {
+      set(selectedColor, e.detail.color);
+    });
+  });
+
+  return (
+    <div>
+      <color-picker></color-picker>
+      <p style={`color: ${get(selectedColor)}`}>
+        Selected: {get(selectedColor)}
+      </p>
+    </div>
+  );
+}
+
+defineComponent('my-app', App);
+```
+
+### Using Callback Props
+
+Pass a callback function as a prop:
+
+```jsx
+// Child component
+function Counter(props) {
+  const { count, onIncrement, onDecrement } = props;
+
+  return (
+    <div>
+      <button onclick={onDecrement}>-</button>
+      <span>{count}</span>
+      <button onclick={onIncrement}>+</button>
+    </div>
+  );
+}
+
+defineComponent('my-counter', Counter);
+
+// Parent component
+function App() {
+  const count = cell(0);
+
+  this.connected(() => {
+    const counter = this.querySelector('my-counter');
+    
+    // Pass callbacks as props
+    setProp(counter, 'count', get(count));
+    setProp(counter, 'onIncrement', () => {
+      set(count, get(count) + 1);
+      setProp(counter, 'count', get(count)); // Update child
+    });
+    setProp(counter, 'onDecrement', () => {
+      set(count, get(count) - 1);
+      setProp(counter, 'count', get(count)); // Update child
+    });
+  });
+
+  return (
+    <div>
+      <my-counter></my-counter>
+      <p>Count in parent: {get(count)}</p>
+    </div>
+  );
+}
+
+defineComponent('my-app', App);
+```
+
+## Sibling Communication
+
+Siblings communicate through their shared parent:
+
+```jsx
+function App() {
+  const selectedItem = cell(null);
+
+  this.connected(() => {
+    const list = this.querySelector('item-list');
+    const details = this.querySelector('item-details');
+
+    // List emits selection
+    list.addEventListener('item-selected', (e) => {
+      set(selectedItem, e.detail.item);
+      setProp(details, 'item', e.detail.item);
+    });
+  });
+
+  return (
+    <div class="layout">
+      <item-list></item-list>
+      <item-details></item-details>
+    </div>
+  );
+}
+```
+
+## Global State Patterns
+
+For app-wide state, create a shared state module:
+
+```jsx
+// state.js
+import { cell, get, set, bind } from 'rift-js';
+
+export const user = cell(null);
+export const theme = cell('light');
+export const notifications = cell([]);
+
+export const login = (userData) => set(user, userData);
+export const logout = () => set(user, null);
+export const toggleTheme = () => 
+  set(theme, get(theme) === 'light' ? 'dark' : 'light');
+```
+
+```jsx
+// header.jsx
+import { defineComponent, get, bind } from 'rift-js';
+import { user, logout, theme, toggleTheme } from './state.js';
+
+function Header() {
+  this.connected(() => {
+    // React to external state changes
+    bind(user, (u) => {
+      // Update UI based on user state
+    });
+  });
+
+  return (
+    <header class={get(theme)}>
+      <Show when={cell(() => get(user) !== null)}>
+        <span>Welcome, {get(user)?.name}</span>
+        <button onclick={logout}>Logout</button>
+      </Show>
+      <button onclick={toggleTheme}>Toggle Theme</button>
+    </header>
+  );
+}
+
+defineComponent('app-header', Header);
+```
+
+## Reading Props with `getProps()`
+
+Use `getProps()` to read all props set on an element:
+
+```jsx
+import { defineComponent, getProps, setProp } from 'rift-js';
+
+function DebugComponent() {
+  this.connected(() => {
+    const props = getProps(this);
+    console.log('All props:', props);
+  });
+
+  return <div>Check console for props</div>;
+}
+
+defineComponent('debug-component', DebugComponent);
+
+// Usage
+const el = document.querySelector('debug-component');
+setProp(el, 'foo', 'bar');
+setProp(el, 'items', [1, 2, 3]);
+// Console: All props: { foo: 'bar', items: [1, 2, 3] }
+```
+
+## Patterns Summary
+
+| Direction | Pattern | Best For |
+|-----------|---------|----------|
+| Parent → Child | `setProp()` | Complex data, callbacks |
+| Parent → Child | HTML attributes | Simple strings |
+| Child → Parent | `this.emit()` | Notifications, actions |
+| Child → Parent | Callback props | Direct interaction |
+| Siblings | Through parent | Coordinated state |
+| Global | Shared state module | App-wide state |
+
+## Best Practices
+
+### Keep Props Minimal
+
+```jsx
+// ❌ Passing too much
+setProp(child, 'data', entireAppState);
+
+// ✅ Pass only what's needed
+setProp(child, 'user', user);
+setProp(child, 'onSave', handleSave);
+```
+
+### Use Semantic Event Names
+
+```jsx
+// ❌ Generic names
+this.emit('change', data);
+this.emit('click', item);
+
+// ✅ Semantic names
+this.emit('item-selected', { item });
+this.emit('form-submitted', { data });
+this.emit('filter-changed', { filter });
+```
+
+### Document Component APIs
+
+```jsx
+/**
+ * User Card Component
+ * 
+ * Props:
+ *   - user: { name: string, email: string }
+ *   - onSelect: (user) => void
+ * 
+ * Events:
+ *   - user-deleted: { userId: number }
+ */
+function UserCard(props) {
+  // ...
+}
+```
+
+### Clean Up Listeners
+
+```jsx
+function Parent() {
+  this.connected(() => {
+    const child = this.querySelector('child-component');
+    
+    const handler = (e) => {
+      // Handle event
+    };
+    
+    child.addEventListener('custom-event', handler);
+    
+    // Clean up is automatic with this.on(), but manual listeners need cleanup
+    this.disconnected(() => {
+      child.removeEventListener('custom-event', handler);
+    });
+  });
+}
+```
+
+Or use `this.on()` for automatic cleanup:
+
+```jsx
+function Parent() {
+  this.connected(() => {
+    // Automatically removed on disconnect
+    this.on('custom-event', (e) => {
+      // Handle event
+    });
+  });
+}
+```
+
+## Next Steps
+
+- [Batching Updates](/advanced/batching/) - Optimize multiple updates
+- [Components](/concepts/components/) - Component lifecycle hooks
+- [Event Handling](/concepts/events/) - Event patterns in depth

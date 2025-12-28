@@ -1,0 +1,220 @@
+---
+title: Quick Start
+description: Build your first Rift component in 5 minutes
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Let's build a simple counter component to understand how Rift works. This tutorial assumes you've already [installed Rift](/getting-started/installation/).
+
+## Building a Counter
+
+<Steps>
+
+1. **Create the component file**
+
+   Create a new file `src/counter.jsx`:
+
+   ```jsx
+   import { defineComponent, cell, get, set } from 'rift-js';
+
+   function Counter() {
+     // Create a reactive cell with initial value 0
+     const count = cell(0);
+
+     // Return JSX that uses the cell
+     return (
+       <div>
+         <p>Count: {get(count)}</p>
+         <button onclick={() => set(count, get(count) + 1)}>
+           Increment
+         </button>
+         <button onclick={() => set(count, get(count) - 1)}>
+           Decrement
+         </button>
+         <button onclick={() => set(count, 0)}>
+           Reset
+         </button>
+       </div>
+     );
+   }
+
+   // Register as a web component
+   defineComponent('my-counter', Counter);
+   ```
+
+2. **Use it in your HTML**
+
+   Add the component to your `index.html`:
+
+   ```html
+   <!DOCTYPE html>
+   <html lang="en">
+     <head>
+       <meta charset="UTF-8" />
+       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+       <title>Counter Example</title>
+     </head>
+     <body>
+       <my-counter></my-counter>
+       <script type="module" src="/src/counter.jsx"></script>
+     </body>
+   </html>
+   ```
+
+3. **Run the dev server**
+
+   ```bash
+   npm run dev
+   ```
+
+</Steps>
+
+You now have a working counter! Click the buttons to see the count update.
+
+## Understanding the Code
+
+Let's break down what's happening:
+
+### Importing Primitives
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+```
+
+- `defineComponent` - Registers your function as a web component
+- `cell` - Creates a reactive value container
+- `get` - Reads the current value from a cell
+- `set` - Updates a cell's value and triggers DOM updates
+
+### Creating State
+
+```jsx
+const count = cell(0);
+```
+
+This creates a **cell** - a reactive container for state. The initial value is `0`. Under the hood, Rift compiles this to a simple object:
+
+```js
+const count = { v: 0, e: [] };
+```
+
+### Reading State
+
+```jsx
+<p>Count: {get(count)}</p>
+```
+
+Use `get()` to read the current value. When this appears in JSX, Rift automatically creates a reactive binding—whenever `count` changes, this text updates.
+
+### Updating State
+
+```jsx
+<button onclick={() => set(count, get(count) + 1)}>
+```
+
+Use `set()` to update a cell's value. This:
+1. Updates the cell's value
+2. Triggers all DOM updates that depend on this cell
+
+The magic is that Rift **inlines** these updates at compile time:
+
+```js
+// What you write
+set(count, get(count) + 1)
+
+// What Rift compiles it to
+{
+  count.v = count.v + 1;
+  count.ref_1.nodeValue = 'Count: ' + count.v;
+}
+```
+
+No virtual DOM diffing, no runtime scheduler—just direct DOM manipulation.
+
+### Registering the Component
+
+```jsx
+defineComponent('my-counter', Counter);
+```
+
+This registers `Counter` as a web component with the tag name `my-counter`. You can then use `<my-counter></my-counter>` anywhere in your HTML.
+
+## Adding Styles
+
+You can add styles in several ways:
+
+### Inline Styles
+
+```jsx
+<p style="font-size: 24px; font-weight: bold;">
+  Count: {get(count)}
+</p>
+```
+
+### CSS Classes
+
+```jsx
+<p class="count-display">Count: {get(count)}</p>
+```
+
+Then add CSS in your HTML or a stylesheet:
+
+```css
+.count-display {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
+```
+
+### Importing CSS
+
+```jsx
+import './counter.css';
+import { defineComponent, cell, get, set } from 'rift-js';
+// ...
+```
+
+## Two-Way Binding
+
+Let's add an input that syncs with the counter:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function Counter() {
+  const count = cell(0);
+
+  return (
+    <div>
+      <p>Count: {get(count)}</p>
+      
+      {/* Number input bound to count */}
+      <input 
+        type="number" 
+        value={get(count)}
+        oninput={(e) => set(count, parseInt(e.target.value) || 0)} 
+      />
+      
+      <button onclick={() => set(count, get(count) + 1)}>
+        +1
+      </button>
+    </div>
+  );
+}
+
+defineComponent('my-counter', Counter);
+```
+
+Now the input and buttons stay in sync—change one, and the other updates.
+
+## Next Steps
+
+You've learned the basics! Here's where to go next:
+
+- [Reactive Cells](/concepts/reactive-cells/) - Deep dive into `cell`, `get`, `set`, and `bind`
+- [Derived Values](/concepts/derived-values/) - Compute values that update automatically
+- [Components](/concepts/components/) - Learn about lifecycle hooks and component patterns
+- [Lists with For](/concepts/lists/) - Render dynamic lists efficiently
+- [Examples](/examples/) - See more complete examples

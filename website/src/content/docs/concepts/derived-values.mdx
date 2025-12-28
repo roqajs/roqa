@@ -1,0 +1,306 @@
+---
+title: Derived Values
+description: Create computed values that update automatically when dependencies change
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Derived cells let you compute values based on other cells. When any dependency changes, the derived value updates automatically.
+
+## Creating Derived Cells
+
+Pass a function to `cell()` to create a derived cell:
+
+```jsx
+import { cell, get, set } from 'rift-js';
+
+const firstName = cell('John');
+const lastName = cell('Doe');
+
+// Derived cell - recomputes when firstName or lastName changes
+const fullName = cell(() => `${get(firstName)} ${get(lastName)}`);
+
+console.log(get(fullName)); // "John Doe"
+
+set(firstName, 'Jane');
+console.log(get(fullName)); // "Jane Doe"
+```
+
+<Aside>
+Derived cells are **lazy** - they only recompute when you read them after a dependency has changed.
+</Aside>
+
+## How It Works
+
+When you create a derived cell with a function:
+
+1. Rift tracks which cells are read (via `get()`) during computation
+2. When any tracked cell changes, the derived value is marked stale
+3. Next time you read it, the function re-runs
+
+```jsx
+const items = cell([1, 2, 3, 4, 5]);
+
+// Derived from items
+const count = cell(() => get(items).length);
+const sum = cell(() => get(items).reduce((a, b) => a + b, 0));
+const average = cell(() => get(sum) / get(count));
+
+console.log(get(count));   // 5
+console.log(get(sum));     // 15
+console.log(get(average)); // 3
+
+set(items, [1, 2, 3]);
+
+console.log(get(count));   // 3
+console.log(get(sum));     // 6
+console.log(get(average)); // 2
+```
+
+## Common Patterns
+
+### Filtered Lists
+
+```jsx
+const todos = cell([
+  { text: 'Learn Rift', done: true },
+  { text: 'Build app', done: false },
+  { text: 'Deploy', done: false },
+]);
+
+const filter = cell('all'); // 'all' | 'active' | 'completed'
+
+const filteredTodos = cell(() => {
+  const f = get(filter);
+  const list = get(todos);
+  
+  switch (f) {
+    case 'active':
+      return list.filter(t => !t.done);
+    case 'completed':
+      return list.filter(t => t.done);
+    default:
+      return list;
+  }
+});
+```
+
+### Formatted Values
+
+```jsx
+const price = cell(1999);
+const currency = cell('USD');
+
+const formattedPrice = cell(() => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: get(currency),
+  }).format(get(price) / 100);
+});
+
+console.log(get(formattedPrice)); // "$19.99"
+```
+
+### Validation
+
+```jsx
+const email = cell('');
+const password = cell('');
+
+const emailError = cell(() => {
+  const e = get(email);
+  if (!e) return 'Email is required';
+  if (!e.includes('@')) return 'Invalid email';
+  return '';
+});
+
+const passwordError = cell(() => {
+  const p = get(password);
+  if (!p) return 'Password is required';
+  if (p.length < 8) return 'Password must be at least 8 characters';
+  return '';
+});
+
+const isValid = cell(() => {
+  return !get(emailError) && !get(passwordError);
+});
+```
+
+### Chained Derivations
+
+Derived cells can depend on other derived cells:
+
+```jsx
+const items = cell([10, 20, 30]);
+
+// First level
+const count = cell(() => get(items).length);
+const sum = cell(() => get(items).reduce((a, b) => a + b, 0));
+
+// Second level - depends on other derived cells
+const average = cell(() => {
+  const c = get(count);
+  return c > 0 ? get(sum) / c : 0;
+});
+
+// Third level
+const aboveAverage = cell(() => {
+  const avg = get(average);
+  return get(items).filter(x => x > avg);
+});
+```
+
+## Using Derived Cells in JSX
+
+Derived cells work just like regular cells in JSX:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function TodoStats() {
+  const todos = cell([
+    { text: 'Learn Rift', done: true },
+    { text: 'Build app', done: false },
+  ]);
+
+  const total = cell(() => get(todos).length);
+  const completed = cell(() => get(todos).filter(t => t.done).length);
+  const remaining = cell(() => get(total) - get(completed));
+
+  return (
+    <div>
+      <p>Total: {get(total)}</p>
+      <p>Completed: {get(completed)}</p>
+      <p>Remaining: {get(remaining)}</p>
+    </div>
+  );
+}
+
+defineComponent('todo-stats', TodoStats);
+```
+
+## Derived vs Manual Sync
+
+### ❌ Manual Synchronization
+
+```jsx
+const items = cell([]);
+const count = cell(0);
+
+const addItem = (item) => {
+  set(items, [...get(items), item]);
+  set(count, get(items).length); // Easy to forget!
+};
+
+const removeItem = (index) => {
+  const newItems = get(items).filter((_, i) => i !== index);
+  set(items, newItems);
+  set(count, newItems.length); // Have to update both!
+};
+```
+
+Problems:
+- Easy to forget updating `count`
+- Multiple `set()` calls = multiple updates
+- More code to maintain
+
+### ✅ Derived Cell
+
+```jsx
+const items = cell([]);
+const count = cell(() => get(items).length); // Always correct!
+
+const addItem = (item) => {
+  set(items, [...get(items), item]);
+  // count updates automatically
+};
+
+const removeItem = (index) => {
+  set(items, get(items).filter((_, i) => i !== index));
+  // count updates automatically
+};
+```
+
+Benefits:
+- Always in sync
+- Single source of truth
+- Less code
+
+## Performance Considerations
+
+### Expensive Computations
+
+For expensive computations, the lazy evaluation helps—the function only runs when you actually read the value:
+
+```jsx
+const largeDataset = cell([/* thousands of items */]);
+
+// This doesn't run until get() is called
+const processed = cell(() => {
+  return get(largeDataset)
+    .filter(/* ... */)
+    .map(/* ... */)
+    .sort(/* ... */);
+});
+
+// Only now does the computation run
+console.log(get(processed));
+```
+
+### Memoization
+
+If you need to avoid recomputation even when dependencies haven't changed, you can implement manual memoization:
+
+```jsx
+let cachedResult = null;
+let cachedInput = null;
+
+const expensiveComputed = cell(() => {
+  const input = get(someCell);
+  
+  // Return cached if input hasn't changed
+  if (input === cachedInput && cachedResult !== null) {
+    return cachedResult;
+  }
+  
+  cachedInput = input;
+  cachedResult = expensiveOperation(input);
+  return cachedResult;
+});
+```
+
+<Aside type="tip">
+In most cases, the built-in lazy evaluation is sufficient. Only add manual memoization if you've identified a performance bottleneck.
+</Aside>
+
+## Limitations
+
+### No Circular Dependencies
+
+Derived cells cannot have circular dependencies:
+
+```jsx
+// ❌ This will cause infinite recursion
+const a = cell(() => get(b) + 1);
+const b = cell(() => get(a) + 1);
+```
+
+### Read-Only
+
+Derived cells are read-only—you cannot `set()` them:
+
+```jsx
+const count = cell(() => get(items).length);
+
+// ❌ This won't work as expected
+set(count, 10); // Don't do this!
+
+// ✅ Update the source instead
+set(items, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+```
+
+## Next Steps
+
+- [Components](/concepts/components/) - Use derived cells in web components
+- [Lists with For](/concepts/lists/) - Efficiently render derived lists
+- [Batching Updates](/advanced/batching/) - Optimize multiple updates

@@ -1,0 +1,191 @@
+---
+title: Installation
+description: Set up Rift in your project with the Vite plugin
+---
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+Rift uses a Vite plugin to compile JSX files at build time. This guide will walk you through setting up a new Rift project.
+
+## Quick Setup
+
+<Steps>
+
+1. **Create a new project directory**
+
+   ```bash
+   mkdir my-rift-app
+   cd my-rift-app
+   ```
+
+2. **Initialize your package.json**
+
+   ```bash
+   npm init -y
+   ```
+
+3. **Install dependencies**
+
+   <Tabs>
+     <TabItem label="npm">
+       ```bash
+       npm install rift-js vite-plugin-rift vite
+       ```
+     </TabItem>
+     <TabItem label="pnpm">
+       ```bash
+       pnpm add rift-js vite-plugin-rift vite
+       ```
+     </TabItem>
+     <TabItem label="yarn">
+       ```bash
+       yarn add rift-js vite-plugin-rift vite
+       ```
+     </TabItem>
+   </Tabs>
+
+4. **Create a Vite config file**
+
+   Create `vite.config.js` in your project root:
+
+   ```js
+   import { defineConfig } from 'vite';
+   import rift from 'vite-plugin-rift';
+
+   export default defineConfig({
+     plugins: [rift()],
+   });
+   ```
+
+5. **Create your project structure**
+
+   ```
+   my-rift-app/
+   ├── index.html
+   ├── package.json
+   ├── vite.config.js
+   └── src/
+       └── main.jsx
+   ```
+
+6. **Create index.html**
+
+   ```html
+   <!DOCTYPE html>
+   <html lang="en">
+     <head>
+       <meta charset="UTF-8" />
+       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+       <title>My Rift App</title>
+     </head>
+     <body>
+       <my-app></my-app>
+       <script type="module" src="/src/main.jsx"></script>
+     </body>
+   </html>
+   ```
+
+7. **Create your first component**
+
+   Create `src/main.jsx`:
+
+   ```jsx
+   import { defineComponent, cell, get, set } from 'rift-js';
+
+   function App() {
+     const message = cell('Hello, Rift!');
+
+     return (
+       <div>
+         <h1>{get(message)}</h1>
+         <input 
+           type="text" 
+           value={get(message)}
+           oninput={(e) => set(message, e.target.value)} 
+         />
+       </div>
+     );
+   }
+
+   defineComponent('my-app', App);
+   ```
+
+8. **Add scripts to package.json**
+
+   ```json
+   {
+     "scripts": {
+       "dev": "vite",
+       "build": "vite build",
+       "preview": "vite preview"
+     }
+   }
+   ```
+
+9. **Start the dev server**
+
+   ```bash
+   npm run dev
+   ```
+
+</Steps>
+
+Your Rift app is now running! Open your browser to the URL shown in the terminal (usually `http://localhost:5173`).
+
+## Project Structure
+
+A typical Rift project looks like this:
+
+```
+my-rift-app/
+├── index.html          # Entry HTML file
+├── package.json
+├── vite.config.js      # Vite configuration with Rift plugin
+├── src/
+│   ├── main.jsx        # Main entry point
+│   ├── components/     # Your components
+│   │   ├── header.jsx
+│   │   ├── footer.jsx
+│   │   └── ...
+│   └── styles/         # CSS files
+│       └── app.css
+└── public/             # Static assets
+    └── ...
+```
+
+## TypeScript Support
+
+Rift includes TypeScript type definitions. To use TypeScript:
+
+1. **Install TypeScript**
+
+   ```bash
+   npm install -D typescript
+   ```
+
+2. **Create tsconfig.json**
+
+   ```json
+   {
+     "compilerOptions": {
+       "target": "ESNext",
+       "module": "ESNext",
+       "moduleResolution": "bundler",
+       "jsx": "preserve",
+       "jsxImportSource": "rift-js",
+       "strict": true,
+       "noEmit": true
+     },
+     "include": ["src"]
+   }
+   ```
+
+3. **Rename your files** from `.jsx` to `.tsx`
+
+## What's Next?
+
+Now that you have Rift installed, learn how to build your first component:
+
+- [Quick Start](/getting-started/quick-start/) - Build a counter in 5 minutes
+- [Reactive Cells](/concepts/reactive-cells/) - Understand the core primitive
+- [Components](/concepts/components/) - Learn about web components in Rift

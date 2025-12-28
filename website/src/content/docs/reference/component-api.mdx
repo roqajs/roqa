@@ -1,0 +1,443 @@
+---
+title: Component API
+description: Reference for the component context (this) in Rift components
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+When you define a Rift component, the function receives a special `this` context that provides lifecycle hooks and utility methods. This page documents the complete component API.
+
+## Component Structure
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function MyComponent(props) {
+  // 'this' is the component context
+  // props contains data passed to the component
+  
+  // Create state
+  const state = cell('initial');
+  
+  // Register lifecycle hooks
+  this.connected(() => { /* ... */ });
+  this.disconnected(() => { /* ... */ });
+  
+  // Return JSX
+  return <div>{get(state)}</div>;
+}
+
+defineComponent('my-component', MyComponent);
+```
+
+---
+
+## Lifecycle Hooks
+
+### `this.connected(callback)`
+
+Registers a callback that runs when the component is added to the DOM.
+
+```ts
+this.connected(callback: () => void): void
+```
+
+**When it runs:**
+- After the component is inserted into the document
+- After the component's DOM has been rendered
+
+**Use cases:**
+- Starting timers or intervals
+- Fetching initial data
+- Setting up subscriptions
+- Accessing rendered DOM nodes
+
+**Example:**
+
+```jsx
+function DataLoader() {
+  const data = cell(null);
+  const loading = cell(true);
+
+  this.connected(() => {
+    // Fetch data when mounted
+    fetch('/api/data')
+      .then(res => res.json())
+      .then(d => {
+        set(data, d);
+        set(loading, false);
+      });
+  });
+
+  return (
+    <div>
+      {get(loading) ? 'Loading...' : JSON.stringify(get(data))}
+    </div>
+  );
+}
+```
+
+---
+
+### `this.disconnected(callback)`
+
+Registers a callback that runs when the component is removed from the DOM.
+
+```ts
+this.disconnected(callback: () => void): void
+```
+
+**When it runs:**
+- When the component is removed from the document
+- Before the component is garbage collected
+
+**Use cases:**
+- Clearing timers or intervals
+- Canceling pending requests
+- Removing global event listeners
+- Cleaning up subscriptions
+
+**Example:**
+
+```jsx
+function Timer() {
+  const seconds = cell(0);
+  let intervalId;
+
+  this.connected(() => {
+    intervalId = setInterval(() => {
+      set(seconds, get(seconds) + 1);
+    }, 1000);
+  });
+
+  this.disconnected(() => {
+    clearInterval(intervalId);
+  });
+
+  return <p>Seconds: {get(seconds)}</p>;
+}
+```
+
+---
+
+## Event Methods
+
+### `this.on(eventName, handler)`
+
+Adds an event listener with automatic cleanup.
+
+```ts
+this.on(eventName: string, handler: EventListener): void
+```
+
+**Parameters:**
+- `eventName` - The event to listen for
+- `handler` - The event handler function
+
+**Behavior:**
+- Listens on `window` by default (for global events)
+- Automatically removes the listener when the component disconnects
+- Uses `AbortController` internally for cleanup
+
+**Example:**
+
+```jsx
+function WindowTracker() {
+  const width = cell(window.innerWidth);
+  const scrollY = cell(0);
+
+  this.connected(() => {
+    // These are automatically cleaned up
+    this.on('resize', () => {
+      set(width, window.innerWidth);
+    });
+
+    this.on('scroll', () => {
+      set(scrollY, window.scrollY);
+    });
+  });
+
+  return (
+    <div>
+      <p>Window width: {get(width)}px</p>
+      <p>Scroll position: {get(scrollY)}px</p>
+    </div>
+  );
+}
+```
+
+<Aside type="tip">
+Use `this.on()` instead of `addEventListener` when you need automatic cleanup on disconnect.
+</Aside>
+
+---
+
+### `this.emit(eventName, detail?)`
+
+Dispatches a custom event from the component.
+
+```ts
+this.emit(eventName: string, detail?: any): void
+```
+
+**Parameters:**
+- `eventName` - The custom event name
+- `detail` - Optional data to include with the event
+
+**Behavior:**
+- Creates and dispatches a `CustomEvent`
+- The event bubbles by default
+- Parent components can listen with `addEventListener`
+
+**Example:**
+
+```jsx
+function ColorPicker() {
+  const colors = ['red', 'green', 'blue'];
+
+  const selectColor = (color) => {
+    this.emit('color-selected', { color });
+  };
+
+  return (
+    <div>
+      {colors.map(color => (
+        <button onclick={() => selectColor(color)}>
+          {color}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+defineComponent('color-picker', ColorPicker);
+
+// Parent listening:
+// picker.addEventListener('color-selected', (e) => {
+//   console.log(e.detail.color);
+// });
+```
+
+---
+
+## DOM Access
+
+Inside `connected()`, `this` is the actual HTMLElement:
+
+```jsx
+function DomExample() {
+  this.connected(() => {
+    // 'this' is the custom element itself
+    console.log(this.tagName);        // e.g., 'DOM-EXAMPLE'
+    console.log(this.parentElement);  // Parent element
+    console.log(this.children);       // Child elements
+    
+    // Query within the component
+    const btn = this.querySelector('button');
+    const items = this.querySelectorAll('.item');
+    
+    // Access attributes
+    const id = this.getAttribute('id');
+    
+    // Access computed styles
+    const styles = getComputedStyle(this);
+  });
+
+  return (
+    <div>
+      <button>Click</button>
+      <span class="item">Item 1</span>
+      <span class="item">Item 2</span>
+    </div>
+  );
+}
+```
+
+---
+
+## Props
+
+Props are passed as the first argument to your component function:
+
+```jsx
+function Greeting(props) {
+  const { name, greeting = 'Hello' } = props;
+  
+  return <p>{greeting}, {name}!</p>;
+}
+
+defineComponent('my-greeting', Greeting);
+```
+
+### HTML Attributes → Props
+
+```html
+<my-greeting name="Alice" greeting="Hi"></my-greeting>
+```
+
+All attributes are strings:
+```jsx
+function Item(props) {
+  const { count } = props;
+  // count is "5", not 5
+  const num = parseInt(count, 10);
+}
+```
+
+### JavaScript Props with `setProp()`
+
+For complex data:
+
+```jsx
+import { setProp } from 'rift-js';
+
+const element = document.querySelector('user-card');
+setProp(element, 'user', { name: 'Alice', age: 30 });
+setProp(element, 'onUpdate', (user) => console.log(user));
+```
+
+### Reading Props in Child
+
+```jsx
+function UserCard(props) {
+  const { user, onUpdate } = props;
+  
+  return (
+    <div onclick={() => onUpdate(user)}>
+      {user.name}
+    </div>
+  );
+}
+```
+
+---
+
+## Complete Example
+
+```jsx
+import { defineComponent, cell, get, set, setProp } from 'rift-js';
+
+function TodoItem(props) {
+  const { todo, onToggle, onDelete } = props;
+  const editing = cell(false);
+  const editText = cell(todo.text);
+
+  this.connected(() => {
+    // Focus input when editing starts
+    const input = this.querySelector('input[type="text"]');
+    if (input && get(editing)) {
+      input.focus();
+    }
+  });
+
+  this.disconnected(() => {
+    console.log('TodoItem removed');
+  });
+
+  const startEdit = () => {
+    set(editText, todo.text);
+    set(editing, true);
+  };
+
+  const saveEdit = () => {
+    this.emit('todo-updated', { 
+      id: todo.id, 
+      text: get(editText) 
+    });
+    set(editing, false);
+  };
+
+  const cancelEdit = () => {
+    set(editing, false);
+  };
+
+  return (
+    <li class={todo.done ? 'done' : ''}>
+      <Show when={editing} fallback={
+        <span ondblclick={startEdit}>{todo.text}</span>
+      }>
+        <input
+          type="text"
+          value={get(editText)}
+          oninput={(e) => set(editText, e.target.value)}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') saveEdit();
+            if (e.key === 'Escape') cancelEdit();
+          }}
+          onblur={cancelEdit}
+        />
+      </Show>
+      
+      <input
+        type="checkbox"
+        checked={todo.done}
+        onchange={() => onToggle(todo.id)}
+      />
+      
+      <button onclick={() => onDelete(todo.id)}>×</button>
+    </li>
+  );
+}
+
+defineComponent('todo-item', TodoItem);
+```
+
+---
+
+## TypeScript Support
+
+```tsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+interface UserProps {
+  user: {
+    name: string;
+    email: string;
+  };
+  onSave: (user: UserProps['user']) => void;
+}
+
+function UserEditor(props: UserProps) {
+  const { user, onSave } = props;
+  const name = cell(user.name);
+  const email = cell(user.email);
+
+  // this is typed as ComponentContext & HTMLElement
+  this.connected(() => {
+    console.log(this.tagName);
+  });
+
+  return (
+    <form onsubmit={(e) => {
+      e.preventDefault();
+      onSave({ name: get(name), email: get(email) });
+    }}>
+      <input value={get(name)} oninput={(e) => set(name, e.target.value)} />
+      <input value={get(email)} oninput={(e) => set(email, e.target.value)} />
+      <button type="submit">Save</button>
+    </form>
+  );
+}
+
+defineComponent('user-editor', UserEditor);
+```
+
+---
+
+## API Summary
+
+| Method | Purpose |
+|--------|---------|
+| `this.connected(fn)` | Run code when mounted |
+| `this.disconnected(fn)` | Run code when unmounted |
+| `this.on(event, handler)` | Listen to events (auto-cleanup) |
+| `this.emit(event, detail)` | Dispatch custom events |
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `this.tagName` | `string` | The element's tag name |
+| `this.parentElement` | `Element` | Parent element |
+| `this.children` | `HTMLCollection` | Child elements |
+| `this.firstChild` | `Node` | First child node |
+
+All standard `HTMLElement` properties and methods are available on `this`.

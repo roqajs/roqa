@@ -1,0 +1,130 @@
+---
+title: Rift
+description: A compile-time reactive UI framework for building web components with JSX
+template: splash
+hero:
+  tagline: A compile-time reactive UI framework that compiles JSX into highly optimized vanilla JavaScript. No virtual DOM. No runtime overhead.
+  actions:
+    - text: Get Started
+      link: /getting-started/installation/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/hawkticehurst/rift
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Why Rift?
+
+Rift takes a fundamentally different approach to building reactive UIs. Instead of shipping a runtime that manages state and DOM updates, Rift **compiles away** the reactive primitives at build time, producing vanilla JavaScript that directly manipulates the DOM.
+
+<CardGrid>
+  <Card title="Compile-Time Reactivity" icon="rocket">
+    Reactive primitives like `cell()`, `get()`, and `set()` are inlined at build time. No runtime library needed for reactivity.
+  </Card>
+  <Card title="No Virtual DOM" icon="lightning">
+    Updates go directly to the DOM. No diffing, no reconciliation overhead, no wasted cycles comparing trees.
+  </Card>
+  <Card title="Web Components" icon="puzzle">
+    Components compile to native custom elements. Use them anywhere—with any framework or none at all.
+  </Card>
+  <Card title="Tiny Output" icon="document">
+    The compiled output is minimal vanilla JS. Your bundle contains only what your app actually uses.
+  </Card>
+</CardGrid>
+
+## A Quick Look
+
+Here's a simple counter component in Rift:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function Counter() {
+  const count = cell(0);
+  
+  return (
+    <button onclick={() => set(count, get(count) + 1)}>
+      Count: {get(count)}
+    </button>
+  );
+}
+
+defineComponent('my-counter', Counter);
+```
+
+This compiles to optimized vanilla JavaScript:
+
+```js
+import { defineComponent, delegate, template } from 'rift-js';
+
+const $tmpl_1 = template('<button> </button>');
+
+function Counter() {
+  const count = { v: 0, e: [] };
+
+  this.connected(() => {
+    const button_1 = this.firstChild;
+    const button_1_text = button_1.firstChild;
+		
+		button_1_text.nodeValue = 'Count: ' + count.v;
+		count.ref_1 = button_1_text;
+
+    button_1.__click = () => {
+      count.v = count.v + 1;
+      count.ref_1.nodeValue = 'Count: ' + count.v;
+    };
+  });
+}
+
+defineComponent('my-counter', Counter);
+delegate(['click']);
+```
+
+Notice how:
+- `cell(0)` becomes a simple object `{ v: 0, e: [] }`
+- `get(count)` becomes `count.v`
+- `set()` is inlined with the DOM update (`count.ref_1.nodeValue = ...`)
+- The reactive binding is compiled away entirely
+
+## Core Concepts
+
+<CardGrid>
+  <Card title="Reactive Cells" icon="star">
+    The fundamental building block. Create reactive state with `cell()`, read with `get()`, write with `set()`.
+    
+    [Learn about cells →](/concepts/reactive-cells/)
+  </Card>
+  <Card title="Components" icon="setting">
+    Define web components with `defineComponent()`. Access lifecycle hooks and utilities through `this`.
+    
+    [Learn about components →](/concepts/components/)
+  </Card>
+  <Card title="Lists with For" icon="list-format">
+    Efficiently render lists with the `<For>` component. Uses LIS algorithm for optimal DOM reconciliation.
+    
+    [Learn about lists →](/concepts/lists/)
+  </Card>
+  <Card title="Event Handling" icon="forward-slash">
+    Delegated event system for efficient event handling across your application.
+    
+    [Learn about events →](/concepts/events/)
+  </Card>
+</CardGrid>
+
+## Ready to dive in?
+
+<CardGrid>
+  <Card title="Installation" icon="laptop">
+    Set up Rift in your project with the Vite plugin.
+    
+    [Install Rift →](/getting-started/installation/)
+  </Card>
+  <Card title="Quick Start" icon="open-book">
+    Build your first Rift component in 5 minutes.
+    
+    [Quick Start →](/getting-started/quick-start/)
+  </Card>
+</CardGrid>

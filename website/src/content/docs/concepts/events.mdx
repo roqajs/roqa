@@ -1,0 +1,491 @@
+---
+title: Event Handling
+description: Handle user interactions with delegated events
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Rift uses an efficient **event delegation** system. Instead of attaching listeners to every element, events bubble up to a single document-level handler.
+
+## Basic Event Handling
+
+Add event handlers using lowercase `on*` attributes:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function EventExample() {
+  const count = cell(0);
+
+  return (
+    <div>
+      <button onclick={() => set(count, get(count) + 1)}>
+        Clicked {get(count)} times
+      </button>
+    </div>
+  );
+}
+
+defineComponent('event-example', EventExample);
+```
+
+## Supported Events
+
+Rift supports all standard DOM events with lowercase names:
+
+| Event | Handler | Example |
+|-------|---------|---------|
+| click | `onclick` | `<button onclick={handleClick}>` |
+| input | `oninput` | `<input oninput={handleInput}>` |
+| change | `onchange` | `<select onchange={handleChange}>` |
+| submit | `onsubmit` | `<form onsubmit={handleSubmit}>` |
+| keydown | `onkeydown` | `<input onkeydown={handleKey}>` |
+| keyup | `onkeyup` | `<input onkeyup={handleKey}>` |
+| focus | `onfocus` | `<input onfocus={handleFocus}>` |
+| blur | `onblur` | `<input onblur={handleBlur}>` |
+| mouseover | `onmouseover` | `<div onmouseover={handleHover}>` |
+| mouseout | `onmouseout` | `<div onmouseout={handleLeave}>` |
+| ... | ... | Any DOM event |
+
+## Accessing the Event Object
+
+The event handler receives the native DOM event:
+
+```jsx
+function FormExample() {
+  const value = cell('');
+
+  const handleInput = (event) => {
+    // Access event properties
+    console.log(event.target.value);
+    console.log(event.type); // 'input'
+    
+    set(value, event.target.value);
+  };
+
+  return (
+    <input 
+      type="text" 
+      value={get(value)}
+      oninput={handleInput}
+    />
+  );
+}
+```
+
+## Event Handler Patterns
+
+### Inline Arrow Functions
+
+```jsx
+<button onclick={() => set(count, get(count) + 1)}>
+  Increment
+</button>
+
+<input oninput={(e) => set(name, e.target.value)} />
+```
+
+### Named Functions
+
+```jsx
+function Counter() {
+  const count = cell(0);
+
+  const increment = () => {
+    set(count, get(count) + 1);
+  };
+
+  const decrement = () => {
+    set(count, get(count) - 1);
+  };
+
+  return (
+    <div>
+      <button onclick={decrement}>-</button>
+      <span>{get(count)}</span>
+      <button onclick={increment}>+</button>
+    </div>
+  );
+}
+```
+
+### Passing Data to Handlers
+
+For handlers that need additional data, use arrow functions:
+
+```jsx
+function TodoList() {
+  const todos = cell([
+    { id: 1, text: 'Learn Rift' },
+    { id: 2, text: 'Build app' },
+  ]);
+
+  const removeTodo = (id) => {
+    set(todos, get(todos).filter(t => t.id !== id));
+  };
+
+  return (
+    <ul>
+      <For each={todos}>
+        {(todo) => (
+          <li>
+            {todo.text}
+            <button onclick={() => removeTodo(todo.id)}>
+              Delete
+            </button>
+          </li>
+        )}
+      </For>
+    </ul>
+  );
+}
+```
+
+## Preventing Default Behavior
+
+Use `event.preventDefault()` to stop default browser behavior:
+
+```jsx
+function FormExample() {
+  const handleSubmit = (event) => {
+    event.preventDefault(); // Stop form submission
+    
+    // Handle form data manually
+    console.log('Form submitted');
+  };
+
+  return (
+    <form onsubmit={handleSubmit}>
+      <input type="text" name="email" />
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+```
+
+## Stopping Propagation
+
+Use `event.stopPropagation()` to prevent event bubbling:
+
+```jsx
+function NestedButtons() {
+  const handleOuter = () => {
+    console.log('Outer clicked');
+  };
+
+  const handleInner = (event) => {
+    event.stopPropagation(); // Don't trigger parent
+    console.log('Inner clicked');
+  };
+
+  return (
+    <div onclick={handleOuter}>
+      <button onclick={handleInner}>
+        Click me
+      </button>
+    </div>
+  );
+}
+```
+
+## Keyboard Events
+
+Handle keyboard interactions:
+
+```jsx
+function KeyboardExample() {
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      console.log('Enter pressed');
+    }
+    if (event.key === 'Escape') {
+      console.log('Escape pressed');
+    }
+    if (event.ctrlKey && event.key === 's') {
+      event.preventDefault();
+      console.log('Ctrl+S pressed');
+    }
+  };
+
+  return (
+    <input 
+      type="text" 
+      onkeydown={handleKeyDown}
+      placeholder="Press Enter, Escape, or Ctrl+S"
+    />
+  );
+}
+```
+
+## Form Handling
+
+### Input Binding
+
+```jsx
+function InputBinding() {
+  const email = cell('');
+  const password = cell('');
+  const remember = cell(false);
+
+  return (
+    <form>
+      <input
+        type="email"
+        value={get(email)}
+        oninput={(e) => set(email, e.target.value)}
+      />
+      
+      <input
+        type="password"
+        value={get(password)}
+        oninput={(e) => set(password, e.target.value)}
+      />
+      
+      <label>
+        <input
+          type="checkbox"
+          checked={get(remember)}
+          onchange={(e) => set(remember, e.target.checked)}
+        />
+        Remember me
+      </label>
+    </form>
+  );
+}
+```
+
+### Select Elements
+
+```jsx
+function SelectExample() {
+  const selected = cell('option1');
+
+  return (
+    <select 
+      value={get(selected)}
+      onchange={(e) => set(selected, e.target.value)}
+    >
+      <option value="option1">Option 1</option>
+      <option value="option2">Option 2</option>
+      <option value="option3">Option 3</option>
+    </select>
+  );
+}
+```
+
+### Radio Buttons
+
+```jsx
+function RadioExample() {
+  const choice = cell('a');
+
+  return (
+    <fieldset>
+      <label>
+        <input
+          type="radio"
+          name="choice"
+          value="a"
+          checked={get(choice) === 'a'}
+          onchange={() => set(choice, 'a')}
+        />
+        Choice A
+      </label>
+      <label>
+        <input
+          type="radio"
+          name="choice"
+          value="b"
+          checked={get(choice) === 'b'}
+          onchange={() => set(choice, 'b')}
+        />
+        Choice B
+      </label>
+    </fieldset>
+  );
+}
+```
+
+## Event Delegation Internals
+
+<Aside>
+Understanding how event delegation works helps with debugging and optimization.
+</Aside>
+
+Rift compiles event handlers to a special `__eventname` property:
+
+```jsx
+// What you write
+<button onclick={handleClick}>Click</button>
+
+// What Rift compiles it to
+button_1.__click = handleClick;
+```
+
+Then `delegate()` is called to register a document-level listener:
+
+```js
+delegate(['click']);
+```
+
+When a click occurs anywhere in the document, Rift:
+1. Checks if the clicked element (or its ancestors) has a `__click` property
+2. If found, calls that handler with the event
+
+This is more efficient than attaching individual listeners to every element.
+
+### Parameterized Handlers
+
+For handlers that need data, Rift uses an array format:
+
+```jsx
+// What you write
+<button onclick={() => select(item)}>Select</button>
+
+// What Rift compiles it to
+button_1.__click = [select, item];
+```
+
+## Global Event Handling
+
+For events outside your component (window, document), use `this.on()`:
+
+```jsx
+function GlobalEvents() {
+  const windowWidth = cell(window.innerWidth);
+  const scrollY = cell(0);
+
+  this.connected(() => {
+    // These are automatically cleaned up on disconnect
+    this.on('resize', () => {
+      set(windowWidth, window.innerWidth);
+    });
+
+    this.on('scroll', () => {
+      set(scrollY, window.scrollY);
+    });
+  });
+
+  return (
+    <div>
+      <p>Window width: {get(windowWidth)}px</p>
+      <p>Scroll position: {get(scrollY)}px</p>
+    </div>
+  );
+}
+```
+
+## Custom Events
+
+Emit custom events from child components:
+
+```jsx
+// Child component
+function ColorPicker() {
+  const colors = ['red', 'green', 'blue'];
+
+  const selectColor = (color) => {
+    this.emit('color-selected', { color });
+  };
+
+  return (
+    <div>
+      <For each={cell(colors)}>
+        {(color) => (
+          <button 
+            style={`background: ${color}`}
+            onclick={() => selectColor(color)}
+          >
+            {color}
+          </button>
+        )}
+      </For>
+    </div>
+  );
+}
+
+defineComponent('color-picker', ColorPicker);
+
+// Parent component
+function App() {
+  const selectedColor = cell('none');
+
+  this.connected(() => {
+    const picker = this.querySelector('color-picker');
+    picker.addEventListener('color-selected', (e) => {
+      set(selectedColor, e.detail.color);
+    });
+  });
+
+  return (
+    <div>
+      <color-picker></color-picker>
+      <p>Selected: {get(selectedColor)}</p>
+    </div>
+  );
+}
+
+defineComponent('my-app', App);
+```
+
+## Best Practices
+
+### Debounce Expensive Handlers
+
+```jsx
+function SearchInput() {
+  const query = cell('');
+  let timeoutId;
+
+  const handleInput = (e) => {
+    const value = e.target.value;
+    set(query, value);
+
+    // Debounce search
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      performSearch(value);
+    }, 300);
+  };
+
+  return (
+    <input 
+      type="search"
+      oninput={handleInput}
+      placeholder="Search..."
+    />
+  );
+}
+```
+
+### Keep Handlers Simple
+
+```jsx
+// ❌ Too much logic in handler
+<button onclick={(e) => {
+  e.preventDefault();
+  validateForm();
+  submitData();
+  showNotification();
+  resetForm();
+}}>
+  Submit
+</button>
+
+// ✅ Extract to named function
+const handleSubmit = (e) => {
+  e.preventDefault();
+  validateForm();
+  submitData();
+  showNotification();
+  resetForm();
+};
+
+<button onclick={handleSubmit}>Submit</button>
+```
+
+## Next Steps
+
+- [Components](/concepts/components/) - Component lifecycle and `this.on()`/`this.emit()`
+- [Component Communication](/advanced/component-communication/) - Parent-child event patterns
+- [Lists with For](/concepts/lists/) - Event handlers in list items

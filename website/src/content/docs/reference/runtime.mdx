@@ -1,0 +1,542 @@
+---
+title: Runtime API
+description: Complete reference for Rift's runtime functions
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This page documents all functions exported from `rift-js` that are available at runtime.
+
+## Reactive Primitives
+
+### `cell(initialValue)`
+
+Creates a reactive cell containing a value.
+
+```ts
+function cell<T>(initialValue: T): Cell<T>
+function cell<T>(computeFn: () => T): Cell<T>
+```
+
+**Parameters:**
+- `initialValue` - The initial value, or a function that computes the value
+
+**Returns:** A cell object
+
+**Examples:**
+
+```jsx
+// Simple value
+const count = cell(0);
+
+// Derived/computed value
+const doubled = cell(() => get(count) * 2);
+```
+
+<Aside>
+At compile time, `cell(value)` is inlined to `{ v: value, e: [] }`.
+</Aside>
+
+---
+
+### `get(cell)`
+
+Reads the current value from a cell.
+
+```ts
+function get<T>(cell: Cell<T>): T
+```
+
+**Parameters:**
+- `cell` - The cell to read from
+
+**Returns:** The current value
+
+**Example:**
+
+```jsx
+const count = cell(10);
+console.log(get(count)); // 10
+```
+
+<Aside>
+At compile time, `get(cell)` is inlined to `cell.v`.
+</Aside>
+
+---
+
+### `set(cell, value)`
+
+Updates a cell's value and triggers all reactive updates.
+
+```ts
+function set<T>(cell: Cell<T>, value: T): void
+```
+
+**Parameters:**
+- `cell` - The cell to update
+- `value` - The new value
+
+**Example:**
+
+```jsx
+const count = cell(0);
+set(count, 5);
+console.log(get(count)); // 5
+```
+
+<Aside>
+At compile time, `set()` is inlined with DOM update code.
+</Aside>
+
+---
+
+### `put(cell, value)`
+
+Updates a cell's value **without** triggering reactive updates.
+
+```ts
+function put<T>(cell: Cell<T>, value: T): void
+```
+
+**Parameters:**
+- `cell` - The cell to update
+- `value` - The new value
+
+**Example:**
+
+```jsx
+const count = cell(0);
+put(count, 5); // No subscribers notified
+```
+
+<Aside>
+At compile time, `put(cell, value)` is inlined to `cell.v = value`.
+</Aside>
+
+---
+
+### `bind(cell, effect)`
+
+Subscribes to a cell's changes.
+
+```ts
+function bind<T>(cell: Cell<T>, effect: (value: T) => void): () => void
+```
+
+**Parameters:**
+- `cell` - The cell to subscribe to
+- `effect` - Function called when the cell changes
+
+**Returns:** An unsubscribe function
+
+**Example:**
+
+```jsx
+const count = cell(0);
+
+const unbind = bind(count, (value) => {
+  console.log('Count is now:', value);
+});
+
+set(count, 1); // logs: "Count is now: 1"
+unbind(); // Stop listening
+```
+
+---
+
+### `unbind(cell, effect)`
+
+Removes a specific effect from a cell's subscribers.
+
+```ts
+function unbind<T>(cell: Cell<T>, effect: (value: T) => void): void
+```
+
+**Parameters:**
+- `cell` - The cell to unsubscribe from
+- `effect` - The effect function to remove
+
+**Example:**
+
+```jsx
+const logger = (v) => console.log(v);
+bind(count, logger);
+// Later...
+unbind(count, logger);
+```
+
+---
+
+### `notify(cell)`
+
+Manually triggers all subscribers of a cell.
+
+```ts
+function notify<T>(cell: Cell<T>): void
+```
+
+**Parameters:**
+- `cell` - The cell whose subscribers to notify
+
+**Example:**
+
+```jsx
+const items = cell([1, 2, 3]);
+get(items).push(4); // Mutate in place
+notify(items); // Trigger updates
+```
+
+---
+
+### `batch(fn)`
+
+Groups multiple updates into a single DOM update.
+
+```ts
+function batch<T>(fn: () => T): T
+```
+
+**Parameters:**
+- `fn` - Function containing multiple `set()` calls
+
+**Returns:** Whatever `fn` returns
+
+**Example:**
+
+```jsx
+batch(() => {
+  set(firstName, 'John');
+  set(lastName, 'Doe');
+  set(age, 30);
+}); // Single DOM update
+```
+
+---
+
+### `set_with_batch(cell, value)`
+
+Updates a cell with automatic batching.
+
+```ts
+function set_with_batch<T>(cell: Cell<T>, value: T): void
+```
+
+**Parameters:**
+- `cell` - The cell to update
+- `value` - The new value
+
+**Example:**
+
+```jsx
+// These are batched together
+set_with_batch(x, e.clientX);
+set_with_batch(y, e.clientY);
+```
+
+---
+
+## Templates
+
+### `template(html)`
+
+Creates a cloneable DOM template from an HTML string.
+
+```ts
+function template(html: string): () => DocumentFragment
+```
+
+**Parameters:**
+- `html` - HTML string
+
+**Returns:** A function that returns a cloned DocumentFragment
+
+**Example:**
+
+```jsx
+const $tmpl = template('<div class="card"><h2> </h2></div>');
+const fragment = $tmpl();
+const div = fragment.firstChild;
+```
+
+---
+
+### `svg_template(svg)`
+
+Creates a cloneable template for SVG content.
+
+```ts
+function svg_template(svg: string): () => DocumentFragment
+```
+
+**Parameters:**
+- `svg` - SVG markup string (without outer `<svg>` tag)
+
+**Returns:** A function that returns a cloned DocumentFragment
+
+**Example:**
+
+```jsx
+const $rect = svg_template('<rect x="0" y="0" width="100" height="100"/>');
+```
+
+<Aside>
+Use this for SVG elements to ensure they're created in the correct namespace.
+</Aside>
+
+---
+
+## Components
+
+### `defineComponent(tagName, fn)`
+
+Registers a function as a web component.
+
+```ts
+function defineComponent<P>(
+  tagName: string, 
+  fn: ComponentFunction<P>
+): void
+```
+
+**Parameters:**
+- `tagName` - The custom element tag name (must contain a hyphen)
+- `fn` - The component function
+
+**Example:**
+
+```jsx
+function Counter() {
+  const count = cell(0);
+  return <button>{get(count)}</button>;
+}
+
+defineComponent('my-counter', Counter);
+```
+
+---
+
+### `setProp(element, propName, value)`
+
+Sets a prop on an element before it upgrades.
+
+```ts
+function setProp(element: Element, propName: string, value: unknown): void
+```
+
+**Parameters:**
+- `element` - The target element
+- `propName` - Name of the prop
+- `value` - Value to set
+
+**Example:**
+
+```jsx
+const card = document.querySelector('user-card');
+setProp(card, 'user', { name: 'Alice' });
+setProp(card, 'onSelect', handleSelect);
+```
+
+---
+
+### `getProps(element)`
+
+Gets all props set on an element.
+
+```ts
+function getProps(element: Element): Record<string, unknown>
+```
+
+**Parameters:**
+- `element` - The element to get props from
+
+**Returns:** Object containing all props
+
+**Example:**
+
+```jsx
+const props = getProps(element);
+console.log(props.user, props.onSelect);
+```
+
+---
+
+## Events
+
+### `delegate(events)`
+
+Registers event types for delegation.
+
+```ts
+function delegate(events: string[]): void
+```
+
+**Parameters:**
+- `events` - Array of event names to delegate
+
+**Example:**
+
+```jsx
+delegate(['click', 'input', 'change']);
+```
+
+<Aside>
+This is automatically called by the compiler. You rarely need to call it manually.
+</Aside>
+
+---
+
+### `handle_root_events(target)`
+
+Sets up event delegation on a specific root element.
+
+```ts
+function handle_root_events(target: EventTarget): () => void
+```
+
+**Parameters:**
+- `target` - The root element to handle events on
+
+**Returns:** A cleanup function
+
+**Example:**
+
+```jsx
+const cleanup = handle_root_events(shadowRoot);
+// Later...
+cleanup();
+```
+
+---
+
+## Control Flow
+
+### `for_block(container, source, render)`
+
+Efficiently renders a list of items. Generated by the `<For>` component.
+
+```ts
+function for_block<T>(
+  container: Element,
+  source: Cell<T[]>,
+  render: (anchor: Node, item: T, index: number) => {
+    start: Node;
+    end: Node;
+    cleanup?: () => void;
+  }
+): ForBlockController<T>
+```
+
+**Parameters:**
+- `container` - Parent element
+- `source` - Cell containing the array
+- `render` - Function to render each item
+
+**Returns:** Controller with `update()` and `destroy()` methods
+
+<Aside>
+You typically don't call this directly—use `<For>` instead.
+</Aside>
+
+---
+
+### `show_block(container, condition, render, deps?)`
+
+Conditionally renders content. Generated by the `<Show>` component.
+
+```ts
+function show_block(
+  container: Element,
+  condition: Cell<boolean> | (() => boolean) | boolean,
+  render: (anchor: Node) => {
+    start: Node;
+    end: Node;
+    cleanup?: () => void;
+  },
+  deps?: Cell<any>[]
+): {
+  update: () => void;
+  destroy: () => void;
+  isShowing: boolean;
+}
+```
+
+**Parameters:**
+- `container` - Parent element
+- `condition` - When to show content
+- `render` - Function to render content
+- `deps` - Additional dependencies to track
+
+**Returns:** Controller with `update()`, `destroy()`, and `isShowing`
+
+<Aside>
+You typically don't call this directly—use `<Show>` instead.
+</Aside>
+
+---
+
+## Cell Interface
+
+The internal structure of a cell:
+
+```ts
+interface Cell<T> {
+  v: T;                              // Current value
+  e: Array<(value: T) => void>;      // Effect subscribers
+  [key: `ref_${number}`]: Node;      // DOM references (compiler-generated)
+}
+```
+
+---
+
+## Type Definitions
+
+```ts
+type ComponentFunction<P = {}> = (this: ComponentContext, props: P) => Node;
+
+interface ComponentContext extends HTMLElement {
+  connected(callback: () => void): void;
+  disconnected(callback: () => void): void;
+  on(event: string, handler: EventListener): void;
+  emit(event: string, detail?: any): void;
+}
+
+interface ForBlockController<T> {
+  update(): void;
+  destroy(): void;
+}
+```
+
+## Import Example
+
+```jsx
+import {
+  // Reactive primitives
+  cell,
+  get,
+  set,
+  put,
+  bind,
+  unbind,
+  notify,
+  batch,
+  set_with_batch,
+  
+  // Templates
+  template,
+  svg_template,
+  
+  // Components
+  defineComponent,
+  setProp,
+  getProps,
+  
+  // Events
+  delegate,
+  handle_root_events,
+  
+  // Control flow (usually not imported directly)
+  for_block,
+  show_block,
+} from 'rift-js';
+```

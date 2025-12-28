@@ -1,0 +1,440 @@
+---
+title: Components
+description: Define web components with lifecycle hooks and reactive state
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Rift components compile to native **web components** (custom elements). This means they work anywhere—in any framework, or no framework at all.
+
+## Defining Components
+
+Use `defineComponent()` to register a function as a web component:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function Counter() {
+  const count = cell(0);
+
+  return (
+    <button onclick={() => set(count, get(count) + 1)}>
+      Count: {get(count)}
+    </button>
+  );
+}
+
+// Register with tag name 'my-counter'
+defineComponent('my-counter', Counter);
+```
+
+Then use it in HTML:
+
+```html
+<my-counter></my-counter>
+```
+
+<Aside type="caution">
+Custom element names **must** contain a hyphen (e.g., `my-counter`, not `counter`). This is a web components requirement.
+</Aside>
+
+## The Component Function
+
+Your component function:
+1. Receives `props` as its first argument (if any)
+2. Has access to `this` for lifecycle hooks and utilities
+3. Returns JSX that defines the component's DOM
+
+```jsx
+function MyComponent(props) {
+  // Access props
+  const { title, count } = props;
+  
+  // Create local state
+  const expanded = cell(false);
+  
+  // Use lifecycle hooks via this
+  this.connected(() => {
+    console.log('Component added to DOM');
+  });
+  
+  // Return JSX
+  return (
+    <div>
+      <h2>{title}</h2>
+      <p>Count: {count}</p>
+    </div>
+  );
+}
+
+defineComponent('my-component', MyComponent);
+```
+
+## Lifecycle Hooks
+
+### `this.connected(callback)`
+
+Runs when the component is added to the DOM:
+
+```jsx
+function Timer() {
+  const seconds = cell(0);
+  let intervalId;
+
+  this.connected(() => {
+    // Start timer when mounted
+    intervalId = setInterval(() => {
+      set(seconds, get(seconds) + 1);
+    }, 1000);
+  });
+
+  return <p>Seconds: {get(seconds)}</p>;
+}
+
+defineComponent('my-timer', Timer);
+```
+
+Use `connected()` for:
+- Starting timers or intervals
+- Fetching initial data
+- Setting up subscriptions
+- Accessing DOM nodes
+
+### `this.disconnected(callback)`
+
+Runs when the component is removed from the DOM:
+
+```jsx
+function Timer() {
+  const seconds = cell(0);
+  let intervalId;
+
+  this.connected(() => {
+    intervalId = setInterval(() => {
+      set(seconds, get(seconds) + 1);
+    }, 1000);
+  });
+
+  this.disconnected(() => {
+    // Clean up when unmounted
+    clearInterval(intervalId);
+  });
+
+  return <p>Seconds: {get(seconds)}</p>;
+}
+
+defineComponent('my-timer', Timer);
+```
+
+Use `disconnected()` for:
+- Clearing timers/intervals
+- Removing event listeners
+- Closing connections
+- Cleaning up subscriptions
+
+## Event Methods
+
+### `this.on(eventName, handler)`
+
+Listen for events with automatic cleanup:
+
+```jsx
+function KeyLogger() {
+  const lastKey = cell('');
+
+  this.connected(() => {
+    // Automatically cleaned up when component disconnects
+    this.on('keydown', (e) => {
+      set(lastKey, e.key);
+    });
+  });
+
+  return <p>Last key: {get(lastKey)}</p>;
+}
+
+defineComponent('key-logger', KeyLogger);
+```
+
+`this.on()` uses an `AbortController` internally, so listeners are automatically removed when the component disconnects.
+
+### `this.emit(eventName, detail)`
+
+Dispatch custom events to parent components:
+
+```jsx
+function ChildComponent() {
+  const handleClick = () => {
+    // Emit event with data
+    this.emit('item-selected', { id: 123, name: 'Item' });
+  };
+
+  return (
+    <button onclick={handleClick}>
+      Select Item
+    </button>
+  );
+}
+
+defineComponent('child-component', ChildComponent);
+```
+
+Parent can listen:
+
+```html
+<child-component id="child"></child-component>
+
+<script>
+  document.getElementById('child').addEventListener('item-selected', (e) => {
+    console.log('Selected:', e.detail); // { id: 123, name: 'Item' }
+  });
+</script>
+```
+
+## Accessing the DOM
+
+Inside `connected()`, `this` refers to the component element:
+
+```jsx
+function DomAccess() {
+  this.connected(() => {
+    // 'this' is the custom element
+    console.log(this.tagName); // 'DOM-ACCESS'
+    
+    // Access children
+    const button = this.querySelector('button');
+    console.log(button);
+    
+    // Access shadow DOM (if using)
+    // console.log(this.shadowRoot);
+  });
+
+  return (
+    <div>
+      <button>Click me</button>
+    </div>
+  );
+}
+
+defineComponent('dom-access', DomAccess);
+```
+
+## Component Props
+
+Pass data to components using attributes or the `setProp()` function:
+
+### HTML Attributes
+
+```html
+<greeting-card name="Alice" age="30"></greeting-card>
+```
+
+```jsx
+function GreetingCard(props) {
+  // Props from attributes are strings
+  const { name, age } = props;
+  
+  return (
+    <div>
+      <h2>Hello, {name}!</h2>
+      <p>Age: {age}</p>
+    </div>
+  );
+}
+
+defineComponent('greeting-card', GreetingCard);
+```
+
+### JavaScript Props with `setProp()`
+
+For complex data, use `setProp()`:
+
+```jsx
+import { defineComponent, setProp, cell, get } from 'rift-js';
+
+// Child component
+function UserCard(props) {
+  const { user } = props;
+  
+  return (
+    <div class="card">
+      <h2>{user.name}</h2>
+      <p>{user.email}</p>
+    </div>
+  );
+}
+
+defineComponent('user-card', UserCard);
+
+// Parent component
+function App() {
+  const user = { name: 'Alice', email: 'alice@example.com' };
+  
+  this.connected(() => {
+    const card = this.querySelector('user-card');
+    setProp(card, 'user', user);
+  });
+
+  return (
+    <div>
+      <user-card></user-card>
+    </div>
+  );
+}
+
+defineComponent('my-app', App);
+```
+
+<Aside>
+See [Component Communication](/advanced/component-communication/) for more patterns.
+</Aside>
+
+## Multiple Components
+
+A file can define multiple components:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function Header() {
+  return (
+    <header>
+      <h1>My App</h1>
+    </header>
+  );
+}
+
+function Footer() {
+  return (
+    <footer>
+      <p>© 2024</p>
+    </footer>
+  );
+}
+
+function App() {
+  return (
+    <div>
+      <my-header></my-header>
+      <main>Content here</main>
+      <my-footer></my-footer>
+    </div>
+  );
+}
+
+defineComponent('my-header', Header);
+defineComponent('my-footer', Footer);
+defineComponent('my-app', App);
+```
+
+## Component Patterns
+
+### Container/Presentational
+
+```jsx
+// Presentational - just renders props
+function TodoItem(props) {
+  const { text, done, onToggle } = props;
+  
+  return (
+    <li onclick={onToggle} class={done ? 'done' : ''}>
+      {text}
+    </li>
+  );
+}
+
+// Container - manages state
+function TodoList() {
+  const todos = cell([
+    { text: 'Learn Rift', done: false },
+    { text: 'Build app', done: false },
+  ]);
+
+  // ... renders TodoItems with state
+}
+```
+
+### Slots (Default Content)
+
+Web components support slots for content projection:
+
+```jsx
+function Card() {
+  return (
+    <div class="card">
+      <slot></slot>
+    </div>
+  );
+}
+
+defineComponent('my-card', Card);
+```
+
+```html
+<my-card>
+  <h2>Card Title</h2>
+  <p>Card content goes here.</p>
+</my-card>
+```
+
+<Aside type="caution">
+Slots require Shadow DOM. By default, Rift components render to Light DOM. Shadow DOM support is being developed.
+</Aside>
+
+## Best Practices
+
+### Keep Components Focused
+
+```jsx
+// ❌ Too much in one component
+function App() {
+  // User state
+  // Todo state  
+  // Settings state
+  // ... hundreds of lines
+}
+
+// ✅ Split into focused components
+function UserProfile() { /* user stuff */ }
+function TodoList() { /* todo stuff */ }
+function Settings() { /* settings stuff */ }
+```
+
+### Clean Up Resources
+
+```jsx
+function DataFetcher() {
+  let abortController;
+
+  this.connected(() => {
+    abortController = new AbortController();
+    
+    fetch('/api/data', { signal: abortController.signal })
+      .then(/* ... */);
+  });
+
+  this.disconnected(() => {
+    // Cancel pending requests
+    abortController?.abort();
+  });
+
+  return <div>...</div>;
+}
+```
+
+### Use Descriptive Tag Names
+
+```jsx
+// ❌ Vague names
+defineComponent('my-comp', Component);
+defineComponent('item', Item);
+
+// ✅ Descriptive names
+defineComponent('user-profile-card', UserProfileCard);
+defineComponent('shopping-cart-item', ShoppingCartItem);
+```
+
+## Next Steps
+
+- [Lists with For](/concepts/lists/) - Render dynamic lists
+- [Event Handling](/concepts/events/) - Handle user interactions
+- [Component Communication](/advanced/component-communication/) - Pass data between components

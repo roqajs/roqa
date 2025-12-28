@@ -1,0 +1,294 @@
+---
+title: Batching Updates
+description: Group multiple cell updates for better performance
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+When you call `set()` multiple times in sequence, each call triggers DOM updates immediately. Batching lets you group updates together so the DOM is only updated once.
+
+## The Problem
+
+Without batching, each `set()` triggers immediate DOM updates:
+
+```jsx
+const firstName = cell('');
+const lastName = cell('');
+const age = cell(0);
+
+// Each set() updates the DOM immediately
+const updateUser = (user) => {
+  set(firstName, user.firstName); // DOM update 1
+  set(lastName, user.lastName);   // DOM update 2
+  set(age, user.age);             // DOM update 3
+};
+```
+
+This is usually fine, but for performance-critical code, you may want to batch these into a single update.
+
+## Using `batch()`
+
+Wrap multiple `set()` calls in `batch()`:
+
+```jsx
+import { cell, get, set, batch } from 'rift-js';
+
+const firstName = cell('');
+const lastName = cell('');
+const age = cell(0);
+
+const updateUser = (user) => {
+  batch(() => {
+    set(firstName, user.firstName);
+    set(lastName, user.lastName);
+    set(age, user.age);
+  });
+  // DOM updates happen once, after batch completes
+};
+```
+
+## How It Works
+
+When you call `batch()`:
+
+1. Updates are collected but DOM isn't touched
+2. All `set()` calls execute, updating cell values
+3. After the batch function completes, all affected DOM nodes update once
+
+```jsx
+const count = cell(0);
+
+batch(() => {
+  set(count, 1);  // count.v = 1, no DOM update yet
+  set(count, 2);  // count.v = 2, no DOM update yet
+  set(count, 3);  // count.v = 3, no DOM update yet
+});
+// Now DOM updates with count = 3
+```
+
+## Using `set_with_batch()`
+
+For individual updates that should be batched automatically, use `set_with_batch()`:
+
+```jsx
+import { cell, set_with_batch } from 'rift-js';
+
+const x = cell(0);
+const y = cell(0);
+
+const handleMouseMove = (e) => {
+  // These are batched together
+  set_with_batch(x, e.clientX);
+  set_with_batch(y, e.clientY);
+};
+```
+
+This is useful when updates come from different places but should be processed together.
+
+## When to Use Batching
+
+### ✅ Good Use Cases
+
+**Updating related state from one action:**
+```jsx
+const handleSubmit = async (formData) => {
+  batch(() => {
+    set(isLoading, true);
+    set(error, null);
+    set(result, null);
+  });
+
+  try {
+    const data = await submitForm(formData);
+    batch(() => {
+      set(isLoading, false);
+      set(result, data);
+    });
+  } catch (e) {
+    batch(() => {
+      set(isLoading, false);
+      set(error, e.message);
+    });
+  }
+};
+```
+
+**High-frequency updates:**
+```jsx
+const handleScroll = () => {
+  batch(() => {
+    set(scrollY, window.scrollY);
+    set(scrollProgress, window.scrollY / maxScroll);
+    set(showBackToTop, window.scrollY > 500);
+  });
+};
+```
+
+**Initializing state:**
+```jsx
+const initializeApp = (data) => {
+  batch(() => {
+    set(user, data.user);
+    set(preferences, data.preferences);
+    set(notifications, data.notifications);
+    set(isInitialized, true);
+  });
+};
+```
+
+### ❌ When Not Needed
+
+**Single updates:**
+```jsx
+// Just use regular set()
+set(count, get(count) + 1);
+```
+
+**Already async:**
+```jsx
+// Each await naturally separates updates
+set(isLoading, true);
+const data = await fetchData();
+set(result, data);
+set(isLoading, false);
+```
+
+**Low-frequency updates:**
+```jsx
+// User clicking a button - batch overhead not worth it
+<button onclick={() => set(count, get(count) + 1)}>
+  Click
+</button>
+```
+
+## Nested Batches
+
+Nested batches are flattened—updates happen after the outermost batch:
+
+```jsx
+batch(() => {
+  set(a, 1);
+  
+  batch(() => {
+    set(b, 2);
+    set(c, 3);
+  });
+  // Still inside outer batch, no updates yet
+  
+  set(d, 4);
+});
+// All updates (a, b, c, d) happen here
+```
+
+## Batch with Return Values
+
+`batch()` returns what the callback returns:
+
+```jsx
+const result = batch(() => {
+  set(loading, false);
+  set(data, newData);
+  return newData.length;
+});
+
+console.log(result); // Length of newData
+```
+
+## Alternative: Using `put()`
+
+For simple cases, you can use `put()` for silent updates followed by a single `set()`:
+
+```jsx
+const updateAll = (newX, newY, newZ) => {
+  // Silent updates
+  put(x, newX);
+  put(y, newY);
+  // This one triggers all DOM updates
+  set(z, newZ);
+};
+```
+
+<Aside type="caution">
+This only works if all cells affect the same DOM nodes, or if you manually call `notify()` on each cell after updating.
+</Aside>
+
+## Performance Comparison
+
+```jsx
+// Without batching: 3 DOM updates
+set(a, 1);
+set(b, 2);
+set(c, 3);
+
+// With batching: 1 DOM update
+batch(() => {
+  set(a, 1);
+  set(b, 2);
+  set(c, 3);
+});
+```
+
+The difference matters when:
+- You're updating many cells at once
+- Updates happen frequently (animations, scrolling)
+- DOM updates are expensive (large lists, complex layouts)
+
+## Real-World Example: Form Reset
+
+```jsx
+function Form() {
+  const name = cell('');
+  const email = cell('');
+  const phone = cell('');
+  const notes = cell('');
+  const isDirty = cell(false);
+
+  const resetForm = () => {
+    batch(() => {
+      set(name, '');
+      set(email, '');
+      set(phone, '');
+      set(notes, '');
+      set(isDirty, false);
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    batch(() => {
+      set(isSubmitting, true);
+      set(errors, {});
+    });
+
+    try {
+      await submitForm({ 
+        name: get(name), 
+        email: get(email),
+        phone: get(phone),
+        notes: get(notes)
+      });
+      resetForm();
+    } catch (err) {
+      batch(() => {
+        set(isSubmitting, false);
+        set(errors, err.errors);
+      });
+    }
+  };
+
+  return (
+    <form onsubmit={handleSubmit}>
+      {/* Form fields */}
+      <button type="button" onclick={resetForm}>Reset</button>
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+```
+
+## Next Steps
+
+- [How Compilation Works](/advanced/compilation/) - Understand what happens at build time
+- [Reactive Cells](/concepts/reactive-cells/) - Deep dive into cells
+- [Runtime API](/reference/runtime/) - All batch-related functions

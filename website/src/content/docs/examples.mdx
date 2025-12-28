@@ -1,0 +1,561 @@
+---
+title: Examples
+description: Sample applications demonstrating Rift patterns and concepts
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Explore these example applications to see Rift in action. Each example demonstrates different concepts and patterns.
+
+## Basic Examples
+
+<CardGrid>
+  <Card title="Hello World" icon="star">
+    The simplest Rift example—reactive text binding with an input.
+    
+    **Concepts:** `cell`, `get`, `set`, input binding
+  </Card>
+  <Card title="Counter Button" icon="approve-check">
+    A minimal counter demonstrating state updates.
+    
+    **Concepts:** Click events, state updates
+  </Card>
+</CardGrid>
+
+### Hello World
+
+Two-way binding between an input and displayed text:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function HelloWorld() {
+  const name = cell('World');
+
+  return (
+    <>
+      <label for="name">Enter name:</label>
+      <input 
+        id="name" 
+        type="text" 
+        value={get(name)} 
+        oninput={(e) => set(name, e.target.value)} 
+      />
+      <p>Hello {get(name)}!</p>
+    </>
+  );
+}
+
+defineComponent('hello-world', HelloWorld);
+```
+
+### Counter Button
+
+The classic counter example:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function Counter() {
+  const count = cell(0);
+
+  return (
+    <button onclick={() => set(count, get(count) + 1)}>
+      Count is {get(count)}
+    </button>
+  );
+}
+
+defineComponent('counter-button', Counter);
+```
+
+---
+
+## Derived Values
+
+### Derived Count
+
+Demonstrates computed cells that depend on other cells:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function DerivedCount() {
+  const count = cell(0);
+  const doubled = cell(() => get(count) * 2);
+  const quadrupled = cell(() => get(doubled) * 2);
+  const octupled = cell(() => get(quadrupled) * 2);
+
+  return (
+    <>
+      <button onclick={() => set(count, get(count) + 1)}>
+        Increment count
+      </button>
+      <p>Count: {get(count)}</p>
+      <p>Doubled: {get(doubled)}</p>
+      <p>Quadrupled: {get(quadrupled)}</p>
+      <p>Octupled: {get(octupled)}</p>
+    </>
+  );
+}
+
+defineComponent('derived-count', DerivedCount);
+```
+
+**Key concepts:**
+- Pass a function to `cell()` to create derived values
+- Derived cells update automatically when dependencies change
+- Chain derived cells together for complex computations
+
+---
+
+## Forms & Validation
+
+### Temperature Converter
+
+Bidirectional conversion between Celsius and Fahrenheit:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function TempConverter() {
+  const celsius = cell(0);
+  const fahrenheit = cell(32);
+
+  const setFromC = (e) => {
+    const c = parseFloat(e.target.value) || 0;
+    set(celsius, c);
+    set(fahrenheit, (c * 9 / 5 + 32).toFixed(1));
+  };
+
+  const setFromF = (e) => {
+    const f = parseFloat(e.target.value) || 0;
+    set(fahrenheit, f);
+    set(celsius, ((f - 32) * 5 / 9).toFixed(1));
+  };
+
+  return (
+    <>
+      <input type="number" oninput={setFromC} value={get(celsius)} /> °C =
+      <input type="number" oninput={setFromF} value={get(fahrenheit)} /> °F
+    </>
+  );
+}
+
+defineComponent('temp-converter', TempConverter);
+```
+
+**Key concepts:**
+- Multiple inputs updating each other
+- Number parsing and formatting
+- Coordinated state updates
+
+### Flight Booker
+
+Form validation with interdependent fields:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function FlightBooker() {
+  const tripType = cell('one-way');
+  const departDate = cell('2024-01-15');
+  const returnDate = cell('2024-01-15');
+  const destination = cell('');
+
+  const isRoundTrip = () => get(tripType) === 'round-trip';
+  const canBook = () => 
+    get(destination) && 
+    (!isRoundTrip() || get(returnDate) >= get(departDate));
+
+  return (
+    <>
+      <input
+        type="text"
+        value={get(destination)}
+        oninput={(e) => set(destination, e.target.value)}
+        placeholder="Destination"
+      />
+      <select 
+        value={get(tripType)}
+        onchange={(e) => set(tripType, e.target.value)}
+      >
+        <option value="one-way">One-way</option>
+        <option value="round-trip">Round-trip</option>
+      </select>
+      <input 
+        type="date" 
+        value={get(departDate)}
+        onchange={(e) => set(departDate, e.target.value)} 
+      />
+      <input
+        type="date"
+        value={get(returnDate)}
+        onchange={(e) => set(returnDate, e.target.value)}
+        disabled={!isRoundTrip()}
+      />
+      <button disabled={!canBook()}>Book</button>
+    </>
+  );
+}
+
+defineComponent('flight-booker', FlightBooker);
+```
+
+**Key concepts:**
+- Form validation logic
+- Conditionally disabled inputs
+- Select element handling
+- Date inputs
+
+---
+
+## Lists & Collections
+
+### Todo List
+
+Classic todo app with add, toggle, and clear functionality:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function TodoList() {
+  const todos = cell([
+    { text: 'Learn Rift', completed: false },
+    { text: 'Build an app', completed: false },
+  ]);
+
+  function addTodo(event) {
+    if (event.key === 'Enter' && event.target.value.trim()) {
+      set(todos, [...get(todos), { 
+        text: event.target.value.trim(), 
+        completed: false 
+      }]);
+      event.target.value = '';
+    }
+  }
+
+  function toggleTodo(index) {
+    const newTodos = [...get(todos)];
+    newTodos[index].completed = !newTodos[index].completed;
+    set(todos, newTodos);
+  }
+
+  function clearCompleted() {
+    set(todos, get(todos).filter(t => !t.completed));
+  }
+
+  return (
+    <>
+      <input 
+        type="text" 
+        onkeydown={addTodo} 
+        placeholder="Add todo" 
+      />
+      <ul>
+        <For each={todos}>
+          {(todo, index) => (
+            <li>
+              <input
+                type="checkbox"
+                checked={todo.completed}
+                onchange={() => toggleTodo(index)}
+              />
+              <span class={todo.completed ? 'done' : ''}>
+                {todo.text}
+              </span>
+            </li>
+          )}
+        </For>
+      </ul>
+      <p>{get(todos).filter(t => !t.completed).length} remaining</p>
+      <button onclick={clearCompleted}>Clear completed</button>
+    </>
+  );
+}
+
+defineComponent('todo-list', TodoList);
+```
+
+**Key concepts:**
+- `<For>` component for list rendering
+- Adding/removing items from arrays
+- Toggling item state
+- Computed counts with `.filter().length`
+
+### Kanban Board
+
+Multi-column task management with nested lists:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+let taskId = 0;
+const createTask = (text) => ({ id: taskId++, text: cell(text) });
+
+function KanbanBoard() {
+  const columns = cell([
+    { name: 'Todo', tasks: cell([createTask('Task 1')]) },
+    { name: 'In Progress', tasks: cell([]) },
+    { name: 'Done', tasks: cell([]) },
+  ]);
+
+  function moveTask(fromCol, taskId, direction) {
+    const cols = get(columns);
+    const toCol = fromCol + direction;
+    if (toCol < 0 || toCol >= cols.length) return;
+
+    const fromTasks = get(cols[fromCol].tasks);
+    const task = fromTasks.find(t => t.id === taskId);
+    
+    set(cols[fromCol].tasks, fromTasks.filter(t => t.id !== taskId));
+    set(cols[toCol].tasks, [...get(cols[toCol].tasks), task]);
+  }
+
+  return (
+    <div class="board">
+      <For each={columns}>
+        {(column, colIndex) => (
+          <div class="column">
+            <h2>{column.name}</h2>
+            <For each={column.tasks}>
+              {(task) => (
+                <div class="task">
+                  {get(task.text)}
+                  <button onclick={() => moveTask(colIndex, task.id, -1)}>←</button>
+                  <button onclick={() => moveTask(colIndex, task.id, 1)}>→</button>
+                </div>
+              )}
+            </For>
+          </div>
+        )}
+      </For>
+    </div>
+  );
+}
+
+defineComponent('kanban-board', KanbanBoard);
+```
+
+**Key concepts:**
+- Nested `<For>` loops
+- Nested cells (cells inside objects)
+- Moving items between lists
+- Factory functions for creating items
+
+---
+
+## Timers & Animation
+
+### Stopwatch
+
+High-frequency updates with setInterval:
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function Stopwatch() {
+  const isRunning = cell(false);
+  const time = cell('0.00');
+  let intervalId = null;
+
+  const toggle = () => {
+    if (get(isRunning)) {
+      clearInterval(intervalId);
+      set(isRunning, false);
+    } else {
+      const start = Date.now() - parseFloat(get(time)) * 1000;
+      intervalId = setInterval(() => {
+        set(time, ((Date.now() - start) / 1000).toFixed(2));
+      }, 10);
+      set(isRunning, true);
+    }
+  };
+
+  const reset = () => {
+    clearInterval(intervalId);
+    set(isRunning, false);
+    set(time, '0.00');
+  };
+
+  return (
+    <>
+      <p>{get(time)}</p>
+      <button onclick={toggle}>
+        {get(isRunning) ? 'Stop' : 'Start'}
+      </button>
+      <button onclick={reset}>Reset</button>
+    </>
+  );
+}
+
+defineComponent('stop-watch', Stopwatch);
+```
+
+**Key concepts:**
+- Integrating `setInterval` with reactive state
+- Mixing regular variables with cells
+- Conditional button text
+- High-frequency DOM updates
+
+---
+
+## Data Visualization
+
+### D3.js Bar Chart
+
+Integration with D3.js for reactive visualizations:
+
+```jsx
+import { defineComponent, cell, get, set, bind } from 'rift-js';
+import * as d3 from 'd3';
+
+function BarChart() {
+  const data = cell([
+    { label: 'A', value: 30 },
+    { label: 'B', value: 80 },
+    { label: 'C', value: 45 },
+  ]);
+
+  this.connected(() => {
+    const svg = this.querySelector('svg');
+    
+    // Update chart when data changes
+    bind(data, (newData) => {
+      const bars = d3.select(svg)
+        .selectAll('rect')
+        .data(newData, d => d.label);
+      
+      bars.enter()
+        .append('rect')
+        .merge(bars)
+        .attr('x', (d, i) => i * 60)
+        .attr('y', d => 200 - d.value * 2)
+        .attr('width', 50)
+        .attr('height', d => d.value * 2)
+        .attr('fill', 'steelblue');
+      
+      bars.exit().remove();
+    });
+  });
+
+  const randomize = () => {
+    set(data, get(data).map(d => ({
+      ...d,
+      value: Math.floor(Math.random() * 100) + 10
+    })));
+  };
+
+  return (
+    <>
+      <svg width="300" height="200"></svg>
+      <button onclick={randomize}>Randomize</button>
+    </>
+  );
+}
+
+defineComponent('bar-chart', BarChart);
+```
+
+**Key concepts:**
+- Third-party library integration
+- `this.connected()` for DOM access
+- Explicit `bind()` for side effects
+- SVG manipulation
+
+---
+
+## Multi-Component Apps
+
+### Hacker News Clone
+
+Full application with multiple components and async data:
+
+```jsx
+// main.jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+import './header.jsx';
+import './story-list.jsx';
+
+function App() {
+  const stories = cell([]);
+  const loading = cell(true);
+
+  this.connected(() => {
+    fetch('https://hacker-news.firebaseio.com/v0/topstories.json')
+      .then(res => res.json())
+      .then(ids => Promise.all(
+        ids.slice(0, 30).map(id =>
+          fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`)
+            .then(res => res.json())
+        )
+      ))
+      .then(data => {
+        set(stories, data);
+        set(loading, false);
+      });
+    
+    // Listen for child component events
+    this.on('viewcomments', (e) => {
+      console.log('View comments for:', e.detail.storyId);
+    });
+  });
+
+  return (
+    <>
+      <hn-header></hn-header>
+      <main>
+        <Show when={loading}>
+          <p>Loading...</p>
+        </Show>
+        <Show when={cell(() => !get(loading))}>
+          <story-list></story-list>
+        </Show>
+      </main>
+    </>
+  );
+}
+
+defineComponent('hacker-news', App);
+```
+
+**Key concepts:**
+- Multi-file component architecture
+- Async data fetching with `fetch`
+- `<Show>` for loading states
+- Custom events for component communication
+- `this.on()` for event listening
+
+---
+
+## Running the Examples
+
+All examples are available in the [samples directory](https://github.com/hawkticehurst/rift/tree/main/samples) of the Rift repository. To run any example:
+
+```bash
+# Clone the repository
+git clone https://github.com/hawkticehurst/rift.git
+cd rift
+
+# Install dependencies
+pnpm install
+
+# Run a specific sample
+cd samples/todo-list
+pnpm dev
+```
+
+## What's Next?
+
+<CardGrid>
+  <LinkCard
+    title="Core Concepts"
+    description="Deep dive into Rift's reactive primitives"
+    href="/concepts/reactive-cells/"
+  />
+  <LinkCard
+    title="API Reference"
+    description="Complete API documentation"
+    href="/reference/runtime/"
+  />
+</CardGrid>

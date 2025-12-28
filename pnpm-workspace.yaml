@@ -2,6 +2,7 @@
 packages:
   - packages/*
   - samples/*
+  - website
 
 # Shared dependency versions (use with `catalog:default` in package.json)
 catalogs:

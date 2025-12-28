@@ -1,0 +1,377 @@
+---
+title: How Compilation Works
+description: Understanding Rift's 4-phase compilation pipeline
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Rift's power comes from its compile-time approach. Instead of shipping a runtime that interprets your code, Rift transforms your JSX into highly optimized vanilla JavaScript at build time.
+
+## The 4-Phase Pipeline
+
+```
+Source (.jsx)
+     │
+     ▼
+┌─────────────────┐
+│  PHASE 1: PARSE │  JSX source → Babel AST
+└─────────────────┘
+     │
+     ▼
+┌─────────────────┐
+│ PHASE 2: VALIDATE│  Check for unsupported patterns
+└─────────────────┘
+     │
+     ▼
+┌─────────────────┐
+│ PHASE 3: GENERATE│  AST → Transformed code
+└─────────────────┘
+     │
+     ▼
+┌─────────────────┐
+│ PHASE 4: INLINE │  Optimize primitives away
+└─────────────────┘
+     │
+     ▼
+Final Output (.js)
+```
+
+## Phase 1: Parse
+
+The parser converts your JSX source code into an Abstract Syntax Tree (AST) using Babel:
+
+```jsx
+// Input
+<button onclick={handleClick}>Count: {get(count)}</button>
+```
+
+This becomes an AST representation that subsequent phases can analyze and transform.
+
+## Phase 2: Validate
+
+Validation ensures your code uses only supported patterns. The main check is for **custom components**.
+
+<Aside type="caution">
+Rift does NOT support custom PascalCase components like `<MyComponent>`. The only allowed PascalCase elements are `<For>` and `<Show>`.
+</Aside>
+
+```jsx
+// ✅ Allowed
+<div>Hello</div>
+<button onclick={fn}>Click</button>
+<For each={items}>{(item) => <li>{item}</li>}</For>
+<Show when={visible}><p>Content</p></Show>
+
+// ❌ Not allowed - will throw error
+<MyComponent prop={value} />
+<Header />
+<CustomButton>Click</CustomButton>
+```
+
+Instead of component composition, Rift uses web components:
+
+```jsx
+// ✅ Use web components instead
+<my-component></my-component>
+<app-header></app-header>
+<custom-button>Click</custom-button>
+```
+
+## Phase 3: Generate Output
+
+This is the most complex phase. It transforms JSX into efficient DOM manipulation code through several sub-transforms:
+
+### Template Extraction
+
+JSX becomes static HTML templates plus DOM traversal code:
+
+```jsx
+// Input
+<div class="card">
+  <h2>{get(title)}</h2>
+  <p>{get(description)}</p>
+</div>
+```
+
+```js
+// Output
+const $tmpl_1 = template('<div class="card"><h2> </h2><p> </p></div>');
+
+// In component function:
+const div_1 = $tmpl_1().firstChild;
+const h2_1 = div_1.firstChild;
+const h2_1_text = h2_1.firstChild;
+const p_1 = h2_1.nextSibling;
+const p_1_text = p_1.firstChild;
+```
+
+Notice the **space placeholders** (`' '`) in the template—these create text nodes that can be updated.
+
+### For Transform
+
+`<For>` becomes `for_block()` calls:
+
+```jsx
+// Input
+<For each={items}>
+  {(item) => <li>{item.name}</li>}
+</For>
+```
+
+```js
+// Output
+for_block(container, items, (anchor, item, index) => {
+  const li_1 = $tmpl_2().firstChild;
+  const li_1_text = li_1.firstChild;
+  li_1_text.nodeValue = item.name;
+  anchor.before(li_1);
+  return { start: li_1, end: li_1 };
+});
+```
+
+### Event Transform
+
+Event handlers become delegated event properties:
+
+```jsx
+// Input
+<button onclick={handleClick}>Click</button>
+<button onclick={() => select(item)}>Select</button>
+```
+
+```js
+// Output
+button_1.__click = handleClick;          // Simple handler
+button_2.__click = [select, item];       // Parameterized (array format)
+```
+
+### Bind Detection
+
+`get()` calls in expressions generate reactive bindings:
+
+```jsx
+// Input
+<p class={get(isActive) ? 'active' : ''}>{get(count)}</p>
+```
+
+```js
+// Output
+p_1.className = get(isActive) ? 'active' : '';
+bind(isActive, (v) => {
+  p_1.className = v ? 'active' : '';
+});
+
+p_1_text.nodeValue = get(count);
+count.ref_1 = p_1_text;
+```
+
+## Phase 4: Inline Optimizations
+
+The final phase eliminates runtime overhead by inlining primitive operations:
+
+### `cell()` Inlining
+
+```js
+// Before
+const count = cell(0);
+
+// After
+const count = { v: 0, e: [] };
+```
+
+### `get()` Inlining
+
+```js
+// Before
+get(count)
+
+// After
+count.v
+```
+
+### `put()` Inlining
+
+```js
+// Before
+put(count, 5);
+
+// After
+count.v = 5;
+```
+
+### `set()` Inlining with DOM Updates
+
+This is where the magic happens. `set()` calls are replaced with the value update **plus** all DOM updates that depend on that cell:
+
+```js
+// Before
+set(count, count.v + 1);
+
+// After
+{
+  count.v = count.v + 1;
+  count.ref_1.nodeValue = 'Count: ' + count.v;
+}
+```
+
+### `bind()` Removal
+
+`bind()` calls are removed and their effects are inlined at `set()` call sites:
+
+```js
+// Before (from Phase 3)
+bind(count, (v) => {
+  p_1.textContent = v;
+});
+
+// After (Phase 4)
+// bind() call is removed
+// DOM update is inlined into set() calls
+count.ref_1 = p_1;
+```
+
+## Complete Example
+
+Let's trace a simple counter through all phases:
+
+### Input
+
+```jsx
+import { defineComponent, cell, get, set } from 'rift-js';
+
+function Counter() {
+  const count = cell(0);
+  
+  return (
+    <button onclick={() => set(count, get(count) + 1)}>
+      Count: {get(count)}
+    </button>
+  );
+}
+
+defineComponent('my-counter', Counter);
+```
+
+### After Phase 3 (Generate)
+
+```js
+import { defineComponent, delegate, template, cell, get, set, bind } from 'rift-js';
+
+const $tmpl_1 = template('<button> </button>');
+
+function Counter() {
+  const count = cell(0);
+
+  this.connected(() => {
+    const button_1 = this.firstChild;
+    const button_1_text = button_1.firstChild;
+
+    button_1.__click = () => set(count, get(count) + 1);
+
+    button_1_text.nodeValue = 'Count: ' + get(count);
+    bind(count, () => {
+      button_1_text.nodeValue = 'Count: ' + get(count);
+    });
+  });
+}
+
+defineComponent('my-counter', Counter);
+delegate(['click']);
+```
+
+### After Phase 4 (Inline) - Final Output
+
+```js
+import { defineComponent, delegate, template } from 'rift-js';
+
+const $tmpl_1 = template('<button> </button>');
+
+function Counter() {
+  const count = { v: 0, e: [] };
+
+  this.connected(() => {
+    const button_1 = this.firstChild;
+    const button_1_text = button_1.firstChild;
+
+    button_1.__click = () => {
+      count.v = count.v + 1;
+      count.ref_1.nodeValue = 'Count: ' + count.v;
+    };
+
+    button_1_text.nodeValue = 'Count: ' + count.v;
+    count.ref_1 = button_1_text;
+  });
+}
+
+defineComponent('my-counter', Counter);
+delegate(['click']);
+```
+
+Notice:
+- `cell(0)` → `{ v: 0, e: [] }`
+- `get(count)` → `count.v`
+- `set()` → inline value update + DOM update
+- `bind()` → removed, DOM ref stored on cell
+
+## What Gets Compiled vs Runtime
+
+| Feature | Compile-Time | Runtime |
+|---------|--------------|---------|
+| `cell(value)` | Inlined to object literal | — |
+| `get(cell)` | Inlined to `.v` access | — |
+| `put(cell, value)` | Inlined to `.v = value` | — |
+| `set(cell, value)` | Inlined with DOM updates | — |
+| `bind(cell, fn)` | Removed, inlined at `set()` | — |
+| `template(html)` | — | Creates DOM template |
+| `for_block()` | Generated from `<For>` | List reconciliation |
+| `show_block()` | Generated from `<Show>` | Conditional rendering |
+| `delegate(events)` | Generated once per file | Event delegation |
+| `defineComponent()` | — | Web component registration |
+
+## Debugging Tips
+
+### View Compiled Output
+
+Use your browser's DevTools to view the compiled code:
+1. Open DevTools → Sources
+2. Find your `.jsx` file (will show compiled `.js`)
+3. Set breakpoints to step through
+
+### Source Maps
+
+Rift generates source maps so you can debug your original JSX:
+1. Errors point to your source file
+2. DevTools shows original code
+3. Breakpoints work on original lines
+
+### Common Compilation Errors
+
+**"Custom components are not supported"**
+```jsx
+// ❌ Error
+<MyComponent />
+
+// ✅ Fix - use web component
+<my-component></my-component>
+```
+
+**"Unexpected token"**
+Usually a JSX syntax error. Check for:
+- Unclosed tags
+- Invalid attribute names
+- Missing quotes
+
+## Performance Implications
+
+The compile-time approach means:
+
+1. **No virtual DOM diffing** - Updates go directly to DOM nodes
+2. **No runtime scheduler** - Updates happen synchronously when you call `set()`
+3. **Minimal bundle size** - Only runtime helpers you use are included
+4. **Predictable performance** - No framework overhead during updates
+
+## Next Steps
+
+- [Component Communication](/advanced/component-communication/) - Data flow between components
+- [Batching Updates](/advanced/batching/) - Optimize multiple updates
+- [Runtime API](/reference/runtime/) - Functions available at runtime

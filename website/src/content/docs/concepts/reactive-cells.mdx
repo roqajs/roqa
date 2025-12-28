@@ -1,0 +1,346 @@
+---
+title: Reactive Cells
+description: The fundamental building block of Rift's reactivity system
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Cells are the core primitive in Rift. A cell is a reactive container that holds a value and automatically tracks where it's used, enabling efficient DOM updates when the value changes.
+
+## Creating Cells
+
+Use `cell()` to create a reactive value:
+
+```jsx
+import { cell } from 'rift-js';
+
+const count = cell(0);           // number
+const name = cell('Alice');      // string
+const items = cell([1, 2, 3]);   // array
+const user = cell({ id: 1 });    // object
+const visible = cell(true);      // boolean
+```
+
+<Aside>
+At compile time, `cell(value)` is transformed into `{ v: value, e: [] }` where `v` holds the value and `e` is an array of effect subscribers.
+</Aside>
+
+## Reading Values with `get()`
+
+Use `get()` to read a cell's current value:
+
+```jsx
+import { cell, get } from 'rift-js';
+
+const count = cell(10);
+console.log(get(count)); // 10
+
+const name = cell('Alice');
+console.log(get(name)); // 'Alice'
+```
+
+When `get()` appears inside JSX, Rift automatically creates a reactive binding:
+
+```jsx
+function Greeting() {
+  const name = cell('World');
+  
+  return <h1>Hello, {get(name)}!</h1>;
+}
+```
+
+<Aside>
+At compile time, `get(cell)` is transformed into `cell.v` for direct property access.
+</Aside>
+
+## Updating Values with `set()`
+
+Use `set()` to update a cell and trigger reactive updates:
+
+```jsx
+import { cell, get, set } from 'rift-js';
+
+const count = cell(0);
+
+// Update the value
+set(count, 5);
+console.log(get(count)); // 5
+
+// Compute new value from current
+set(count, get(count) + 1);
+console.log(get(count)); // 6
+```
+
+### What `set()` Does
+
+When you call `set()`:
+
+1. Updates the cell's value
+2. Notifies all subscribers (effects registered with `bind()`)
+3. Updates all DOM nodes that depend on the cell
+
+The magic is that Rift **inlines** DOM updates at compile time:
+
+```jsx
+// What you write
+set(count, get(count) + 1);
+
+// What Rift compiles it to
+{
+  count.v = count.v + 1;
+  count.ref_1.nodeValue = 'Count: ' + count.v;
+}
+```
+
+## Silent Updates with `put()`
+
+Use `put()` when you need to update a cell's value **without** triggering reactive updates:
+
+```jsx
+import { cell, get, put } from 'rift-js';
+
+const count = cell(0);
+
+// Update without notifying subscribers
+put(count, 5);
+console.log(get(count)); // 5
+
+// DOM is NOT updated until next set() or manual notify()
+```
+
+### When to Use `put()`
+
+- **Batch updates**: Update multiple cells, then trigger one re-render
+- **Initialization**: Set initial values without side effects
+- **Performance**: Skip updates when you know they're not needed
+
+```jsx
+function BatchExample() {
+  const firstName = cell('');
+  const lastName = cell('');
+  const fullName = cell('');
+
+  const updateName = (first, last) => {
+    // Update silently
+    put(firstName, first);
+    put(lastName, last);
+    // Only this triggers updates
+    set(fullName, `${first} ${last}`);
+  };
+
+  return (
+    <div>
+      <p>{get(fullName)}</p>
+      <button onclick={() => updateName('John', 'Doe')}>
+        Set Name
+      </button>
+    </div>
+  );
+}
+```
+
+<Aside>
+At compile time, `put(cell, value)` is transformed into `cell.v = value`.
+</Aside>
+
+## Subscribing with `bind()`
+
+Use `bind()` to run a function whenever a cell changes:
+
+```jsx
+import { cell, get, set, bind } from 'rift-js';
+
+const count = cell(0);
+
+// Subscribe to changes
+const unbind = bind(count, (value) => {
+  console.log('Count changed to:', value);
+});
+
+set(count, 1); // logs: "Count changed to: 1"
+set(count, 2); // logs: "Count changed to: 2"
+
+// Unsubscribe when done
+unbind();
+set(count, 3); // nothing logged
+```
+
+### Use Cases for `bind()`
+
+**Side effects:**
+```jsx
+const darkMode = cell(false);
+
+bind(darkMode, (isDark) => {
+  document.body.classList.toggle('dark', isDark);
+});
+```
+
+**Syncing with external systems:**
+```jsx
+const volume = cell(50);
+
+bind(volume, (vol) => {
+  audioPlayer.setVolume(vol / 100);
+});
+```
+
+**Logging/debugging:**
+```jsx
+const state = cell({ items: [] });
+
+bind(state, (s) => {
+  console.log('State updated:', s);
+});
+```
+
+<Aside type="caution">
+In most cases, Rift's compiler handles bindings automatically when you use `get()` in JSX. You only need manual `bind()` calls for side effects outside the DOM.
+</Aside>
+
+## Manual Notifications with `notify()`
+
+Use `notify()` to trigger subscribers without changing the value:
+
+```jsx
+import { cell, get, put, notify } from 'rift-js';
+
+const items = cell([1, 2, 3]);
+
+// Mutate the array
+get(items).push(4);
+
+// Array reference didn't change, so we notify manually
+notify(items);
+```
+
+### When to Use `notify()`
+
+Useful when you mutate objects/arrays in place:
+
+```jsx
+const todos = cell([]);
+
+const addTodo = (text) => {
+  get(todos).push({ text, done: false });
+  notify(todos); // Trigger UI update
+};
+
+const toggleTodo = (index) => {
+  get(todos)[index].done = !get(todos)[index].done;
+  notify(todos);
+};
+```
+
+<Aside type="tip">
+For better performance and clearer code, prefer immutable updates with `set()`:
+```jsx
+const addTodo = (text) => {
+  set(todos, [...get(todos), { text, done: false }]);
+};
+```
+</Aside>
+
+## Unsubscribing with `unbind()`
+
+Use `unbind()` to remove a specific subscriber:
+
+```jsx
+import { cell, bind, unbind, set } from 'rift-js';
+
+const count = cell(0);
+
+const logger = (value) => console.log(value);
+
+bind(count, logger);
+set(count, 1); // logs: 1
+
+unbind(count, logger);
+set(count, 2); // nothing logged
+```
+
+Or use the return value from `bind()`:
+
+```jsx
+const unbind = bind(count, (value) => {
+  console.log(value);
+});
+
+// Later...
+unbind();
+```
+
+## Cell Structure
+
+Understanding the internal structure helps when debugging:
+
+```js
+// A cell is just an object
+const count = cell(0);
+
+// Structure:
+{
+  v: 0,        // Current value
+  e: [],       // Effect subscribers (from bind())
+  ref_1: node, // DOM refs (added by compiler)
+  ref_2: node,
+  // ...
+}
+```
+
+- `v` - The current value
+- `e` - Array of effect callbacks
+- `ref_N` - DOM node references for direct updates (compiler-generated)
+
+## Best Practices
+
+### Keep Cells Granular
+
+```jsx
+// ❌ One big cell
+const state = cell({
+  user: { name: '', age: 0 },
+  settings: { theme: 'light' },
+  items: []
+});
+
+// ✅ Separate cells for separate concerns
+const user = cell({ name: '', age: 0 });
+const theme = cell('light');
+const items = cell([]);
+```
+
+### Use Derived Values for Computed State
+
+```jsx
+// ❌ Manually keeping computed values in sync
+const items = cell([]);
+const count = cell(0);
+
+// Have to remember to update both
+const addItem = (item) => {
+  set(items, [...get(items), item]);
+  set(count, get(count) + 1); // Easy to forget!
+};
+
+// ✅ Use derived cells (see Derived Values guide)
+const items = cell([]);
+const count = cell(() => get(items).length);
+```
+
+### Prefer Immutable Updates
+
+```jsx
+// ❌ Mutate and notify
+get(items).push(newItem);
+notify(items);
+
+// ✅ Immutable update
+set(items, [...get(items), newItem]);
+```
+
+## Next Steps
+
+- [Derived Values](/concepts/derived-values/) - Compute values that update automatically
+- [Components](/concepts/components/) - Use cells within web components
+- [Batching Updates](/advanced/batching/) - Group multiple updates for performance

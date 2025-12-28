@@ -1,0 +1,411 @@
+---
+title: JSX Syntax
+description: Supported JSX patterns and limitations in Rift
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Rift uses JSX syntax that compiles to optimized DOM manipulation code. This page documents what JSX patterns are supported and their limitations.
+
+## Elements
+
+### HTML Elements
+
+All standard HTML elements are supported with lowercase names:
+
+```jsx
+<div>Content</div>
+<span class="highlight">Text</span>
+<button type="submit">Click</button>
+<input type="text" placeholder="Enter name" />
+<img src="image.png" alt="Description" />
+```
+
+### SVG Elements
+
+SVG elements are supported within `<svg>` tags:
+
+```jsx
+<svg width="100" height="100" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="40" fill="blue" />
+  <rect x="10" y="10" width="20" height="20" />
+  <path d="M10 10 L90 90" stroke="black" />
+</svg>
+```
+
+### Web Components
+
+Use your registered web components with hyphenated names:
+
+```jsx
+<my-counter></my-counter>
+<user-card name="Alice"></user-card>
+<app-header></app-header>
+```
+
+<Aside type="caution">
+Custom element names **must** contain a hyphen. This is a web platform requirement.
+</Aside>
+
+---
+
+## Special Components
+
+### `<For>` - List Rendering
+
+The only PascalCase component for rendering lists:
+
+```jsx
+<For each={items}>
+  {(item, index) => (
+    <li>{item.name}</li>
+  )}
+</For>
+```
+
+**Props:**
+- `each` - A cell containing an array
+
+**Callback parameters:**
+- `item` - The current item
+- `index` - The current index (optional)
+
+### `<Show>` - Conditional Rendering
+
+The only other PascalCase component for conditional content:
+
+```jsx
+<Show when={isVisible}>
+  <div>Visible content</div>
+</Show>
+
+<Show when={isLoggedIn} fallback={<p>Please log in</p>}>
+  <p>Welcome back!</p>
+</Show>
+```
+
+**Props:**
+- `when` - A cell or expression that evaluates to boolean
+- `fallback` - Optional content to show when condition is false
+
+---
+
+## ❌ Not Supported: Custom Components
+
+Unlike React or other frameworks, Rift does **not** support PascalCase custom components:
+
+```jsx
+// ❌ NOT SUPPORTED - will throw error
+<MyComponent prop={value} />
+<Header />
+<Button onClick={handleClick}>Click</Button>
+
+// ✅ Use web components instead
+<my-component></my-component>
+<app-header></app-header>
+<custom-button>Click</custom-button>
+```
+
+<Aside>
+This is a fundamental design decision. Rift compiles to vanilla JS and uses the web platform's native component model (custom elements) rather than a framework-specific component abstraction.
+</Aside>
+
+---
+
+## Attributes
+
+### Static Attributes
+
+```jsx
+<div class="container" id="main">
+<input type="email" name="email" required />
+<a href="/about" target="_blank">About</a>
+```
+
+### Dynamic Attributes
+
+Use curly braces for dynamic values:
+
+```jsx
+<div class={get(className)}>
+<input value={get(inputValue)} />
+<a href={get(linkUrl)}>Link</a>
+<div style={`color: ${get(textColor)}`}>
+```
+
+### Boolean Attributes
+
+```jsx
+<input disabled={get(isDisabled)} />
+<button hidden={!get(isVisible)}>
+<input checked={get(isChecked)} />
+```
+
+### Class Attribute
+
+Use `class` (not `className`):
+
+```jsx
+// ✅ Correct
+<div class="card">
+<div class={get(isActive) ? 'active' : ''}>
+
+// ❌ Wrong (React-ism)
+<div className="card">
+```
+
+### Style Attribute
+
+Use string values:
+
+```jsx
+// ✅ String styles
+<div style="color: red; font-size: 16px;">
+<div style={`background: ${get(bgColor)}`}>
+
+// ❌ Object styles not supported
+<div style={{ color: 'red' }}>
+```
+
+---
+
+## Event Handlers
+
+### Naming Convention
+
+Use lowercase `on*` (not `onClick`):
+
+```jsx
+// ✅ Correct
+<button onclick={handleClick}>
+<input oninput={handleInput}>
+<form onsubmit={handleSubmit}>
+
+// ❌ Wrong (React-ism)
+<button onClick={handleClick}>
+<input onInput={handleInput}>
+```
+
+### Handler Patterns
+
+```jsx
+// Named function
+<button onclick={handleClick}>
+
+// Inline arrow function
+<button onclick={() => set(count, get(count) + 1)}>
+
+// With event object
+<input oninput={(e) => set(value, e.target.value)}>
+
+// With parameters
+<button onclick={() => selectItem(item.id)}>
+```
+
+### Supported Events
+
+All standard DOM events work:
+
+| Event | Handler |
+|-------|---------|
+| click | `onclick` |
+| input | `oninput` |
+| change | `onchange` |
+| submit | `onsubmit` |
+| keydown | `onkeydown` |
+| keyup | `onkeyup` |
+| focus | `onfocus` |
+| blur | `onblur` |
+| mouseover | `onmouseover` |
+| mouseout | `onmouseout` |
+| mouseenter | `onmouseenter` |
+| mouseleave | `onmouseleave` |
+| ... | Any DOM event |
+
+---
+
+## Text Content
+
+### Static Text
+
+```jsx
+<p>Hello, World!</p>
+<span>Static text content</span>
+```
+
+### Dynamic Text
+
+Use `get()` for reactive values:
+
+```jsx
+<p>Count: {get(count)}</p>
+<span>Hello, {get(name)}!</span>
+<p>{get(firstName)} {get(lastName)}</p>
+```
+
+### Expressions
+
+```jsx
+<p>Total: {get(price) * get(quantity)}</p>
+<span>{get(items).length} items</span>
+<p class={get(count) > 10 ? 'high' : 'low'}>{get(count)}</p>
+```
+
+---
+
+## Fragments
+
+Use fragments to return multiple elements:
+
+```jsx
+function List() {
+  return (
+    <>
+      <li>Item 1</li>
+      <li>Item 2</li>
+      <li>Item 3</li>
+    </>
+  );
+}
+```
+
+---
+
+## Self-Closing Tags
+
+HTML void elements should be self-closing:
+
+```jsx
+<input type="text" />
+<br />
+<hr />
+<img src="photo.jpg" alt="Photo" />
+```
+
+Non-void elements need closing tags:
+
+```jsx
+// ✅ Correct
+<div></div>
+<span></span>
+<my-component></my-component>
+
+// ❌ Wrong for non-void elements
+<div />
+<span />
+```
+
+---
+
+## Comments
+
+Use JavaScript comments inside JSX:
+
+```jsx
+<div>
+  {/* This is a comment */}
+  <p>Content</p>
+  {/* 
+    Multi-line
+    comment
+  */}
+</div>
+```
+
+---
+
+## Whitespace
+
+Whitespace is generally preserved:
+
+```jsx
+// Spaces preserved
+<p>Hello World</p>
+
+// Line breaks become spaces
+<p>
+  Hello
+  World
+</p>
+// Renders as "Hello World"
+```
+
+---
+
+## Conditional Rendering
+
+### Using `<Show>`
+
+```jsx
+<Show when={isLoggedIn}>
+  <p>Welcome!</p>
+</Show>
+```
+
+### Using Ternary
+
+```jsx
+{get(isLoggedIn) ? <p>Welcome!</p> : <p>Please log in</p>}
+```
+
+### Using Logical AND
+
+```jsx
+{get(isVisible) && <p>Visible</p>}
+```
+
+---
+
+## Lists
+
+Always use `<For>` for reactive lists:
+
+```jsx
+// ✅ Correct
+<For each={items}>
+  {(item) => <li>{item}</li>}
+</For>
+
+// ❌ Don't use .map() for reactive arrays
+{get(items).map(item => <li>{item}</li>)}
+```
+
+<Aside type="caution">
+Using `.map()` won't create reactive bindings. The list won't update when items change. Always use `<For>` for dynamic lists.
+</Aside>
+
+---
+
+## Summary Table
+
+| Feature | Supported | Notes |
+|---------|-----------|-------|
+| HTML elements | ✅ | All standard elements |
+| SVG elements | ✅ | Within `<svg>` tags |
+| Web components | ✅ | Must have hyphen in name |
+| `<For>` | ✅ | Only for lists |
+| `<Show>` | ✅ | Only for conditionals |
+| Custom components | ❌ | Use web components |
+| `class` attribute | ✅ | Not `className` |
+| `onclick` events | ✅ | Lowercase, not `onClick` |
+| Style strings | ✅ | Not style objects |
+| Fragments `<>` | ✅ | |
+| `get()` in expressions | ✅ | Creates reactive bindings |
+| `.map()` for lists | ⚠️ | Use `<For>` instead |
+
+---
+
+## Migration from React
+
+| React | Rift |
+|-------|------|
+| `className="foo"` | `class="foo"` |
+| `onClick={fn}` | `onclick={fn}` |
+| `onChange={fn}` | `onchange={fn}` |
+| `style={{ color: 'red' }}` | `style="color: red"` |
+| `<MyComponent />` | `<my-component></my-component>` |
+| `{items.map(...)}` | `<For each={items}>...</For>` |
+| `{condition && <X />}` | `<Show when={condition}><X /></Show>` |
+| `useState(0)` | `cell(0)` |
+| `value={state}` | `value={get(state)}` |
+| `setValue(x)` | `set(state, x)` |
