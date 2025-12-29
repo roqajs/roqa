@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cell, get, put, bind, unbind, notify } from "../../src/runtime/cell.js";
+import { cell, get, put, bind, notify, set } from "../../src/runtime/cell.js";
 
 /**
  * Tests for the reactive cell primitives
@@ -11,12 +11,9 @@ import { cell, get, put, bind, unbind, notify } from "../../src/runtime/cell.js"
  *   cell(value)      - Create a new cell with initial value
  *   get(cell)        - Read the cell's current value
  *   put(cell, value) - Write without notifying subscribers
+ *   set(cell, value) - Write and notify subscribers
  *   bind(cell, fn)   - Subscribe to changes (fn called with new value)
- *   unbind(cell, fn) - Remove a subscription
  *   notify(cell)     - Manually trigger all subscribers
- *
- * Note: set() (write + notify) is tested in batch.test.js as it's part of
- * the batching system.
  */
 
 describe("cell", () => {
@@ -159,45 +156,6 @@ describe("bind", () => {
 	});
 });
 
-describe("unbind", () => {
-	it("removes effect from cell", () => {
-		const c = cell(0);
-		const effect = () => {};
-
-		bind(c, effect);
-		unbind(c, effect);
-
-		expect(c.e).not.toContain(effect);
-	});
-
-	it("handles unbind of non-existent effect gracefully", () => {
-		const c = cell(0);
-		const effect = () => {};
-
-		expect(() => unbind(c, effect)).not.toThrow();
-	});
-
-	it("handles cell without effects array gracefully", () => {
-		const c = { v: 0 }; // No e array
-		const effect = () => {};
-
-		expect(() => unbind(c, effect)).not.toThrow();
-	});
-
-	it("only removes the specific effect", () => {
-		const c = cell(0);
-		const effect1 = () => {};
-		const effect2 = () => {};
-
-		bind(c, effect1);
-		bind(c, effect2);
-		unbind(c, effect1);
-
-		expect(c.e).not.toContain(effect1);
-		expect(c.e).toContain(effect2);
-	});
-});
-
 describe("notify", () => {
 	it("calls all effects with current value", () => {
 		const c = cell(42);
@@ -231,19 +189,66 @@ describe("notify", () => {
 	});
 });
 
+describe("set", () => {
+	it("updates cell value", () => {
+		const c = cell(0);
+		set(c, 10);
+		expect(c.v).toBe(10);
+	});
+
+	it("notifies all effects immediately", () => {
+		const c = cell(0);
+		const values = [];
+
+		bind(c, (v) => values.push(v));
+		values.length = 0; // Clear initial call
+
+		set(c, 42);
+
+		expect(values).toEqual([42]);
+	});
+
+	it("notifies multiple effects", () => {
+		const c = cell(0);
+		const calls = [];
+
+		bind(c, () => calls.push("a"));
+		bind(c, () => calls.push("b"));
+		calls.length = 0;
+
+		set(c, 1);
+
+		expect(calls).toEqual(["a", "b"]);
+	});
+
+	it("handles rapid set calls", () => {
+		const c = cell(0);
+		let lastValue;
+
+		bind(c, (v) => {
+			lastValue = v;
+		});
+
+		for (let i = 0; i < 1000; i++) {
+			set(c, i);
+		}
+
+		expect(lastValue).toBe(999);
+	});
+});
+
 describe("edge cases", () => {
 	it("handles rapid bind/unbind cycles", () => {
 		const c = cell(0);
-		const effects = [];
+		const unsubs = [];
 
 		for (let i = 0; i < 100; i++) {
-			const effect = () => {};
-			effects.push(effect);
-			bind(c, effect);
+			const unsub = bind(c, () => {});
+			unsubs.push(unsub);
 		}
 
-		for (const effect of effects) {
-			unbind(c, effect);
+		for (const unsub of unsubs) {
+			unsub();
 		}
 
 		expect(c.e.length).toBe(0);

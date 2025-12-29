@@ -150,30 +150,6 @@ unbind(); // Stop listening
 
 ---
 
-### `unbind(cell, effect)`
-
-Removes a specific effect from a cell's subscribers.
-
-```ts
-function unbind<T>(cell: Cell<T>, effect: (value: T) => void): void
-```
-
-**Parameters:**
-
-- `cell` - The cell to unsubscribe from
-- `effect` - The effect function to remove
-
-**Example:**
-
-```jsx
-const logger = (v) => console.log(v);
-bind(count, logger);
-// Later...
-unbind(count, logger);
-```
-
----
-
 ### `notify(cell)`
 
 Manually triggers all subscribers of a cell.
@@ -192,55 +168,6 @@ function notify<T>(cell: Cell<T>): void
 const items = cell([1, 2, 3]);
 get(items).push(4); // Mutate in place
 notify(items); // Trigger updates
-```
-
----
-
-### `batch(fn)`
-
-Groups multiple updates into a single DOM update.
-
-```ts
-function batch<T>(fn: () => T): T
-```
-
-**Parameters:**
-
-- `fn` - Function containing multiple `set()` calls
-
-**Returns:** Whatever `fn` returns
-
-**Example:**
-
-```jsx
-batch(() => {
-  set(firstName, 'John');
-  set(lastName, 'Doe');
-  set(age, 30);
-}); // Single DOM update
-```
-
----
-
-### `set_with_batch(cell, value)`
-
-Updates a cell with automatic batching.
-
-```ts
-function set_with_batch<T>(cell: Cell<T>, value: T): void
-```
-
-**Parameters:**
-
-- `cell` - The cell to update
-- `value` - The new value
-
-**Example:**
-
-```jsx
-// These are batched together
-set_with_batch(x, e.clientX);
-set_with_batch(y, e.clientY);
 ```
 
 ---
@@ -535,10 +462,7 @@ import {
   set,
   put,
   bind,
-  unbind,
   notify,
-  batch,
-  set_with_batch,
 
   // Templates
   template,

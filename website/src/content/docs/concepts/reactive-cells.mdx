@@ -244,35 +244,6 @@ const addTodo = (text) => {
 ```
 </Aside>
 
-## Unsubscribing with `unbind()`
-
-Use `unbind()` to remove a specific subscriber:
-
-```jsx
-import { cell, bind, unbind, set } from 'rift-js';
-
-const count = cell(0);
-
-const logger = (value) => console.log(value);
-
-bind(count, logger);
-set(count, 1); // logs: 1
-
-unbind(count, logger);
-set(count, 2); // nothing logged
-```
-
-Or use the return value from `bind()`:
-
-```jsx
-const unbind = bind(count, (value) => {
-  console.log(value);
-});
-
-// Later...
-unbind();
-```
-
 ## Cell Structure
 
 Understanding the internal structure helps when debugging:

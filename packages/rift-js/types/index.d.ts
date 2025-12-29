@@ -1,7 +1,3 @@
-/**
- * Rift Framework Type Definitions
- */
-
 // ============================================
 // Reactive Primitives
 // ============================================
@@ -45,31 +41,15 @@ export function put<T>(cell: Cell<T>, value: T): void;
 export function set<T>(cell: Cell<T>, value: T): void;
 
 /**
- * Set a cell's value with batching support
- * When batching, defers notification until batch completes
- */
-export function set_with_batch<T>(cell: Cell<T>, value: T): void;
-
-/**
  * Bind an effect function to a cell
  * @returns Unsubscribe function
  */
 export function bind<T>(cell: Cell<T>, effect: (value: T) => void): () => void;
 
 /**
- * Remove an effect from a cell
- */
-export function unbind<T>(cell: Cell<T>, effect: (value: T) => void): void;
-
-/**
  * Notify all effects bound to a cell
  */
 export function notify<T>(cell: Cell<T>): void;
-
-/**
- * Batch multiple updates - effects only run once after batch completes
- */
-export function batch(fn: () => void): void;
 
 // ============================================
 // Template

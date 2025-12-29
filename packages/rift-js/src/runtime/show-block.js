@@ -1,7 +1,3 @@
-// ============================================
-// show_block - conditional rendering primitive
-// ============================================
-
 import { bind } from "./cell.js";
 
 /**
@@ -17,24 +13,16 @@ export function show_block(container, condition, render_fn, deps) {
 	const anchor = document.createTextNode("");
 	container.appendChild(anchor);
 
-	// Track current state
-	let currentState = null; // { start, end, cleanup? }
-	let isShowing = false;
+	// Track current rendered state: { start, end, cleanup? } or null
+	let currentState = null;
 
 	// Determine if condition is a cell, a getter function, or a static value
 	const isCell = condition && typeof condition === "object" && "v" in condition;
 	const isGetter = typeof condition === "function";
 
-	const getConditionValue = () => {
-		if (isCell) return !!condition.v;
-		if (isGetter) return !!condition();
-		return !!condition;
-	};
-
 	const create = () => {
 		if (currentState) return; // Already showing
 		currentState = render_fn(anchor);
-		isShowing = true;
 	};
 
 	const destroy_current = () => {
@@ -48,38 +36,56 @@ export function show_block(container, condition, render_fn, deps) {
 		// Remove DOM nodes
 		let node = currentState.start;
 		const end = currentState.end;
-
-		while (node !== null) {
+		do {
 			const next = node.nextSibling;
 			node.remove();
 			if (node === end) break;
 			node = next;
-		}
+		} while (node);
 
 		currentState = null;
-		isShowing = false;
 	};
 
-	const do_update = () => {
-		const shouldShow = getConditionValue();
-
-		if (shouldShow && !isShowing) {
-			create();
-		} else if (!shouldShow && isShowing) {
-			destroy_current();
-		}
-	};
+	// Optimized update functions based on condition type
+	const do_update = isCell
+		? () => {
+				if (condition.v) {
+					if (!currentState) create();
+				} else if (currentState) {
+					destroy_current();
+				}
+			}
+		: isGetter
+			? () => {
+					if (condition()) {
+						if (!currentState) create();
+					} else if (currentState) {
+						destroy_current();
+					}
+				}
+			: () => {
+					// Static value - only runs once
+					if (condition && !currentState) create();
+				};
 
 	// Subscribe to cell changes
-	const unsubscribes = [];
+	// Optimize for common case: single subscription doesn't need array
+	let unsubscribe = null;
+	let unsubscribes = null;
+
+	const depsLen = deps ? deps.length : 0;
 
 	if (isCell) {
 		// Simple cell condition
-		unsubscribes.push(bind(condition, do_update));
-	} else if (deps && deps.length > 0) {
-		// Complex expression with dependencies
-		for (const dep of deps) {
-			unsubscribes.push(bind(dep, do_update));
+		unsubscribe = bind(condition, do_update);
+	} else if (depsLen === 1) {
+		// Single dependency - no array needed
+		unsubscribe = bind(deps[0], do_update);
+	} else if (depsLen > 1) {
+		// Multiple dependencies - use array
+		unsubscribes = [];
+		for (let i = 0; i < depsLen; i++) {
+			unsubscribes.push(bind(deps[i], do_update));
 		}
 	}
 
@@ -88,8 +94,12 @@ export function show_block(container, condition, render_fn, deps) {
 
 	// Destroy function for cleanup
 	const destroy = () => {
-		for (const unsub of unsubscribes) {
-			unsub();
+		if (unsubscribe) {
+			unsubscribe();
+		} else if (unsubscribes) {
+			for (let i = 0; i < unsubscribes.length; i++) {
+				unsubscribes[i]();
+			}
 		}
 		destroy_current();
 		anchor.remove();
@@ -99,7 +109,7 @@ export function show_block(container, condition, render_fn, deps) {
 		update: do_update,
 		destroy,
 		get isShowing() {
-			return isShowing;
+			return currentState !== null;
 		},
 	};
 }

@@ -1,7 +1,3 @@
-// ============================================
-// for_block and reconciliation primitives
-// ============================================
-
 import { bind } from "./cell.js";
 
 // LIS algorithm state (reused across calls for performance)
@@ -61,10 +57,6 @@ function lis_algorithm(arr) {
 	return seq;
 }
 
-function get_next_sibling(node) {
-	return node.nextSibling;
-}
-
 /**
  * Create an item block (lightweight object representing a rendered item)
  * @param {Node} anchor - Where to insert
@@ -91,7 +83,7 @@ function move_item(item, anchor) {
 
 	if (node !== end) {
 		while (node !== null) {
-			const next_node = get_next_sibling(node);
+			const next_node = node.nextSibling;
 			anchor.before(node);
 			if (next_node === end) {
 				anchor.before(end);
@@ -116,7 +108,7 @@ function destroy_item(item) {
 	if (state.cleanup) state.cleanup();
 
 	while (node !== null) {
-		const next = get_next_sibling(node);
+		const next = node.nextSibling;
 		node.remove();
 		if (node === end) break;
 		node = next;
@@ -218,7 +210,7 @@ function reconcile_by_ref(anchor, for_state, b, render_fn) {
 			b_start = j;
 			a_left = a_end - j + 1;
 			b_left = b_end - j + 1;
-			sources = new Int32Array(b_left + 1);
+			sources = new Int32Array(b_left);
 			moved = false;
 			pos = 0;
 			patched = 0;

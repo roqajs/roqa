@@ -1,8 +1,7 @@
-// ============================================
-// Component definition primitive
-// ============================================
-
 import { handle_root_events } from "./events.js";
+
+// Register event delegation once at module load
+handle_root_events(document);
 
 // WeakMap to store props for elements before they're upgraded
 const elementProps = new WeakMap();
@@ -37,10 +36,6 @@ const EXCLUDED_PROPS = new Set([
 	"outerHTML",
 	"textContent",
 	"nodeValue",
-	// Internal Rift properties
-	"_connectedCallbacks",
-	"_disconnectedCallbacks",
-	"_abortController",
 ]);
 
 /**
@@ -60,52 +55,64 @@ export function setProp(element, propName, value) {
  * Merges props from WeakMap with any properties set directly on the element
  */
 export function getProps(element) {
-	const weakMapProps = elementProps.get(element) || {};
-
+	const weakMapProps = elementProps.get(element);
+	const ownKeys = Object.keys(element);
+	// Fast path: No props at all
+	if (!weakMapProps && ownKeys.length === 0) return {};
 	// Collect own properties set directly on the element (not inherited)
 	const directProps = {};
-	for (const key of Object.keys(element)) {
-		if (!EXCLUDED_PROPS.has(key) && !key.startsWith("_")) {
+	for (let i = 0; i < ownKeys.length; i++) {
+		const key = ownKeys[i];
+		if (!EXCLUDED_PROPS.has(key) && key[0] !== "_") {
 			directProps[key] = element[key];
 		}
 	}
-
 	// Direct props take precedence (they're set closer to usage time)
-	return { ...weakMapProps, ...directProps };
+	return weakMapProps ? { ...weakMapProps, ...directProps } : directProps;
+}
+
+/**
+ * Base class for Rift components with shared methods
+ */
+class RiftElement extends HTMLElement {
+	_connectedCallbacks = [];
+	_disconnectedCallbacks = [];
+	_abortController = null;
+	connected(fn) {
+		this._connectedCallbacks.push(fn);
+	}
+	disconnected(fn) {
+		this._disconnectedCallbacks.push(fn);
+	}
+	on(eventName, handler) {
+		// Lazy initialization of AbortController
+		if (!this._abortController) {
+			this._abortController = new AbortController();
+		}
+		this.addEventListener(eventName, handler, { signal: this._abortController.signal });
+	}
+	emit(eventName, detail = undefined, options = {}) {
+		const { bubbles = true, composed = false } = options;
+		this.dispatchEvent(new CustomEvent(eventName, { detail, bubbles, composed }));
+	}
 }
 
 export function defineComponent(tagName, fn) {
 	if (customElements.get(tagName)) return;
 	customElements.define(
 		tagName,
-		class extends HTMLElement {
-			_connectedCallbacks = [];
-			_disconnectedCallbacks = [];
-			_abortController;
+		class extends RiftElement {
 			connectedCallback() {
-				this._abortController = new AbortController();
 				const props = getProps(this);
 				fn.call(this, props);
-				if (this._connectedCallbacks) for (const cb of this._connectedCallbacks) cb();
+				const cbs = this._connectedCallbacks;
+				for (let i = 0; i < cbs.length; i++) cbs[i]();
 			}
 			disconnectedCallback() {
-				if (this._disconnectedCallbacks) for (const cb of this._disconnectedCallbacks) cb();
-				this._abortController.abort();
-			}
-			connected(fn) {
-				this._connectedCallbacks.push(fn);
-			}
-			disconnected(fn) {
-				this._disconnectedCallbacks.push(fn);
-			}
-			on(eventName, handler) {
-				this.addEventListener(eventName, handler, { signal: this._abortController.signal });
-			}
-			emit(eventName, detail = undefined, options = {}) {
-				const { bubbles = true, composed = false } = options;
-				this.dispatchEvent(new CustomEvent(eventName, { detail, bubbles, composed }));
+				const cbs = this._disconnectedCallbacks;
+				for (let i = 0; i < cbs.length; i++) cbs[i]();
+				if (this._abortController) this._abortController.abort();
 			}
 		},
 	);
-	handle_root_events(document);
 }

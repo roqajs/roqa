@@ -1,11 +1,8 @@
-// Barrel export for Rift framework primitives
-
 // Template
 export { template, svg_template } from "./template.js";
 
 // Reactive primitives
-export { cell, get, put, bind, unbind, notify } from "./cell.js";
-export { batch, set, set_with_batch } from "./batch.js";
+export { cell, get, put, bind, notify, set } from "./cell.js";
 
 // Event delegation
 export { delegate, handle_root_events } from "./events.js";

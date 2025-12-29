@@ -38,6 +38,7 @@ Rift is a **compile-time reactive UI framework** for building web components wit
 | `put(cell, value)` | Write without notifying      | `cell.v = value`                            |
 | `set(cell, value)` | Write and notify subscribers | `{ cell.v = value; /* inlined updates */ }` |
 | `bind(cell, fn)`   | Subscribe to changes         | Inlined at `set()` call sites               |
+| `notify(cell)`     | Trigger all subscribers      | Loops over `cell.e` and calls each          |
 
 ---
 
@@ -84,7 +85,7 @@ packages/
 │   │  Input: Babel AST                                                   │   │
 │   │  Output: AST (unchanged) or throws error                            │   │
 │   │  Purpose: Reject unsupported PascalCase components                  │   │
-│   │  Note: <For> is the ONLY allowed PascalCase component               │   │
+│   │  Note: <For> and <Show> are the ONLY allowed PascalCase components  │   │
 │   └─────────────────────────────────────────────────────────────────────┘   │
 │        │                                                                    │
 │        ▼                                                                    │
@@ -100,6 +101,8 @@ packages/
 │   │  │ jsx-to-template.js  │ JSX → HTML template strings + traversal│   │   │
 │   │  ├──────────────────────────────────────────────────────────────┤   │   │
 │   │  │ for-transform.js    │ <For> → for_block() calls              │   │   │
+│   │  ├──────────────────────────────────────────────────────────────┤   │   │
+│   │  │ show-transform.js   │ <Show> → show_block() calls            │   │   │
 │   │  ├──────────────────────────────────────────────────────────────┤   │   │
 │   │  │ events.js           │ onclick={fn} → el.__click = fn         │   │   │
 │   │  ├──────────────────────────────────────────────────────────────┤   │   │
@@ -194,7 +197,29 @@ for_block(container, items, (anchor, item, index) => {
 });
 ```
 
-### 3.3 Event Transform (`events.js`)
+### 3.3 Show Transform (`show-transform.js`)
+
+Transforms `<Show>` components into `show_block()` runtime calls for conditional rendering.
+
+**Input:**
+
+```jsx
+<Show when={get(isVisible)}>
+  <div>Conditional content</div>
+</Show>
+```
+
+**Output:**
+
+```js
+show_block(container, isVisible, (anchor) => {
+  const div_1 = $tmpl_3().firstChild;
+  anchor.before(div_1);
+  return { start: div_1, end: div_1 };
+});
+```
+
+### 3.4 Event Transform (`events.js`)
 
 Converts JSX event handlers to delegated event format.
 
@@ -212,7 +237,7 @@ button_1.__click = handleClick; // Simple handler
 button_2.__click = [select, item]; // Parameterized (array format)
 ```
 
-### 3.4 Bind Detection (`bind-detector.js`)
+### 3.5 Bind Detection (`bind-detector.js`)
 
 Finds `get()` calls in expressions and generates reactive bindings.
 
@@ -291,14 +316,14 @@ transform(code, id) {
 
 Minimal runtime for features that can't be compile-time:
 
-| Module         | Purpose                                       |
-| -------------- | --------------------------------------------- |
-| `template.js`  | Creates cloneable DOM templates               |
-| `cell.js`      | Reactive primitives (fallback if not inlined) |
-| `component.js` | `defineComponent()` for web components        |
-| `for-block.js` | Efficient list reconciliation (LIS algorithm) |
-| `events.js`    | Event delegation system                       |
-| `batch.js`     | Batched updates                               |
+| Module          | Purpose                                        |
+| --------------- | ---------------------------------------------- |
+| `template.js`   | Creates cloneable DOM templates (HTML and SVG) |
+| `cell.js`       | Reactive primitives (fallback if not inlined)  |
+| `component.js`  | `defineComponent()` for web components         |
+| `for-block.js`  | Efficient list reconciliation (LIS algorithm)  |
+| `show-block.js` | Conditional rendering (`<Show>` component)     |
+| `events.js`     | Event delegation system                        |
 
 ---
 
@@ -349,10 +374,10 @@ delegate(['click']);
 
 1. **No component composition**: Rift does NOT support `<MyComponent>` syntax. Use web components via `defineComponent()`.
 
-2. **`<For>` is special**: It's the only PascalCase element allowed. It compiles to `for_block()`.
+2. **`<For>` and `<Show>` are special**: They're the only PascalCase elements allowed. `<For>` compiles to `for_block()`, `<Show>` compiles to `show_block()`.
 
 3. **Phase order matters**: Don't try to inline `get()` calls before code generation. Phase 4 needs the full context.
 
-4. **Templates are static**: All dynamic content becomes traversal code + bindings. You can't have conditional elements in templates.
+4. **Templates are static**: All dynamic content becomes traversal code + bindings. You can't have conditional elements in templates (use `<Show>` instead).
 
 5. **Event delegation**: Events use `__eventname` properties, not `addEventListener`. The `delegate()` call registers them at the document level.
