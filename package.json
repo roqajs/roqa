@@ -11,10 +11,11 @@
   },
   "engineStrict": true,
   "scripts": {
-    "fmt": "prettier --write .",
-    "fmt:check": "prettier --check ."
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
   },
   "devDependencies": {
+    "oxfmt": "^0.20.0",
     "rift-vite-plugin": "workspace:*"
   }
 }
