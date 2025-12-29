@@ -32,5 +32,5 @@ hello-world #msg-label {
 }
 hello-world #msg {
 	font-size: 1.4rem;
-	margin: 0;
+	margin-top: 0.5rem;
 }

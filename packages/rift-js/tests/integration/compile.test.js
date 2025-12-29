@@ -442,5 +442,41 @@ defineComponent('my-app', App);
 			const result = compile(input, "test.jsx");
 			expect(result.code).toContain("style");
 		});
+
+		it("treats string literal expressions as static text (formatter compatibility)", () => {
+			// Formatters like Prettier convert inline text to {" "} syntax
+			const input = `
+import { defineComponent } from 'rift-js';
+function App() {
+	return (
+		<p>
+			<a href="a">Link A</a>{" "}
+			by{" "}
+			<a href="b">Link B</a>
+			, CC Attribution.
+		</p>
+	);
+}
+defineComponent('my-app', App);
+`;
+			const result = compile(input, "test.jsx");
+			// The template should contain "by" as static text, not as a binding
+			expect(result.code).toContain("by");
+			// Should NOT have text bindings for the static strings
+			expect(result.code).not.toContain("nodeValue");
+		});
+
+		it("includes string literals in template between elements", () => {
+			const input = `
+import { defineComponent } from 'rift-js';
+function App() {
+	return <p><a>A</a>{" and "}<a>B</a></p>;
+}
+defineComponent('my-app', App);
+`;
+			const result = compile(input, "test.jsx");
+			// " and " should be directly in the template string
+			expect(result.code).toContain(" and ");
+		});
 	});
 });

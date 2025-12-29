@@ -64,14 +64,23 @@ export interface ForProps<T> {
 	/** Reactive cell containing the array to iterate */
 	each: Cell<T[]>;
 	/** Render callback for each item */
-	children: (item: T, index?: number) => void;
+	children: (item: T, index: number) => void;
 }
 
 /**
  * For component - renders a list reactively
  * Compiled into for_block() calls
+ *
+ * @example
+ * ```tsx
+ * const items = cell([{ name: "A" }, { name: "B" }]);
+ *
+ * <For each={items}>
+ *   {(item, index) => <li>{item.name}</li>}
+ * </For>
+ * ```
  */
-export function For<T>(props: ForProps<T>): void;
+export declare function For<T>(props: ForProps<T>): JSX.Element;
 
 // ============================================
 // Event Handler Types
@@ -321,6 +330,18 @@ interface SelectHTMLAttributes extends HTMLAttributes {
 	required?: boolean;
 	size?: number;
 	value?: string | string[] | number;
+}
+
+interface OptionHTMLAttributes extends HTMLAttributes {
+	disabled?: boolean;
+	label?: string;
+	selected?: boolean;
+	value?: string | string[] | number;
+}
+
+interface OptgroupHTMLAttributes extends HTMLAttributes {
+	disabled?: boolean;
+	label?: string;
 }
 
 interface TextareaHTMLAttributes extends HTMLAttributes {
@@ -574,8 +595,8 @@ declare global {
 			label: LabelHTMLAttributes;
 			legend: HTMLAttributes;
 			meter: HTMLAttributes;
-			optgroup: HTMLAttributes;
-			option: HTMLAttributes;
+			optgroup: OptgroupHTMLAttributes;
+			option: OptionHTMLAttributes;
 			output: HTMLAttributes;
 			progress: HTMLAttributes;
 			select: SelectHTMLAttributes;
@@ -611,9 +632,6 @@ declare global {
 			text: SVGAttributes;
 			tspan: SVGAttributes;
 			use: SVGAttributes;
-
-			// Rift special components
-			For: ForProps<any>;
 
 			// Allow any element (for custom elements)
 			[elemName: string]: any;

@@ -302,6 +302,14 @@ function extractFragmentTemplate(
 				// Non-whitespace text between fragment children - add to HTML
 				// (Single space-only text nodes between block elements can be dropped)
 				html += escapeHtml(text);
+				// Track static text nodes for proper sibling traversal
+				structures.push({
+					varName: null,
+					tagName: "__static_text__",
+					children: [],
+					textNodes: [],
+					isStaticText: true,
+				});
 			}
 		} else if (isJSXElement(child)) {
 			const childPath = [childIndex];
@@ -377,13 +385,21 @@ function generateFragmentTraversal(structures, rootVar, isComponentRoot) {
 	const steps = [];
 
 	let prevVar = null;
+	let pendingNextSiblingCount = 0; // Track static text nodes that need to be skipped
+
 	for (let i = 0; i < structures.length; i++) {
 		const structure = structures[i];
+
+		if (structure.isStaticText) {
+			// Static text node - just count it for sibling traversal
+			pendingNextSiblingCount++;
+			continue;
+		}
 
 		if (structure.isTextMarker) {
 			// This is a dynamic text marker - handle it specially
 			const markerVarName = `${structure.varName}_marker`;
-			if (i === 0) {
+			if (prevVar === null) {
 				steps.push({
 					varName: markerVarName,
 					code: isComponentRoot ? "this.firstChild" : `${rootVar}.firstChild`,
@@ -391,28 +407,40 @@ function generateFragmentTraversal(structures, rootVar, isComponentRoot) {
 					textVarName: structure.varName,
 				});
 			} else {
+				// Chain nextSibling calls for any static text nodes we skipped
+				let code = `${prevVar}.nextSibling`;
+				for (let j = 0; j < pendingNextSiblingCount; j++) {
+					code += ".nextSibling";
+				}
 				steps.push({
 					varName: markerVarName,
-					code: `${prevVar}.nextSibling`,
+					code,
 					isMarker: true,
 					textVarName: structure.varName,
 				});
 			}
 			prevVar = structure.varName; // Use the text node for next traversal
+			pendingNextSiblingCount = 0;
 		} else {
 			// Regular element
-			if (i === 0) {
+			if (prevVar === null) {
 				steps.push({
 					varName: structure.varName,
 					code: isComponentRoot ? "this.firstChild" : `${rootVar}.firstChild`,
 				});
 			} else {
+				// Chain nextSibling calls for any static text nodes we skipped
+				let code = `${prevVar}.nextSibling`;
+				for (let j = 0; j < pendingNextSiblingCount; j++) {
+					code += ".nextSibling";
+				}
 				steps.push({
 					varName: structure.varName,
-					code: `${prevVar}.nextSibling`,
+					code,
 				});
 			}
 			prevVar = structure.varName;
+			pendingNextSiblingCount = 0;
 
 			// Recurse into this element's children
 			generateChildTraversal(structure, steps);
@@ -608,8 +636,14 @@ function processElement(
 				contentParts.push({ type: "static", value: text });
 			}
 		} else if (isJSXExpressionContainer(child)) {
-			hasDynamicContent = true;
-			contentParts.push({ type: "dynamic", expression: child.expression });
+			// Check if expression is a static string literal (e.g., {" "} from formatters)
+			if (child.expression.type === "StringLiteral") {
+				// Treat string literals as static text
+				contentParts.push({ type: "static", value: child.expression.value });
+			} else {
+				hasDynamicContent = true;
+				contentParts.push({ type: "dynamic", expression: child.expression });
+			}
 		} else if (isJSXElement(child)) {
 			// Element child - flush content parts and process element
 			if (contentParts.length > 0) {

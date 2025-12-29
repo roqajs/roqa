@@ -1040,12 +1040,18 @@ function generateContentPartsBinding(
 					parts.push(`"${escapeStringLiteral(text)}"`);
 				}
 			} else if (part.type === "dynamic") {
+				const exprCode = generateExpr(code, part.expression);
+				// Wrap in parentheses if the expression contains binary operators that could
+				// cause precedence issues when concatenated with strings (e.g., "a + b = " + (get(a) + get(b)))
+				// We check for common arithmetic operators: +, -, *, /, %
+				const needsParens =
+					/[+\-*/%]/.test(exprCode) && !/^[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*)*$/.test(exprCode);
 				if (useOriginalCode) {
-					parts.push(generateExpr(code, part.expression));
+					parts.push(needsParens ? `(${exprCode})` : exprCode);
 				} else {
 					// For bind callback, we keep the original expression
 					// (the bind will just re-evaluate the whole thing)
-					parts.push(generateExpr(code, part.expression));
+					parts.push(needsParens ? `(${exprCode})` : exprCode);
 				}
 			}
 		}

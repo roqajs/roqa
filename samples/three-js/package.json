@@ -13,6 +13,7 @@
 		"three": "^0.182.0"
 	},
 	"devDependencies": {
+		"@types/three": "^0.182.0",
 		"rift-vite-plugin": "workspace:*",
 		"vite": "npm:rolldown-vite@7.2.5"
 	},

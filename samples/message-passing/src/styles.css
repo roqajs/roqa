@@ -10,15 +10,15 @@ body {
 	margin: 0;
 	padding: 0;
 }
-parent-component {
+message-passing {
 	border: dashed 3px rgb(22, 94, 189);
 	border-radius: 10px;
 	padding: 1rem;
 }
-parent-component > .child-message {
+message-passing > .child-message {
 	margin: 1rem 0 0 0;
 }
-child-component {
+x-counter {
 	display: grid;
 	padding: 1rem;
 	margin-top: 1rem;

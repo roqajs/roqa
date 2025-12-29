@@ -283,6 +283,52 @@ describe("extractTemplate", () => {
 		expect(result.templateVar).toBeDefined();
 	});
 
+	it("treats string literal expressions as static text", () => {
+		// This is the pattern formatters like Prettier produce: {" "}
+		const result = extractFromJSX('<p><a href="a">Link</a>{" by "}<a href="b">Other</a></p>');
+
+		// Should NOT create any bindings - string literals are static
+		expect(result.bindings.length).toBe(0);
+	});
+
+	it("includes string literal expression content in template", () => {
+		const ast = parse('<p><a href="a">Link</a>{" by "}<a href="b">Other</a></p>', "test.jsx");
+		const jsxNode = ast.program.body[0].expression;
+		const registry = new TemplateRegistry();
+		const nameGen = new VariableNameGenerator();
+		extractTemplate(jsxNode, registry, nameGen, false);
+
+		const declarations = registry.getDeclarations();
+		// The template HTML should contain " by " as static text
+		expect(declarations[0]).toContain(" by ");
+	});
+
+	it("handles multiple string literal expressions between elements", () => {
+		const ast = parse(
+			'<p><a href="a">A</a>{" and "}<a href="b">B</a>{" and "}<a href="c">C</a></p>',
+			"test.jsx",
+		);
+		const jsxNode = ast.program.body[0].expression;
+		const registry = new TemplateRegistry();
+		const nameGen = new VariableNameGenerator();
+		const result = extractTemplate(jsxNode, registry, nameGen, false);
+
+		// No bindings needed - all static
+		expect(result.bindings.length).toBe(0);
+
+		const declarations = registry.getDeclarations();
+		// Both " and " strings should be in the template
+		expect(declarations[0]).toContain(" and ");
+	});
+
+	it("handles mixed string literals and dynamic expressions", () => {
+		const result = extractFromJSX('<p>{" prefix "}{get(value)}{" suffix "}</p>');
+
+		// Should have exactly one binding for the dynamic get(value)
+		expect(result.bindings.length).toBe(1);
+		expect(result.bindings[0].type).toBe("text");
+	});
+
 	it("handles boolean attributes without values", () => {
 		const result = extractFromJSX("<input disabled readonly />");
 

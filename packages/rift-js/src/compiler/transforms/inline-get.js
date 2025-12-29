@@ -552,9 +552,12 @@ export function inlineGetCalls(code, filename) {
 	// Clear derived cells map for each file
 	derivedCells.clear();
 
+	const isTypeScript = filename && (filename.endsWith(".tsx") || filename.endsWith(".ts"));
+	const plugins = isTypeScript ? ["jsx", "typescript"] : ["jsx"];
+
 	const ast = parse(code, {
 		sourceType: "module",
-		plugins: ["jsx"],
+		plugins,
 	});
 
 	const s = new MagicString(code);
