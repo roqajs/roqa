@@ -132,8 +132,7 @@ export function handle_root_events(target) {
 
 	// Handler to add listeners for new event types
 	const event_handle = (events) => {
-		for (let i = 0; i < events.length; i++) {
-			const event_name = events[i];
+		for (const event_name of events) {
 			if (registered_events.has(event_name)) continue;
 			registered_events.add(event_name);
 			target.addEventListener(event_name, handle_event_propagation, {
