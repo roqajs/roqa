@@ -1,0 +1,430 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`compile snapshots > SVG > compiles SVG elements 1`] = `
+"
+import { bind, defineComponent, svg_template, template } from "rift-js";
+
+const $tmpl_1 = svg_template('<svg width="100" height="100"><circle cx="50" cy="50"></circle></svg>');
+
+function Circle() {
+	const radius = { v: 50, e: [] };
+	const color = { v: 'blue', e: [] };
+	
+	this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
+
+    const svg_1 = this.firstChild;
+    const circle_1 = svg_1.firstChild;
+
+    circle_1.setAttribute("r", radius.v);
+    bind(radius, (v) => {
+      circle_1.setAttribute("r", v);
+    });
+    circle_1.setAttribute("fill", color.v);
+    bind(color, (v) => {
+      circle_1.setAttribute("fill", v);
+    });
+  });
+}
+
+defineComponent('svg-circle', Circle);
+"
+`;
+
+exports[`compile snapshots > basic components > compiles component with multiple cells 1`] = `
+"
+import { bind, defineComponent, delegate, template } from "rift-js";
+
+const $tmpl_1 = template('<form><input><input><button type="submit">Submit</button></form>');
+
+function Form() {
+	const name = { v: '', e: [] };
+	const email = { v: '', e: [] };
+	const submitted = { v: false, e: [] };
+	
+	this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
+
+    const form_1 = this.firstChild;
+    const input_1 = form_1.firstChild;
+    const input_2 = input_1.nextSibling;
+
+    input_1.__input = (e) => { name.v = e.target.value; name.ref_1.value = name.v; };
+    input_2.__input = (e) => { email.v = e.target.value; email.ref_1.value = email.v; };
+
+    input_1.value = name.v;
+    name.ref_1 = input_1;
+    input_2.value = email.v;
+    email.ref_1 = input_2;
+  });
+}
+
+defineComponent('my-form', Form);
+
+
+delegate(["input"]);"
+`;
+
+exports[`compile snapshots > basic components > compiles component with reactive state 1`] = `
+"
+import { bind, defineComponent, delegate, template } from "rift-js";
+
+const $tmpl_1 = template('<div><span> </span><button>+</button></div>');
+
+function Counter() {
+	const count = { v: 0, e: [] };
+	const increment = () => { count.v = count.v + 1; count.ref_1.nodeValue = "Count: " + count.v; };
+	this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
+
+    const div_1 = this.firstChild;
+    const span_1 = div_1.firstChild;
+    const span_1_text = span_1.firstChild;
+    const button_1 = span_1.nextSibling;
+
+    button_1.__click = increment;
+
+    span_1_text.nodeValue = "Count: " + count.v;
+    count.ref_1 = span_1_text;
+  });
+}
+
+defineComponent('my-counter', Counter);
+
+
+delegate(["click"]);"
+`;
+
+exports[`compile snapshots > basic components > compiles simple static component 1`] = `
+"
+import { defineComponent, template } from "rift-js";
+
+const $tmpl_1 = template('<div class="greeting">Hello, World!</div>');
+
+function HelloWorld() {
+	this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
+
+  });
+}
+
+defineComponent('hello-world', HelloWorld);
+"
+`;
+
+exports[`compile snapshots > bindings > compiles attribute bindings 1`] = `
+"
+import { bind, defineComponent, template } from "rift-js";
+
+const $tmpl_1 = template('<button>Click me</button>');
+
+function DynamicButton() {
+	const isDisabled = { v: false, e: [] };
+	const buttonClass = { v: 'btn-primary', e: [] };
+	
+	this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
+
+    const button_1 = this.firstChild;
+
+    button_1.className = buttonClass.v;
+    buttonClass.ref_1 = button_1;
+    button_1.disabled = isDisabled.v;
+    isDisabled.ref_1 = button_1;
+  });
+}
+
+defineComponent('dynamic-button', DynamicButton);
+"
+`;
+
+exports[`compile snapshots > bindings > compiles ternary expressions 1`] = `
+"
+import { defineComponent, delegate, template } from "rift-js";
+
+const $tmpl_1 = template('<div><button> </button></div>');
+
+function ThemeToggle() {
+	const isDark = { v: false, e: [] };
+	
+	this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
+
+    const div_1 = this.firstChild;
+    const button_1 = div_1.firstChild;
+    const button_1_text = button_1.firstChild;
+
+    button_1.__click = () => { isDark.v = !isDark.v; isDark.ref_1.className = isDark.v ? 'dark-theme' : 'light-theme'; isDark.ref_1.nodeValue = isDark.v ? 'Switch to Light' : 'Switch to Dark'; };
+
+    div_1.className = isDark.v ? 'dark-theme' : 'light-theme';
+    isDark.ref_1 = div_1;
+    button_1_text.nodeValue = isDark.v ? 'Switch to Light' : 'Switch to Dark';
+    isDark.ref_1 = button_1_text;
+  });
+}
+
+defineComponent('theme-toggle', ThemeToggle);
+
+
+delegate(["click"]);"
+`;
+
+exports[`compile snapshots > bindings > compiles text bindings with concatenation 1`] = `
+"
+import { bind, defineComponent, template } from "rift-js";
+
+const $tmpl_1 = template('<p> </p>');
+
+function Greeting() {
+	const firstName = { v: 'John', e: [] };
+	const lastName = { v: 'Doe', e: [] };
+	
+	this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
+
+    const p_1 = this.firstChild;
+    const p_1_text = p_1.firstChild;
+
+    p_1_text.nodeValue = "Hello, " + firstName.v + lastName.v + "!";
+    firstName.ref_1 = p_1_text;
+    p_1_text.nodeValue = "Hello, " + firstName.v + lastName.v + "!";
+    lastName.ref_1 = p_1_text;
+  });
+}
+
+defineComponent('my-greeting', Greeting);
+"
+`;
+
+exports[`compile snapshots > component composition > compiles parent-child Rift components 1`] = `
+"
+import { bind, defineComponent, setProp, template } from "rift-js";
+
+const $tmpl_1 = template('<div><child-component></child-component></div>');
+const $tmpl_2 = template('<span>I am child</span>');
+
+function ChildComponent() {
+	this.connected(() => {
+    const $root_2 = $tmpl_2();
+    this.appendChild($root_2);
+
+  });
+}
+defineComponent('child-component', ChildComponent);
+
+function ParentComponent() {
+	const message = { v: 'Hello from parent', e: [] };
+	this.connected(() => {
+    const $root_1 = $tmpl_1();
+    const div_1 = $root_1.firstChild;
+    const child_component_1 = div_1.firstChild;
+
+    setProp(child_component_1, "message", message.v);
+
+    this.appendChild($root_1);
+
+  });
+}
+defineComponent('parent-component', ParentComponent);
+"
+`;
+
+exports[`compile snapshots > control flow > compiles For component 1`] = `
+"
+import { defineComponent, for_block, get, template } from "rift-js";
+
+const $tmpl_1 = template('<ul></ul>');
+const $tmpl_2 = template('<li> </li>');
+
+function TodoList() {
+	const items = { v: ['Learn Rift', 'Build app', 'Deploy'], e: [] };
+	
+	let items_for_block;
+  this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
+
+    const ul_1 = this.firstChild;
+
+    items_for_block = for_block(ul_1, items, (anchor, item, index) => {
+      const $root_2 = $tmpl_2();
+
+      const li_1 = $root_2.firstChild;
+      const li_1_text = li_1.firstChild;
+
+      li_1_text.nodeValue = index + ": " + item;
+
+      anchor.before(li_1);
+      return { start: li_1, end: li_1 };
+    });
+
+  });
+}
+
+defineComponent('todo-list', TodoList);
+"
+`;
+
+exports[`compile snapshots > control flow > compiles Show component 1`] = `
+"
+import { defineComponent, delegate, show_block, template } from "rift-js";
+
+const $tmpl_1 = template('<div><button>Toggle</button></div>');
+const $tmpl_2 = template('<p>Now you see me!</p>');
+
+function Toggle() {
+	const visible = { v: false, e: [] };
+	
+	this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
+
+    const div_1 = this.firstChild;
+    const button_1 = div_1.firstChild;
+
+    button_1.__click = () => { visible.v = !visible.v; for (let i = 0; i < visible.e.length; i++) visible.e[i](visible.v); };
+
+    show_block(div_1, visible, (anchor) => {
+      const $root_2 = $tmpl_2();
+      const $root_2_first = $root_2.firstChild;
+
+
+      anchor.before($root_2_first);
+      return { start: $root_2_first, end: $root_2_first };
+    });
+
+  });
+}
+
+defineComponent('my-toggle', Toggle);
+
+
+delegate(["click"]);"
+`;
+
+exports[`compile snapshots > control flow > compiles nested For and Show 1`] = `
+"
+import { defineComponent, for_block, get, show_block, template } from "rift-js";
+
+const $tmpl_1 = template('<table></table>');
+const $tmpl_2 = template('<tr><td> </td><td> </td></tr>');
+const $tmpl_3 = template('<td class="active">Active</td>');
+
+function DataGrid() {
+	const rows = { v: [
+		{ id: 1, name: 'Alice', active: true },
+		{ id: 2, name: 'Bob', active: false },
+	], e: [] };
+	
+	let rows_for_block;
+  this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
+
+    const table_1 = this.firstChild;
+
+    rows_for_block = for_block(table_1, rows, (anchor, row, index) => {
+      const $root_2 = $tmpl_2();
+
+      const tr_1 = $root_2.firstChild;
+      const td_1 = tr_1.firstChild;
+      const td_1_text = td_1.firstChild;
+      const td_2 = td_1.nextSibling;
+      const td_2_text = td_2.firstChild;
+
+      show_block(tr_1, row.active, (anchor) => {
+        const $root_3 = $tmpl_3();
+        const $root_3_first = $root_3.firstChild;
+
+
+        anchor.before($root_3_first);
+        return { start: $root_3_first, end: $root_3_first };
+      });
+
+      td_1_text.nodeValue = row.id;
+      td_2_text.nodeValue = row.name;
+
+      anchor.before(tr_1);
+      return { start: tr_1, end: tr_1 };
+    });
+
+  });
+}
+
+defineComponent('data-grid', DataGrid);
+"
+`;
+
+exports[`compile snapshots > fragments > compiles JSX fragments 1`] = `
+"
+import { bind, defineComponent, template } from "rift-js";
+
+const $tmpl_1 = template('<h1> </h1><h2> </h2><p>Some content</p>');
+
+function MultiRoot() {
+	const title = { v: 'Title', e: [] };
+	const subtitle = { v: 'Subtitle', e: [] };
+	
+	this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
+
+    const h1_1 = this.firstChild;
+    const h1_1_text = h1_1.firstChild;
+    const h2_1 = h1_1.nextSibling;
+    const h2_1_text = h2_1.firstChild;
+
+    h1_1_text.nodeValue = title.v;
+    title.ref_1 = h1_1_text;
+    h2_1_text.nodeValue = subtitle.v;
+    subtitle.ref_1 = h2_1_text;
+  });
+}
+
+defineComponent('multi-root', MultiRoot);
+"
+`;
+
+exports[`compile snapshots > lifecycle > compiles component with connected callback 1`] = `
+"
+import { bind, defineComponent, template } from "rift-js";
+
+const $tmpl_1 = template('<span> </span>');
+
+function Timer() {
+	const seconds = { v: 0, e: [] };
+	
+	this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
+
+    const span_1 = this.firstChild;
+    const span_1_text = span_1.firstChild;
+
+    span_1_text.nodeValue = "Seconds: " + seconds.v;
+    seconds.ref_1 = span_1_text;
+  });
+
+this.connected(() => {
+		const interval = setInterval(() => {
+			seconds.v++;
+		}, 1000);
+		
+		this.disconnected(() => {
+			clearInterval(interval);
+		});
+	});
+	
+	
+}
+
+defineComponent('my-timer', Timer);
+"
+`;

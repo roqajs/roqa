@@ -1,50 +1,61 @@
 {
-  "name": "rift-js",
+	"name": "rift-js",
+	"version": "0.0.1",
 	"description": "Rift is a reactive UI framework",
-  "license": "MIT",
-  "author": "Hawk Ticehurst",
-  "version": "0.0.1",
-  "type": "module",
-	"repository": {
-    "type": "git",
-    "url": "git+https://github.com/hawkticehurst/rift.git",
-    "directory": "packages/rift-js"
-  },
+	"keywords": [
+		"UI",
+		"framework",
+		"rift",
+		"rift-js",
+		"riftjs"
+	],
+	"homepage": "https://rift.hawkticehurst.com",
 	"bugs": {
 		"url": "https://github.com/hawkticehurst/rift/issues"
 	},
-	"homepage": "https://rift.hawkticehurst.com",
-	"keywords": [
-		"rift",
-		"rift-js",
-		"riftjs",
-		"UI",
-		"framework"
-	],
+	"license": "MIT",
+	"author": "Hawk Ticehurst",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/hawkticehurst/rift.git",
+		"directory": "packages/rift-js"
+	},
+	"type": "module",
 	"exports": {
 		".": {
 			"types": "./types/index.d.ts",
 			"import": "./src/runtime/index.js",
-      "browser": "./src/runtime/index.js",
-      "default": "./src/runtime/index.js"
+			"browser": "./src/runtime/index.js",
+			"default": "./src/runtime/index.js"
 		},
 		"./package.json": "./package.json",
-    "./compiler": {
-      "types": "./src/compiler/index.d.ts",
-      "import": "./src/compiler/index.js",
-      "default": "./src/compiler/index.js"
-    },
+		"./compiler": {
+			"types": "./src/compiler/index.d.ts",
+			"import": "./src/compiler/index.js",
+			"default": "./src/compiler/index.js"
+		},
 		"./jsx-runtime": {
-      "types": "./src/jsx-runtime.d.ts",
-      "import": "./src/jsx-runtime.js",
-      "default": "./src/jsx-runtime.js"
-    }
+			"types": "./src/jsx-runtime.d.ts",
+			"import": "./src/jsx-runtime.js",
+			"default": "./src/jsx-runtime.js"
+		}
 	},
-  "devDependencies": {
-    "@babel/generator": "catalog:default",
-    "@babel/parser": "catalog:default",
-    "@babel/traverse": "catalog:default",
-    "@babel/types": "catalog:default",
-    "magic-string": "catalog:default"
-  }
+	"scripts": {
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:unit": "vitest run --project unit",
+		"test:browser": "vitest run --project browser",
+		"test:coverage": "vitest run --coverage"
+	},
+	"devDependencies": {
+		"@babel/generator": "catalog:default",
+		"@babel/parser": "catalog:default",
+		"@babel/traverse": "catalog:default",
+		"@babel/types": "catalog:default",
+		"@vitest/browser": "^3.0.0",
+		"@vitest/coverage-v8": "^3.0.0",
+		"magic-string": "catalog:default",
+		"playwright": "^1.49.0",
+		"vitest": "^3.0.0"
+	}
 }
