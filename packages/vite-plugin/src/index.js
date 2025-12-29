@@ -1,28 +1,28 @@
 /** @import {Plugin} from 'vite' */
 
-import { compile } from 'rift-js/compiler';
+import { compile } from "rift-js/compiler";
 
 /**
  * @returns {Plugin}
  */
 export default function rift() {
 	return {
-		name: 'rift-jsx-compiler',
-		enforce: 'pre',
+		name: "rift-jsx-compiler",
+		enforce: "pre",
 
 		config() {
 			return {
 				esbuild: {
-					jsx: 'preserve',
+					jsx: "preserve",
 				},
 				optimizeDeps: {
-					entries: ['!**/*.jsx'],
+					entries: ["!**/*.jsx"],
 				},
 			};
 		},
 
 		transform(code, id) {
-			if (!id.endsWith('.jsx')) return null;
+			if (!id.endsWith(".jsx")) return null;
 			try {
 				const result = compile(code, id);
 				return {
@@ -41,7 +41,7 @@ function formatCompileError(error) {
 	let message = `Rift JSX compilation failed: ${error.message}`;
 
 	// Add suggestions for common errors
-	if (error.code === 'UNSUPPORTED_COMPONENT') {
+	if (error.code === "UNSUPPORTED_COMPONENT") {
 		const name = error.componentName;
 		message += `\n\nSuggestions:`;
 		message += `\n  - Use web components: defineComponent("${toKebabCase(name)}", ${name})`;
@@ -51,7 +51,7 @@ function formatCompileError(error) {
 
 	if (error.loc && error.loc.start) {
 		message += `\n\nLocation: line ${error.loc.start.line}, column ${error.loc.start.column}`;
-	} else if (error.loc && typeof error.loc.line === 'number') {
+	} else if (error.loc && typeof error.loc.line === "number") {
 		// Handle Babel-style loc format
 		message += `\n\nLocation: line ${error.loc.line}, column ${error.loc.column}`;
 	}
@@ -61,7 +61,7 @@ function formatCompileError(error) {
 
 function toKebabCase(str) {
 	return str
-		.replace(/([a-z])([A-Z])/g, '$1-$2')
-		.replace(/([A-Z])([A-Z][a-z])/g, '$1-$2')
+		.replace(/([a-z])([A-Z])/g, "$1-$2")
+		.replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
 		.toLowerCase();
 }

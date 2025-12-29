@@ -35,11 +35,11 @@ function HelloWorld() {
   return (
     <>
       <label for="name">Enter name:</label>
-      <input 
-        id="name" 
-        type="text" 
-        value={get(name)} 
-        oninput={(e) => set(name, e.target.value)} 
+      <input
+        id="name"
+        type="text"
+        value={get(name)}
+        oninput={(e) => set(name, e.target.value)}
       />
       <p>Hello {get(name)}!</p>
     </>
@@ -103,6 +103,7 @@ defineComponent('derived-count', DerivedCount);
 ```
 
 **Key concepts:**
+
 - Pass a function to `cell()` to create derived values
 - Derived cells update automatically when dependencies change
 - Chain derived cells together for complex computations
@@ -146,6 +147,7 @@ defineComponent('temp-converter', TempConverter);
 ```
 
 **Key concepts:**
+
 - Multiple inputs updating each other
 - Number parsing and formatting
 - Coordinated state updates
@@ -164,8 +166,8 @@ function FlightBooker() {
   const destination = cell('');
 
   const isRoundTrip = () => get(tripType) === 'round-trip';
-  const canBook = () => 
-    get(destination) && 
+  const canBook = () =>
+    get(destination) &&
     (!isRoundTrip() || get(returnDate) >= get(departDate));
 
   return (
@@ -176,17 +178,17 @@ function FlightBooker() {
         oninput={(e) => set(destination, e.target.value)}
         placeholder="Destination"
       />
-      <select 
+      <select
         value={get(tripType)}
         onchange={(e) => set(tripType, e.target.value)}
       >
         <option value="one-way">One-way</option>
         <option value="round-trip">Round-trip</option>
       </select>
-      <input 
-        type="date" 
+      <input
+        type="date"
         value={get(departDate)}
-        onchange={(e) => set(departDate, e.target.value)} 
+        onchange={(e) => set(departDate, e.target.value)}
       />
       <input
         type="date"
@@ -203,6 +205,7 @@ defineComponent('flight-booker', FlightBooker);
 ```
 
 **Key concepts:**
+
 - Form validation logic
 - Conditionally disabled inputs
 - Select element handling
@@ -227,9 +230,9 @@ function TodoList() {
 
   function addTodo(event) {
     if (event.key === 'Enter' && event.target.value.trim()) {
-      set(todos, [...get(todos), { 
-        text: event.target.value.trim(), 
-        completed: false 
+      set(todos, [...get(todos), {
+        text: event.target.value.trim(),
+        completed: false
       }]);
       event.target.value = '';
     }
@@ -247,10 +250,10 @@ function TodoList() {
 
   return (
     <>
-      <input 
-        type="text" 
-        onkeydown={addTodo} 
-        placeholder="Add todo" 
+      <input
+        type="text"
+        onkeydown={addTodo}
+        placeholder="Add todo"
       />
       <ul>
         <For each={todos}>
@@ -278,6 +281,7 @@ defineComponent('todo-list', TodoList);
 ```
 
 **Key concepts:**
+
 - `<For>` component for list rendering
 - Adding/removing items from arrays
 - Toggling item state
@@ -307,7 +311,7 @@ function KanbanBoard() {
 
     const fromTasks = get(cols[fromCol].tasks);
     const task = fromTasks.find(t => t.id === taskId);
-    
+
     set(cols[fromCol].tasks, fromTasks.filter(t => t.id !== taskId));
     set(cols[toCol].tasks, [...get(cols[toCol].tasks), task]);
   }
@@ -338,6 +342,7 @@ defineComponent('kanban-board', KanbanBoard);
 ```
 
 **Key concepts:**
+
 - Nested `<For>` loops
 - Nested cells (cells inside objects)
 - Moving items between lists
@@ -393,6 +398,7 @@ defineComponent('stop-watch', Stopwatch);
 ```
 
 **Key concepts:**
+
 - Integrating `setInterval` with reactive state
 - Mixing regular variables with cells
 - Conditional button text
@@ -419,13 +425,13 @@ function BarChart() {
 
   this.connected(() => {
     const svg = this.querySelector('svg');
-    
+
     // Update chart when data changes
     bind(data, (newData) => {
       const bars = d3.select(svg)
         .selectAll('rect')
         .data(newData, d => d.label);
-      
+
       bars.enter()
         .append('rect')
         .merge(bars)
@@ -434,7 +440,7 @@ function BarChart() {
         .attr('width', 50)
         .attr('height', d => d.value * 2)
         .attr('fill', 'steelblue');
-      
+
       bars.exit().remove();
     });
   });
@@ -458,6 +464,7 @@ defineComponent('bar-chart', BarChart);
 ```
 
 **Key concepts:**
+
 - Third-party library integration
 - `this.connected()` for DOM access
 - Explicit `bind()` for side effects
@@ -494,7 +501,7 @@ function App() {
         set(stories, data);
         set(loading, false);
       });
-    
+
     // Listen for child component events
     this.on('viewcomments', (e) => {
       console.log('View comments for:', e.detail.storyId);
@@ -520,6 +527,7 @@ defineComponent('hacker-news', App);
 ```
 
 **Key concepts:**
+
 - Multi-file component architecture
 - Async data fetching with `fetch`
 - `<Show>` for loading states

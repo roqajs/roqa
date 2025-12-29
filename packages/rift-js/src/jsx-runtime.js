@@ -25,10 +25,10 @@
 export function jsx(type, props, key) {
 	throw new Error(
 		`[Rift] Uncompiled JSX detected: <${
-			typeof type === 'function' ? type.name || 'Component' : type
+			typeof type === "function" ? type.name || "Component" : type
 		}>. ` +
 			`Rift requires JSX to be compiled at build time. ` +
-			`Make sure you're using the Rift Vite plugin or compiler.`
+			`Make sure you're using the Rift Vite plugin or compiler.`,
 	);
 }
 
@@ -52,7 +52,7 @@ export function Fragment(props) {
 	throw new Error(
 		`[Rift] Uncompiled JSX Fragment detected. ` +
 			`Rift requires JSX to be compiled at build time. ` +
-			`Make sure you're using the Rift Vite plugin or compiler.`
+			`Make sure you're using the Rift Vite plugin or compiler.`,
 	);
 }
 
@@ -68,6 +68,6 @@ export function For(props) {
 	throw new Error(
 		`[Rift] Uncompiled <For> component detected. ` +
 			`Rift requires JSX to be compiled at build time. ` +
-			`Make sure you're using the Rift Vite plugin or compiler.`
+			`Make sure you're using the Rift Vite plugin or compiler.`,
 	);
 }

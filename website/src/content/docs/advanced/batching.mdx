@@ -90,6 +90,7 @@ This is useful when updates come from different places but should be processed t
 ### ✅ Good Use Cases
 
 **Updating related state from one action:**
+
 ```jsx
 const handleSubmit = async (formData) => {
   batch(() => {
@@ -114,6 +115,7 @@ const handleSubmit = async (formData) => {
 ```
 
 **High-frequency updates:**
+
 ```jsx
 const handleScroll = () => {
   batch(() => {
@@ -125,6 +127,7 @@ const handleScroll = () => {
 ```
 
 **Initializing state:**
+
 ```jsx
 const initializeApp = (data) => {
   batch(() => {
@@ -139,12 +142,14 @@ const initializeApp = (data) => {
 ### ❌ When Not Needed
 
 **Single updates:**
+
 ```jsx
 // Just use regular set()
 set(count, get(count) + 1);
 ```
 
 **Already async:**
+
 ```jsx
 // Each await naturally separates updates
 set(isLoading, true);
@@ -154,6 +159,7 @@ set(isLoading, false);
 ```
 
 **Low-frequency updates:**
+
 ```jsx
 // User clicking a button - batch overhead not worth it
 <button onclick={() => set(count, get(count) + 1)}>
@@ -168,13 +174,13 @@ Nested batches are flattened—updates happen after the outermost batch:
 ```jsx
 batch(() => {
   set(a, 1);
-  
+
   batch(() => {
     set(b, 2);
     set(c, 3);
   });
   // Still inside outer batch, no updates yet
-  
+
   set(d, 4);
 });
 // All updates (a, b, c, d) happen here
@@ -229,6 +235,7 @@ batch(() => {
 ```
 
 The difference matters when:
+
 - You're updating many cells at once
 - Updates happen frequently (animations, scrolling)
 - DOM updates are expensive (large lists, complex layouts)
@@ -255,15 +262,15 @@ function Form() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     batch(() => {
       set(isSubmitting, true);
       set(errors, {});
     });
 
     try {
-      await submitForm({ 
-        name: get(name), 
+      await submitForm({
+        name: get(name),
         email: get(email),
         phone: get(phone),
         notes: get(notes)

@@ -1,5 +1,5 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './styles.css';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./styles.css";
 
 function StopWatch() {
 	const isRunning = cell(false);
@@ -35,10 +35,10 @@ function StopWatch() {
 	return (
 		<>
 			<p>{get(time)}</p>
-      <button onclick={toggle}>{get(isRunning) ? 'Stop' : 'Start'}</button>
-      <button onclick={reset}>Reset</button>
+			<button onclick={toggle}>{get(isRunning) ? "Stop" : "Start"}</button>
+			<button onclick={reset}>Reset</button>
 		</>
 	);
 }
 
-defineComponent('stop-watch', StopWatch);
+defineComponent("stop-watch", StopWatch);

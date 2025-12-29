@@ -1,9 +1,9 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import { HN_API_BASE, ENDPOINTS, FEEDS } from './feeds.js';
-import './main.css';
-import './header.jsx';
-import './story-list.jsx';
-import './comment-page.jsx';
+import { defineComponent, cell, get, set } from "rift-js";
+import { HN_API_BASE, ENDPOINTS, FEEDS } from "./feeds.js";
+import "./main.css";
+import "./header.jsx";
+import "./story-list.jsx";
+import "./comment-page.jsx";
 
 function App() {
 	const currentFeed = cell(FEEDS.top);
@@ -16,7 +16,7 @@ function App() {
 	};
 
 	const fetchFeed = async (feed) => {
-		const storyList = this.querySelector('story-list');
+		const storyList = this.querySelector("story-list");
 		storyList.setLoading(true);
 		storyList.setError(false);
 		storyList.setStories([]);
@@ -34,7 +34,7 @@ function App() {
 			const validStories = fetchedStories.filter((story) => story && !story.deleted);
 			storyList.setStories(validStories);
 		} catch (err) {
-			console.error('Failed to fetch stories:', err);
+			console.error("Failed to fetch stories:", err);
 			storyList.setError(true);
 		} finally {
 			storyList.setLoading(false);
@@ -53,7 +53,7 @@ function App() {
 
 		// Load the comments page
 		requestAnimationFrame(() => {
-			const commentPage = this.querySelector('comment-page');
+			const commentPage = this.querySelector("comment-page");
 			if (commentPage) {
 				commentPage.loadStory(storyId);
 			}
@@ -67,12 +67,12 @@ function App() {
 		});
 
 		// Listen for comment view requests from story items
-		this.on('viewcomments', (e) => {
+		this.on("viewcomments", (e) => {
 			handleViewComments(e.detail.storyId);
 		});
 
 		// Listen for back navigation from comment page
-		this.on('back', () => {
+		this.on("back", () => {
 			set(showStoryList, true);
 			set(currentStoryId, null);
 		});
@@ -93,4 +93,4 @@ function App() {
 	);
 }
 
-defineComponent('hacker-news', App);
+defineComponent("hacker-news", App);

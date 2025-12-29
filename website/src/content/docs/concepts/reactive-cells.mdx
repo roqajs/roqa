@@ -44,7 +44,7 @@ When `get()` appears inside JSX, Rift automatically creates a reactive binding:
 ```jsx
 function Greeting() {
   const name = cell('World');
-  
+
   return <h1>Hello, {get(name)}!</h1>;
 }
 ```
@@ -168,6 +168,7 @@ set(count, 3); // nothing logged
 ### Use Cases for `bind()`
 
 **Side effects:**
+
 ```jsx
 const darkMode = cell(false);
 
@@ -177,6 +178,7 @@ bind(darkMode, (isDark) => {
 ```
 
 **Syncing with external systems:**
+
 ```jsx
 const volume = cell(50);
 
@@ -186,6 +188,7 @@ bind(volume, (vol) => {
 ```
 
 **Logging/debugging:**
+
 ```jsx
 const state = cell({ items: [] });
 

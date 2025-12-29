@@ -1,5 +1,5 @@
-import _traverse from '@babel/traverse';
-import { isGetCall, extractGetCellArg } from '../parser.js';
+import _traverse from "@babel/traverse";
+import { isGetCall, extractGetCellArg } from "../parser.js";
 
 // Handle CJS/ESM interop
 const traverse = _traverse.default || _traverse;
@@ -54,10 +54,10 @@ export function findGetCalls(expression) {
 
 	// Create a mini AST wrapper for traverse
 	const wrapper = {
-		type: 'Program',
+		type: "Program",
 		body: [
 			{
-				type: 'ExpressionStatement',
+				type: "ExpressionStatement",
 				expression: expression,
 			},
 		],
@@ -104,13 +104,13 @@ export function processBindings(bindings, code) {
 		const { type, varName } = binding;
 
 		// Handle prop bindings (for custom elements)
-		if (type === 'prop') {
+		if (type === "prop") {
 			const { propName, expression, isStatic } = binding;
 
 			// Check if expression is a string literal (static prop)
-			if (isStatic || expression.type === 'StringLiteral') {
+			if (isStatic || expression.type === "StringLiteral") {
 				processed.push({
-					type: 'prop',
+					type: "prop",
 					targetVar: varName,
 					propName,
 					expression: expression,
@@ -125,7 +125,7 @@ export function processBindings(bindings, code) {
 			if (getCalls.length === 0) {
 				// No get() calls - static expression
 				processed.push({
-					type: 'prop',
+					type: "prop",
 					targetVar: varName,
 					propName,
 					fullExpression: expression,
@@ -137,7 +137,7 @@ export function processBindings(bindings, code) {
 			// Reactive prop
 			for (const getCall of getCalls) {
 				processed.push({
-					type: 'prop',
+					type: "prop",
 					targetVar: varName,
 					propName,
 					cellArg: getCall.cellArg,
@@ -151,13 +151,13 @@ export function processBindings(bindings, code) {
 		}
 
 		// Handle new contentParts format for text bindings
-		if (type === 'text' && binding.contentParts) {
+		if (type === "text" && binding.contentParts) {
 			const { textVarName, contentParts } = binding;
 
 			// Collect all get() calls from all dynamic parts
 			const allGetCalls = [];
 			for (const part of contentParts) {
-				if (part.type === 'dynamic') {
+				if (part.type === "dynamic") {
 					const getCalls = findGetCalls(part.expression);
 					for (const getCall of getCalls) {
 						allGetCalls.push({
@@ -172,7 +172,7 @@ export function processBindings(bindings, code) {
 				// All static - shouldn't happen but handle it
 				processed.push({
 					targetVar: textVarName,
-					targetProperty: 'nodeValue',
+					targetProperty: "nodeValue",
 					cellArg: null,
 					fullExpression: null,
 					contentParts,
@@ -197,7 +197,7 @@ export function processBindings(bindings, code) {
 
 				processed.push({
 					targetVar: textVarName,
-					targetProperty: 'nodeValue',
+					targetProperty: "nodeValue",
 					cellArg: getCall.cellArg,
 					fullExpression: null, // Not used with contentParts
 					contentParts,
@@ -219,13 +219,13 @@ export function processBindings(bindings, code) {
 			// No get() calls - this is a static expression, no binding needed
 			// But we still need to set the initial value
 			processed.push({
-				targetVar: type === 'text' ? binding.textVarName : varName,
-				targetProperty: type === 'text' ? 'nodeValue' : binding.attrName,
+				targetVar: type === "text" ? binding.textVarName : varName,
+				targetProperty: type === "text" ? "nodeValue" : binding.attrName,
 				cellArg: null,
 				fullExpression: expression,
 				needsTransform: false,
 				isStatic: true,
-				staticPrefix: staticPrefix || '',
+				staticPrefix: staticPrefix || "",
 				usesMarker: usesMarker || false,
 				// Pass through SVG flag for proper attribute setting
 				isSvg: binding.isSvg || false,
@@ -238,14 +238,14 @@ export function processBindings(bindings, code) {
 		// This might cause redundant updates, but ensures correctness
 		for (const getCall of getCalls) {
 			const targetProperty =
-				type === 'text'
-					? 'nodeValue'
-					: binding.attrName === 'class' || binding.attrName === 'className'
-					? 'className'
-					: binding.attrName;
+				type === "text"
+					? "nodeValue"
+					: binding.attrName === "class" || binding.attrName === "className"
+						? "className"
+						: binding.attrName;
 
 			processed.push({
-				targetVar: type === 'text' ? binding.textVarName : varName,
+				targetVar: type === "text" ? binding.textVarName : varName,
 				targetProperty,
 				cellArg: getCall.cellArg,
 				fullExpression: expression,
@@ -254,7 +254,7 @@ export function processBindings(bindings, code) {
 				// Store the get() call node for replacement in codegen
 				getCallNode: getCall.callNode,
 				// Include static prefix for text bindings
-				staticPrefix: staticPrefix || '',
+				staticPrefix: staticPrefix || "",
 				// Pass through marker flag
 				usesMarker: usesMarker || false,
 				// Pass through SVG flag for proper attribute setting

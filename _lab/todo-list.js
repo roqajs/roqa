@@ -36,23 +36,26 @@ function handle_event_propagation(event) {
 	if ((current_target = path[path_idx] || event.target) === handler_element) return;
 	Object.defineProperty(event, "currentTarget", {
 		configurable: true,
-		get: () => current_target || handler_element.ownerDocument
+		get: () => current_target || handler_element.ownerDocument,
 	});
 	try {
-		for (; current_target;) {
-			const parent_element = current_target.assignedSlot || current_target.parentNode || current_target.host || null;
+		for (; current_target; ) {
+			const parent_element =
+				current_target.assignedSlot || current_target.parentNode || current_target.host || null;
 			const delegated = current_target["__" + event.type];
 			try {
-				if (delegated && !current_target.disabled) if (Array.isArray(delegated)) {
-					const [fn, ...data] = delegated;
-					fn.apply(current_target, [...data, event]);
-				} else delegated.call(current_target, event);
+				if (delegated && !current_target.disabled)
+					if (Array.isArray(delegated)) {
+						const [fn, ...data] = delegated;
+						fn.apply(current_target, [...data, event]);
+					} else delegated.call(current_target, event);
 			} catch (error) {
 				queueMicrotask(() => {
 					throw error;
 				});
 			}
-			if (event.cancelBubble || parent_element === handler_element || parent_element === null) break;
+			if (event.cancelBubble || parent_element === handler_element || parent_element === null)
+				break;
 			current_target = parent_element;
 		}
 	} finally {
@@ -78,29 +81,39 @@ function handle_root_events(target) {
 	event_handle(Array.from(all_registered_events));
 	root_event_handles.add(event_handle);
 	return () => {
-		for (const event_name of registered_events) target.removeEventListener(event_name, handle_event_propagation);
+		for (const event_name of registered_events)
+			target.removeEventListener(event_name, handle_event_propagation);
 		root_event_handles.delete(event_handle);
 	};
 }
 function defineComponent(tagName, fn) {
 	if (customElements.get(tagName)) return;
-	customElements.define(tagName, class extends HTMLElement {
-		_connectedCallback;
-		connectedCallback() {
-			fn.call(this);
-			if (this._connectedCallback) this._connectedCallback();
-		}
-		connected(fn$1) {
-			this._connectedCallback = fn$1;
-		}
-	});
+	customElements.define(
+		tagName,
+		class extends HTMLElement {
+			_connectedCallback;
+			connectedCallback() {
+				fn.call(this);
+				if (this._connectedCallback) this._connectedCallback();
+			}
+			connected(fn$1) {
+				this._connectedCallback = fn$1;
+			}
+		},
+	);
 	handle_root_events(document);
 }
 var lis_result;
 var lis_p;
 var lis_max_len = 0;
 function lis_algorithm(arr) {
-	let arrI = 0, i = 0, j = 0, k = 0, u = 0, v = 0, c = 0;
+	let arrI = 0,
+		i = 0,
+		j = 0,
+		k = 0,
+		u = 0,
+		v = 0,
+		c = 0;
 	const len = arr.length;
 	if (len > lis_max_len) {
 		lis_max_len = len;
@@ -120,7 +133,7 @@ function lis_algorithm(arr) {
 			u = 0;
 			v = k;
 			while (u < v) {
-				c = u + v >> 1;
+				c = (u + v) >> 1;
 				if (arr[lis_result[c]] < arrI) u = c + 1;
 				else v = c;
 			}
@@ -147,22 +160,23 @@ function get_next_sibling(node) {
 function create_item(anchor, value, index, render_fn) {
 	return {
 		s: render_fn(anchor, value, index),
-		v: value
+		v: value,
 	};
 }
 function move_item(item, anchor) {
 	const state = item.s;
 	let node = state.start;
 	const end = state.end;
-	if (node !== end) while (node !== null) {
-		const next_node = get_next_sibling(node);
-		anchor.before(node);
-		if (next_node === end) {
-			anchor.before(end);
-			break;
+	if (node !== end)
+		while (node !== null) {
+			const next_node = get_next_sibling(node);
+			anchor.before(node);
+			if (next_node === end) {
+				anchor.before(end);
+				break;
+			}
+			node = next_node;
 		}
-		node = next_node;
-	}
 	else anchor.before(node);
 }
 function destroy_item(item) {
@@ -185,7 +199,16 @@ function reconcile_fast_clear(anchor, for_state, array) {
 	for_state.items = [];
 }
 function reconcile_by_ref(anchor, for_state, b, render_fn) {
-	let a_start = 0, b_start = 0, a_left = 0, b_left = 0, sources = new Int32Array(0), moved = false, pos = 0, patched = 0, i = 0, j = 0;
+	let a_start = 0,
+		b_start = 0,
+		a_left = 0,
+		b_left = 0,
+		sources = new Int32Array(0),
+		moved = false,
+		pos = 0,
+		patched = 0,
+		i = 0,
+		j = 0;
 	const a = for_state.array;
 	const a_length = a.length;
 	const b_length = b.length;
@@ -224,12 +247,13 @@ function reconcile_by_ref(anchor, for_state, b, render_fn) {
 		let fast_path_removal = false;
 		let target;
 		if (j > a_end) {
-			if (j <= b_end) while (j <= b_end) {
-				b_val = b[j];
-				target = j >= a_length ? anchor : a_items[j].s.start;
-				b_items[j] = create_item(target, b_val, j, render_fn);
-				j++;
-			}
+			if (j <= b_end)
+				while (j <= b_end) {
+					b_val = b[j];
+					target = j >= a_length ? anchor : a_items[j].s.start;
+					b_items[j] = create_item(target, b_val, j, render_fn);
+					j++;
+				}
 		} else if (j > b_end) while (j <= a_end) destroy_item(a_items[j++]);
 		else {
 			a_start = j;
@@ -242,24 +266,26 @@ function reconcile_by_ref(anchor, for_state, b, render_fn) {
 			patched = 0;
 			i = 0;
 			fast_path_removal = a_left === a_length;
-			if (b_length < 4 || (a_left | b_left) < 32) for (i = a_start; i <= a_end; ++i) {
-				a_val = a[i];
-				if (patched < b_left) {
-					for (j = b_start; j <= b_end; j++) if (a_val === (b_val = b[j])) {
-						sources[j - b_start] = i + 1;
-						if (fast_path_removal) {
-							fast_path_removal = false;
-							while (a_start < i) destroy_item(a_items[a_start++]);
-						}
-						if (pos > j) moved = true;
-						else pos = j;
-						b_items[j] = a_items[i];
-						++patched;
-						break;
-					}
-					if (!fast_path_removal && j > b_end) destroy_item(a_items[i]);
-				} else if (!fast_path_removal) destroy_item(a_items[i]);
-			}
+			if (b_length < 4 || (a_left | b_left) < 32)
+				for (i = a_start; i <= a_end; ++i) {
+					a_val = a[i];
+					if (patched < b_left) {
+						for (j = b_start; j <= b_end; j++)
+							if (a_val === (b_val = b[j])) {
+								sources[j - b_start] = i + 1;
+								if (fast_path_removal) {
+									fast_path_removal = false;
+									while (a_start < i) destroy_item(a_items[a_start++]);
+								}
+								if (pos > j) moved = true;
+								else pos = j;
+								b_items[j] = a_items[i];
+								++patched;
+								break;
+							}
+						if (!fast_path_removal && j > b_end) destroy_item(a_items[i]);
+					} else if (!fast_path_removal) destroy_item(a_items[i]);
+				}
 			else {
 				const map = /* @__PURE__ */ new Map();
 				for (i = b_start; i <= b_end; ++i) map.set(b[i], i);
@@ -301,13 +327,14 @@ function reconcile_by_ref(anchor, for_state, b, render_fn) {
 					else j--;
 				}
 			} else if (patched !== b_left) {
-				for (i = b_left - 1; i >= 0; i--) if (sources[i] === 0) {
-					pos = i + b_start;
-					b_val = b[pos];
-					const next_pos = pos + 1;
-					target = next_pos < b_length ? b_items[next_pos].s.start : anchor;
-					b_items[pos] = create_item(target, b_val, pos, render_fn);
-				}
+				for (i = b_left - 1; i >= 0; i--)
+					if (sources[i] === 0) {
+						pos = i + b_start;
+						b_val = b[pos];
+						const next_pos = pos + 1;
+						target = next_pos < b_length ? b_items[next_pos].s.start : anchor;
+						b_items[pos] = create_item(target, b_val, pos, render_fn);
+					}
 			}
 		}
 		for_state.array = b;
@@ -319,11 +346,16 @@ function for_block(container, source_cell, render_fn) {
 	container.appendChild(anchor);
 	const for_state = {
 		array: [],
-		items: []
+		items: [],
 	};
 	const do_update = () => {
 		const collection = source_cell.v;
-		reconcile_by_ref(anchor, for_state, Array.isArray(collection) ? collection : collection == null ? [] : Array.from(collection), render_fn);
+		reconcile_by_ref(
+			anchor,
+			for_state,
+			Array.isArray(collection) ? collection : collection == null ? [] : Array.from(collection),
+			render_fn,
+		);
 	};
 	const unsubscribe = bind(source_cell, do_update);
 	do_update();
@@ -340,34 +372,36 @@ function for_block(container, source_cell, render_fn) {
 		destroy,
 		get state() {
 			return for_state;
-		}
+		},
 	};
 }
-var $tmpl_1 = template("<input type=\"text\" placeholder=\"Add todo item\"><section class=\"todos\"></section><p> </p><button>Clear completed</button>");
-var $tmpl_2 = template("<label class=\"todo\"><input type=\"checkbox\"><span> </span></label>");
+var $tmpl_1 = template(
+	'<input type="text" placeholder="Add todo item"><section class="todos"></section><p> </p><button>Clear completed</button>',
+);
+var $tmpl_2 = template('<label class="todo"><input type="checkbox"><span> </span></label>');
 function TodoList() {
 	const todos = {
 		v: [
 			{
 				text: "Pick up groceries",
-				completed: false
+				completed: false,
 			},
 			{
 				text: "Walk the dog",
-				completed: false
+				completed: false,
 			},
 			{
 				text: "Read a book",
-				completed: false
-			}
+				completed: false,
+			},
 		],
-		e: []
+		e: [],
 	};
 	function addTodo(event) {
 		if (event.key === "Enter" && event.target.value.trim() !== "") {
 			const newTodo = {
 				text: event.target.value.trim(),
-				completed: false
+				completed: false,
 			};
 			todos.v = [...todos.v, newTodo];
 			todos_for_block.update();
@@ -408,7 +442,7 @@ function TodoList() {
 			anchor.before(label_1);
 			return {
 				start: label_1,
-				end: label_1
+				end: label_1,
 			};
 		});
 		p_1_text.nodeValue = todos.v.filter((todo) => !todo.completed).length + " remaining";
@@ -416,8 +450,4 @@ function TodoList() {
 	});
 }
 defineComponent("todo-list", TodoList);
-delegate([
-	"keydown",
-	"click",
-	"change"
-]);
+delegate(["keydown", "click", "change"]);

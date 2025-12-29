@@ -2,7 +2,7 @@
 // Batching primitives
 // ============================================
 
-import { notify } from './cell.js';
+import { notify } from "./cell.js";
 
 let batching = false;
 let pending = new Set();

@@ -1,9 +1,9 @@
-import { defineComponent } from 'rift-js';
-import './styles.css';
+import { defineComponent } from "rift-js";
+import "./styles.css";
 
 function App() {
-	const name = 'Rift';
-	const message = () => alert('Hello! This message is from <' + this.tagName.toLowerCase() + '>');
+	const name = "Rift";
+	const message = () => alert("Hello! This message is from <" + this.tagName.toLowerCase() + ">");
 
 	return <name-tag name={name} message={message}></name-tag>;
 }
@@ -17,5 +17,5 @@ function NameTag({ name, message }) {
 	);
 }
 
-defineComponent('rift-app', App);
-defineComponent('name-tag', NameTag);
+defineComponent("rift-app", App);
+defineComponent("name-tag", NameTag);

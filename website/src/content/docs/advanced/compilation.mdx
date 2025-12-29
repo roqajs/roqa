@@ -241,7 +241,7 @@ import { defineComponent, cell, get, set } from 'rift-js';
 
 function Counter() {
   const count = cell(0);
-  
+
   return (
     <button onclick={() => set(count, get(count) + 1)}>
       Count: {get(count)}
@@ -308,6 +308,7 @@ delegate(['click']);
 ```
 
 Notice:
+
 - `cell(0)` → `{ v: 0, e: [] }`
 - `get(count)` → `count.v`
 - `set()` → inline value update + DOM update
@@ -315,24 +316,25 @@ Notice:
 
 ## What Gets Compiled vs Runtime
 
-| Feature | Compile-Time | Runtime |
-|---------|--------------|---------|
-| `cell(value)` | Inlined to object literal | — |
-| `get(cell)` | Inlined to `.v` access | — |
-| `put(cell, value)` | Inlined to `.v = value` | — |
-| `set(cell, value)` | Inlined with DOM updates | — |
-| `bind(cell, fn)` | Removed, inlined at `set()` | — |
-| `template(html)` | — | Creates DOM template |
-| `for_block()` | Generated from `<For>` | List reconciliation |
-| `show_block()` | Generated from `<Show>` | Conditional rendering |
-| `delegate(events)` | Generated once per file | Event delegation |
-| `defineComponent()` | — | Web component registration |
+| Feature             | Compile-Time                | Runtime                    |
+| ------------------- | --------------------------- | -------------------------- |
+| `cell(value)`       | Inlined to object literal   | —                          |
+| `get(cell)`         | Inlined to `.v` access      | —                          |
+| `put(cell, value)`  | Inlined to `.v = value`     | —                          |
+| `set(cell, value)`  | Inlined with DOM updates    | —                          |
+| `bind(cell, fn)`    | Removed, inlined at `set()` | —                          |
+| `template(html)`    | —                           | Creates DOM template       |
+| `for_block()`       | Generated from `<For>`      | List reconciliation        |
+| `show_block()`      | Generated from `<Show>`     | Conditional rendering      |
+| `delegate(events)`  | Generated once per file     | Event delegation           |
+| `defineComponent()` | —                           | Web component registration |
 
 ## Debugging Tips
 
 ### View Compiled Output
 
 Use your browser's DevTools to view the compiled code:
+
 1. Open DevTools → Sources
 2. Find your `.jsx` file (will show compiled `.js`)
 3. Set breakpoints to step through
@@ -340,6 +342,7 @@ Use your browser's DevTools to view the compiled code:
 ### Source Maps
 
 Rift generates source maps so you can debug your original JSX:
+
 1. Errors point to your source file
 2. DevTools shows original code
 3. Breakpoints work on original lines
@@ -347,6 +350,7 @@ Rift generates source maps so you can debug your original JSX:
 ### Common Compilation Errors
 
 **"Custom components are not supported"**
+
 ```jsx
 // ❌ Error
 <MyComponent />
@@ -357,6 +361,7 @@ Rift generates source maps so you can debug your original JSX:
 
 **"Unexpected token"**
 Usually a JSX syntax error. Check for:
+
 - Unclosed tags
 - Invalid attribute names
 - Missing quotes

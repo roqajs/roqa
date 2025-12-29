@@ -1,7 +1,7 @@
-import { parse } from './parser.js';
-import { validateNoCustomComponents } from './transforms/validate.js';
-import { generateOutput } from './codegen.js';
-import { inlineGetCalls } from './transforms/inline-get.js';
+import { generateOutput } from "./codegen.js";
+import { parse } from "./parser.js";
+import { inlineGetCalls } from "./transforms/inline-get.js";
+import { validateNoCustomComponents } from "./transforms/validate.js";
 
 /**
  * Main entry point for the Rift JSX compiler
@@ -41,7 +41,7 @@ export function compile(code, filename) {
 }
 
 // Re-export for direct usage if needed
-export { parse } from './parser.js';
-export { validateNoCustomComponents } from './transforms/validate.js';
-export { generateOutput } from './codegen.js';
-export { inlineGetCalls } from './transforms/inline-get.js';
+export { parse } from "./parser.js";
+export { validateNoCustomComponents } from "./transforms/validate.js";
+export { generateOutput } from "./codegen.js";
+export { inlineGetCalls } from "./transforms/inline-get.js";

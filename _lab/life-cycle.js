@@ -29,23 +29,26 @@ function handle_event_propagation(event) {
 	if ((current_target = path[path_idx] || event.target) === handler_element) return;
 	Object.defineProperty(event, "currentTarget", {
 		configurable: true,
-		get: () => current_target || handler_element.ownerDocument
+		get: () => current_target || handler_element.ownerDocument,
 	});
 	try {
-		for (; current_target;) {
-			const parent_element = current_target.assignedSlot || current_target.parentNode || current_target.host || null;
+		for (; current_target; ) {
+			const parent_element =
+				current_target.assignedSlot || current_target.parentNode || current_target.host || null;
 			const delegated = current_target["__" + event.type];
 			try {
-				if (delegated && !current_target.disabled) if (Array.isArray(delegated)) {
-					const [fn, ...data] = delegated;
-					fn.apply(current_target, [...data, event]);
-				} else delegated.call(current_target, event);
+				if (delegated && !current_target.disabled)
+					if (Array.isArray(delegated)) {
+						const [fn, ...data] = delegated;
+						fn.apply(current_target, [...data, event]);
+					} else delegated.call(current_target, event);
 			} catch (error) {
 				queueMicrotask(() => {
 					throw error;
 				});
 			}
-			if (event.cancelBubble || parent_element === handler_element || parent_element === null) break;
+			if (event.cancelBubble || parent_element === handler_element || parent_element === null)
+				break;
 			current_target = parent_element;
 		}
 	} finally {
@@ -71,7 +74,8 @@ function handle_root_events(target) {
 	event_handle(Array.from(all_registered_events));
 	root_event_handles.add(event_handle);
 	return () => {
-		for (const event_name of registered_events) target.removeEventListener(event_name, handle_event_propagation);
+		for (const event_name of registered_events)
+			target.removeEventListener(event_name, handle_event_propagation);
 		root_event_handles.delete(event_handle);
 	};
 }
@@ -81,33 +85,38 @@ function getProps(element) {
 }
 function defineComponent(tagName, fn) {
 	if (customElements.get(tagName)) return;
-	customElements.define(tagName, class extends HTMLElement {
-		_connectedCallbacks = [];
-		_disconnectedCallbacks = [];
-		_abortController;
-		connectedCallback() {
-			this._abortController = new AbortController();
-			const props = getProps(this);
-			fn.call(this, props);
-			if (this._connectedCallbacks) for (const cb of this._connectedCallbacks) cb();
-		}
-		disconnectedCallback() {
-			if (this._disconnectedCallbacks) for (const cb of this._disconnectedCallbacks) cb();
-			this._abortController.abort();
-		}
-		connected(fn$1) {
-			this._connectedCallbacks.push(fn$1);
-		}
-		disconnected(fn$1) {
-			this._disconnectedCallbacks.push(fn$1);
-		}
-		on(eventName, handler) {
-			this.addEventListener(eventName, handler, { signal: this._abortController.signal });
-		}
-	});
+	customElements.define(
+		tagName,
+		class extends HTMLElement {
+			_connectedCallbacks = [];
+			_disconnectedCallbacks = [];
+			_abortController;
+			connectedCallback() {
+				this._abortController = new AbortController();
+				const props = getProps(this);
+				fn.call(this, props);
+				if (this._connectedCallbacks) for (const cb of this._connectedCallbacks) cb();
+			}
+			disconnectedCallback() {
+				if (this._disconnectedCallbacks) for (const cb of this._disconnectedCallbacks) cb();
+				this._abortController.abort();
+			}
+			connected(fn$1) {
+				this._connectedCallbacks.push(fn$1);
+			}
+			disconnected(fn$1) {
+				this._disconnectedCallbacks.push(fn$1);
+			}
+			on(eventName, handler) {
+				this.addEventListener(eventName, handler, { signal: this._abortController.signal });
+			}
+		},
+	);
 	handle_root_events(document);
 }
-var $tmpl_1 = template("<p>Open console to see lifecycle events</p><button>Disconnect component from DOM</button>");
+var $tmpl_1 = template(
+	"<p>Open console to see lifecycle events</p><button>Disconnect component from DOM</button>",
+);
 function Lifecycle() {
 	this.connected(() => {
 		console.log("Component connected to DOM");

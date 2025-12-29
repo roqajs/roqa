@@ -1,28 +1,28 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './styles.css';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./styles.css";
 
 function TodoList() {
 	const todos = cell([
-		{ text: 'Pick up groceries', completed: false },
-		{ text: 'Walk the dog', completed: false },
-		{ text: 'Read a book', completed: false },
+		{ text: "Pick up groceries", completed: false },
+		{ text: "Walk the dog", completed: false },
+		{ text: "Read a book", completed: false },
 	]);
 
 	function addTodo(event) {
-		if (event.key === 'Enter' && event.target.value.trim() !== '') {
+		if (event.key === "Enter" && event.target.value.trim() !== "") {
 			const newTodo = {
 				text: event.target.value.trim(),
 				completed: false,
 			};
 			set(todos, [...get(todos), newTodo]);
-			event.target.value = '';
+			event.target.value = "";
 		}
 	}
 
 	function clearTodos() {
 		set(
 			todos,
-			get(todos).filter((todo) => !todo.completed)
+			get(todos).filter((todo) => !todo.completed),
 		);
 	}
 
@@ -41,7 +41,7 @@ function TodoList() {
 									set(todos, [...get(todos)]);
 								}}
 							/>
-							<span class={todo.completed ? 'completed' : ''}>{todo.text}</span>
+							<span class={todo.completed ? "completed" : ""}>{todo.text}</span>
 						</label>
 					)}
 				</For>
@@ -52,4 +52,4 @@ function TodoList() {
 	);
 }
 
-defineComponent('todo-list', TodoList);
+defineComponent("todo-list", TodoList);

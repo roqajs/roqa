@@ -1,9 +1,9 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './styles.css';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./styles.css";
 
 function App() {
 	const count = cell(0);
-	
+
 	const increment = () => {
 		set(count, get(count) + 1);
 	};
@@ -11,4 +11,4 @@ function App() {
 	return <button onclick={increment}>Count is {get(count)}</button>;
 }
 
-defineComponent('counter-button', App);
+defineComponent("counter-button", App);

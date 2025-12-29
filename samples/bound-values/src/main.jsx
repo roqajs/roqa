@@ -1,5 +1,5 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './styles.css';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./styles.css";
 
 function BoundValues() {
 	const count = cell(0);
@@ -17,4 +17,4 @@ function BoundValues() {
 	);
 }
 
-defineComponent('bound-values', BoundValues);
+defineComponent("bound-values", BoundValues);

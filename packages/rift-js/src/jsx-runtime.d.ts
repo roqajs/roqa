@@ -11,7 +11,7 @@
  *   }
  */
 
-import type { Cell } from 'rift-js';
+import type { Cell } from "rift-js";
 
 // ============================================
 // Component Types
@@ -35,7 +35,7 @@ export type ComponentType<P = {}> = (props: P) => void;
 export function jsx(
 	type: string | ComponentType<any>,
 	props?: Record<string, any>,
-	key?: string | number | null
+	key?: string | number | null,
 ): void;
 
 /**
@@ -45,7 +45,7 @@ export function jsx(
 export function jsxs(
 	type: string | ComponentType<any>,
 	props?: Record<string, any>,
-	key?: string | number | null
+	key?: string | number | null,
 ): void;
 
 /**
@@ -85,7 +85,7 @@ export type EventHandler<E extends Event = Event> =
 // HTML Attribute Types
 // ============================================
 
-type Booleanish = boolean | 'true' | 'false';
+type Booleanish = boolean | "true" | "false";
 
 interface DOMAttributes {
 	children?: any;
@@ -175,7 +175,7 @@ interface HTMLAttributes extends DOMAttributes {
 	accesskey?: string;
 	autofocus?: boolean;
 	class?: string;
-	contenteditable?: Booleanish | 'inherit';
+	contenteditable?: Booleanish | "inherit";
 	dir?: string;
 	draggable?: Booleanish;
 	hidden?: boolean;
@@ -186,7 +186,7 @@ interface HTMLAttributes extends DOMAttributes {
 	style?: string | Record<string, string | number>;
 	tabindex?: number;
 	title?: string;
-	translate?: 'yes' | 'no';
+	translate?: "yes" | "no";
 
 	// WAI-ARIA
 	role?: string;
@@ -213,10 +213,10 @@ interface HTMLAttributes extends DOMAttributes {
 	itemref?: string;
 	results?: number;
 	security?: string;
-	unselectable?: 'on' | 'off';
+	unselectable?: "on" | "off";
 
 	// Living Standard
-	inputmode?: 'none' | 'text' | 'tel' | 'url' | 'email' | 'numeric' | 'decimal' | 'search';
+	inputmode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search";
 	is?: string;
 }
 
@@ -242,7 +242,7 @@ interface ButtonHTMLAttributes extends HTMLAttributes {
 	formnovalidate?: boolean;
 	formtarget?: string;
 	name?: string;
-	type?: 'submit' | 'reset' | 'button';
+	type?: "submit" | "reset" | "button";
 	value?: string | string[] | number;
 }
 
@@ -259,10 +259,10 @@ interface FormHTMLAttributes extends HTMLAttributes {
 
 interface ImgHTMLAttributes extends HTMLAttributes {
 	alt?: string;
-	crossorigin?: 'anonymous' | 'use-credentials' | '';
-	decoding?: 'async' | 'auto' | 'sync';
+	crossorigin?: "anonymous" | "use-credentials" | "";
+	decoding?: "async" | "auto" | "sync";
 	height?: number | string;
-	loading?: 'eager' | 'lazy';
+	loading?: "eager" | "lazy";
 	referrerpolicy?: string;
 	sizes?: string;
 	src?: string;
@@ -276,7 +276,7 @@ interface InputHTMLAttributes extends HTMLAttributes {
 	alt?: string;
 	autocomplete?: string;
 	autofocus?: boolean;
-	capture?: boolean | 'user' | 'environment';
+	capture?: boolean | "user" | "environment";
 	checked?: boolean;
 	crossorigin?: string;
 	disabled?: boolean;
@@ -348,21 +348,21 @@ interface TableHTMLAttributes extends HTMLAttributes {
 }
 
 interface TdHTMLAttributes extends HTMLAttributes {
-	align?: 'left' | 'center' | 'right' | 'justify' | 'char';
+	align?: "left" | "center" | "right" | "justify" | "char";
 	colspan?: number;
 	headers?: string;
 	rowspan?: number;
 	scope?: string;
-	valign?: 'top' | 'middle' | 'bottom' | 'baseline';
+	valign?: "top" | "middle" | "bottom" | "baseline";
 }
 
 interface ThHTMLAttributes extends HTMLAttributes {
-	align?: 'left' | 'center' | 'right' | 'justify' | 'char';
+	align?: "left" | "center" | "right" | "justify" | "char";
 	colspan?: number;
 	headers?: string;
 	rowspan?: number;
 	scope?: string;
-	valign?: 'top' | 'middle' | 'bottom' | 'baseline';
+	valign?: "top" | "middle" | "bottom" | "baseline";
 }
 
 interface SVGAttributes extends DOMAttributes {
@@ -383,16 +383,16 @@ interface SVGAttributes extends DOMAttributes {
 	width?: number | string;
 
 	// SVG Presentation Attributes
-	'clip-path'?: string;
+	"clip-path"?: string;
 	cx?: number | string;
 	cy?: number | string;
 	d?: string;
 	fill?: string;
-	'fill-opacity'?: number | string;
-	'fill-rule'?: 'nonzero' | 'evenodd' | 'inherit';
+	"fill-opacity"?: number | string;
+	"fill-rule"?: "nonzero" | "evenodd" | "inherit";
 	filter?: string;
-	'font-family'?: string;
-	'font-size'?: number | string;
+	"font-family"?: string;
+	"font-size"?: number | string;
 	fx?: number | string;
 	fy?: number | string;
 	gradientTransform?: string;
@@ -411,16 +411,16 @@ interface SVGAttributes extends DOMAttributes {
 	rx?: number | string;
 	ry?: number | string;
 	spreadMethod?: string;
-	'stop-color'?: string;
-	'stop-opacity'?: number | string;
+	"stop-color"?: string;
+	"stop-opacity"?: number | string;
 	stroke?: string;
-	'stroke-dasharray'?: string | number;
-	'stroke-dashoffset'?: string | number;
-	'stroke-linecap'?: 'butt' | 'round' | 'square' | 'inherit';
-	'stroke-linejoin'?: 'miter' | 'round' | 'bevel' | 'inherit';
-	'stroke-miterlimit'?: number | string;
-	'stroke-opacity'?: number | string;
-	'stroke-width'?: number | string;
+	"stroke-dasharray"?: string | number;
+	"stroke-dashoffset"?: string | number;
+	"stroke-linecap"?: "butt" | "round" | "square" | "inherit";
+	"stroke-linejoin"?: "miter" | "round" | "bevel" | "inherit";
+	"stroke-miterlimit"?: number | string;
+	"stroke-opacity"?: number | string;
+	"stroke-width"?: number | string;
 	textAnchor?: string;
 	transform?: string;
 	viewBox?: string;

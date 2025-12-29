@@ -44,7 +44,7 @@ import { defineComponent, cell, get, set } from 'rift-js';
 
 function Counter() {
   const count = cell(0);
-  
+
   return (
     <button onclick={() => set(count, get(count) + 1)}>
       Count: {get(count)}
@@ -68,7 +68,7 @@ function Counter() {
   this.connected(() => {
     const button_1 = this.firstChild;
     const button_1_text = button_1.firstChild;
-		
+
 		button_1_text.nodeValue = 'Count: ' + count.v;
 		count.ref_1 = button_1_text;
 
@@ -84,6 +84,7 @@ delegate(['click']);
 ```
 
 Notice how:
+
 - `cell(0)` becomes a simple object `{ v: 0, e: [] }`
 - `get(count)` becomes `count.v`
 - `set()` is inlined with the DOM update (`count.ref_1.nodeValue = ...`)

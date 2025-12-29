@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite';
-import rift from 'rift-vite-plugin';
+import rift from "rift-vite-plugin";
+import { defineConfig } from "vite";
 
 export default defineConfig({
 	plugins: [rift()],
@@ -8,7 +8,7 @@ export default defineConfig({
 		modulePreload: false,
 		rollupOptions: {
 			output: {
-				entryFileNames: 'main.js',
+				entryFileNames: "main.js",
 			},
 		},
 	},

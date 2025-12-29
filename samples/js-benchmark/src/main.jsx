@@ -1,59 +1,59 @@
-import { defineComponent, cell, get, put, set } from 'rift-js';
+import { defineComponent, cell, get, put, set } from "rift-js";
 
 const adjectives = [
-	'pretty',
-	'large',
-	'big',
-	'small',
-	'tall',
-	'short',
-	'long',
-	'handsome',
-	'plain',
-	'quaint',
-	'clean',
-	'elegant',
-	'easy',
-	'angry',
-	'crazy',
-	'helpful',
-	'mushy',
-	'odd',
-	'unsightly',
-	'adorable',
-	'important',
-	'inexpensive',
-	'cheap',
-	'expensive',
-	'fancy',
+	"pretty",
+	"large",
+	"big",
+	"small",
+	"tall",
+	"short",
+	"long",
+	"handsome",
+	"plain",
+	"quaint",
+	"clean",
+	"elegant",
+	"easy",
+	"angry",
+	"crazy",
+	"helpful",
+	"mushy",
+	"odd",
+	"unsightly",
+	"adorable",
+	"important",
+	"inexpensive",
+	"cheap",
+	"expensive",
+	"fancy",
 ];
 const colours = [
-	'red',
-	'yellow',
-	'blue',
-	'green',
-	'pink',
-	'brown',
-	'purple',
-	'brown',
-	'white',
-	'black',
-	'orange',
+	"red",
+	"yellow",
+	"blue",
+	"green",
+	"pink",
+	"brown",
+	"purple",
+	"brown",
+	"white",
+	"black",
+	"orange",
 ];
 const nouns = [
-	'table',
-	'chair',
-	'house',
-	'bbq',
-	'desk',
-	'car',
-	'pony',
-	'cookie',
-	'sandwich',
-	'burger',
-	'pizza',
-	'mouse',
-	'keyboard',
+	"table",
+	"chair",
+	"house",
+	"bbq",
+	"desk",
+	"car",
+	"pony",
+	"cookie",
+	"sandwich",
+	"burger",
+	"pizza",
+	"mouse",
+	"keyboard",
 ];
 
 const rand = (dict) => dict[Math.round(Math.random() * 1000) % dict.length];
@@ -66,7 +66,7 @@ function App() {
 	function build_data(count = 1000) {
 		const data = Array.from({ length: count });
 		for (let i = 0; i < count; i++) {
-			const text = rand(adjectives) + ' ' + rand(colours) + ' ' + rand(nouns);
+			const text = rand(adjectives) + " " + rand(colours) + " " + rand(nouns);
 			data[i] = {
 				id: row_id++,
 				label: cell(text),
@@ -95,7 +95,7 @@ function App() {
 
 	const update_rows = () => {
 		for (let i = 0, row; (row = get(rows)[i]); i += 10) {
-			set(row.label, get(row.label) + ' !!!');
+			set(row.label, get(row.label) + " !!!");
 		}
 	};
 
@@ -184,7 +184,7 @@ function App() {
 				<tbody>
 					<For each={rows}>
 						{(row) => (
-							<tr class={get(row.is_selected) ? 'danger' : ''}>
+							<tr class={get(row.is_selected) ? "danger" : ""}>
 								<td class="col-md-1">{row.id}</td>
 								<td class="col-md-4">
 									<a onclick={() => select(row)}>{get(row.label)}</a>
@@ -205,4 +205,4 @@ function App() {
 	);
 }
 
-defineComponent('bench-app', App);
+defineComponent("bench-app", App);

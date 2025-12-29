@@ -8,7 +8,7 @@ import {
 	isForComponent,
 	isShowComponent,
 	isJSXFragment,
-} from '../parser.js';
+} from "../parser.js";
 
 /**
  * Template extraction and DOM traversal generation
@@ -23,66 +23,66 @@ import {
  * Set of SVG element tag names
  */
 const SVG_ELEMENTS = new Set([
-	'svg',
-	'circle',
-	'ellipse',
-	'line',
-	'path',
-	'polygon',
-	'polyline',
-	'rect',
-	'g',
-	'defs',
-	'symbol',
-	'use',
-	'text',
-	'tspan',
-	'textPath',
-	'image',
-	'clipPath',
-	'mask',
-	'pattern',
-	'marker',
-	'linearGradient',
-	'radialGradient',
-	'stop',
-	'filter',
-	'feBlend',
-	'feColorMatrix',
-	'feComponentTransfer',
-	'feComposite',
-	'feConvolveMatrix',
-	'feDiffuseLighting',
-	'feDisplacementMap',
-	'feDistantLight',
-	'feDropShadow',
-	'feFlood',
-	'feFuncA',
-	'feFuncB',
-	'feFuncG',
-	'feFuncR',
-	'feGaussianBlur',
-	'feImage',
-	'feMerge',
-	'feMergeNode',
-	'feMorphology',
-	'feOffset',
-	'fePointLight',
-	'feSpecularLighting',
-	'feSpotLight',
-	'feTile',
-	'feTurbulence',
-	'foreignObject',
-	'animate',
-	'animateMotion',
-	'animateTransform',
-	'set',
-	'desc',
-	'metadata',
-	'title',
-	'a',
-	'switch',
-	'view',
+	"svg",
+	"circle",
+	"ellipse",
+	"line",
+	"path",
+	"polygon",
+	"polyline",
+	"rect",
+	"g",
+	"defs",
+	"symbol",
+	"use",
+	"text",
+	"tspan",
+	"textPath",
+	"image",
+	"clipPath",
+	"mask",
+	"pattern",
+	"marker",
+	"linearGradient",
+	"radialGradient",
+	"stop",
+	"filter",
+	"feBlend",
+	"feColorMatrix",
+	"feComponentTransfer",
+	"feComposite",
+	"feConvolveMatrix",
+	"feDiffuseLighting",
+	"feDisplacementMap",
+	"feDistantLight",
+	"feDropShadow",
+	"feFlood",
+	"feFuncA",
+	"feFuncB",
+	"feFuncG",
+	"feFuncR",
+	"feGaussianBlur",
+	"feImage",
+	"feMerge",
+	"feMergeNode",
+	"feMorphology",
+	"feOffset",
+	"fePointLight",
+	"feSpecularLighting",
+	"feSpotLight",
+	"feTile",
+	"feTurbulence",
+	"foreignObject",
+	"animate",
+	"animateMotion",
+	"animateTransform",
+	"set",
+	"desc",
+	"metadata",
+	"title",
+	"a",
+	"switch",
+	"view",
 ]);
 
 /**
@@ -133,7 +133,7 @@ export class TemplateRegistry {
 		const declarations = [];
 		for (const [key, info] of this.templates) {
 			const html = info.isSvg ? key.slice(4) : key; // Remove 'svg:' prefix if present
-			const templateFn = info.isSvg ? 'svg_template' : 'template';
+			const templateFn = info.isSvg ? "svg_template" : "template";
 			declarations.push(`const ${info.varName} = ${templateFn}('${escapeTemplateString(html)}');`);
 		}
 		return declarations;
@@ -155,7 +155,7 @@ export class TemplateRegistry {
  * Escape single quotes and backslashes in template strings
  */
 function escapeTemplateString(str) {
-	return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+	return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
 /**
@@ -174,7 +174,7 @@ export class VariableNameGenerator {
 	 */
 	sanitizeTagName(tagName) {
 		// Replace hyphens with underscores to make valid JS identifiers
-		return tagName.replace(/-/g, '_');
+		return tagName.replace(/-/g, "_");
 	}
 
 	/**
@@ -207,8 +207,8 @@ export class VariableNameGenerator {
 	 * @returns {string}
 	 */
 	generateRoot() {
-		const current = this.counters.get('$root') || 0;
-		this.counters.set('$root', current + 1);
+		const current = this.counters.get("$root") || 0;
+		this.counters.set("$root", current + 1);
 		return `$root_${current + 1}`;
 	}
 }
@@ -238,7 +238,7 @@ export function extractTemplate(
 	nameGen,
 	isComponentRoot = false,
 	isFragment = false,
-	riftComponentTags = new Set()
+	riftComponentTags = new Set(),
 ) {
 	if (isFragment || isJSXFragment(node)) {
 		return extractFragmentTemplate(node, registry, nameGen, isComponentRoot, riftComponentTags);
@@ -247,7 +247,7 @@ export function extractTemplate(
 	const { html, bindings, events, forBlocks, showBlocks, structure, isSvg } = jsxToHtml(
 		node,
 		nameGen,
-		riftComponentTags
+		riftComponentTags,
 	);
 
 	const templateInfo = registry.register(html, isSvg);
@@ -281,14 +281,14 @@ function extractFragmentTemplate(
 	registry,
 	nameGen,
 	isComponentRoot,
-	riftComponentTags = new Set()
+	riftComponentTags = new Set(),
 ) {
 	const bindings = [];
 	const events = [];
 	const forBlocks = [];
 	const showBlocks = [];
 	const structures = [];
-	let html = '';
+	let html = "";
 
 	// Process each child of the fragment as a root element
 	const children = node.children || [];
@@ -297,8 +297,8 @@ function extractFragmentTemplate(
 	for (const child of children) {
 		if (isJSXText(child)) {
 			// Normalize whitespace, preserve spaces between sibling elements
-			const text = child.value.replace(/\s+/g, ' ');
-			if (text && text !== ' ') {
+			const text = child.value.replace(/\s+/g, " ");
+			if (text && text !== " ") {
 				// Non-whitespace text between fragment children - add to HTML
 				// (Single space-only text nodes between block elements can be dropped)
 				html += escapeHtml(text);
@@ -317,30 +317,30 @@ function extractFragmentTemplate(
 				showBlocks,
 				childPath,
 				riftComponentTags,
-				childInSvg
+				childInSvg,
 			);
 			html += childResult.html;
 			structures.push(childResult.structure);
 			childIndex++;
 		} else if (isJSXExpressionContainer(child)) {
 			// Dynamic expression at fragment level
-			html += '<!---->';
-			const textVarName = nameGen.generateTextNode('fragment');
+			html += "<!---->";
+			const textVarName = nameGen.generateTextNode("fragment");
 			bindings.push({
-				type: 'text',
+				type: "text",
 				varName: null, // No parent element for fragment-level expressions
 				textVarName,
 				expression: child.expression,
 				path: [childIndex],
 				childIndex: structures.length,
-				staticPrefix: '',
+				staticPrefix: "",
 				usesMarker: true,
 				isFragmentChild: true,
 			});
 			// Add a pseudo-structure entry for traversal
 			structures.push({
 				varName: textVarName,
-				tagName: '__text__',
+				tagName: "__text__",
 				children: [],
 				textNodes: [],
 				isTextMarker: true,
@@ -386,7 +386,7 @@ function generateFragmentTraversal(structures, rootVar, isComponentRoot) {
 			if (i === 0) {
 				steps.push({
 					varName: markerVarName,
-					code: isComponentRoot ? 'this.firstChild' : `${rootVar}.firstChild`,
+					code: isComponentRoot ? "this.firstChild" : `${rootVar}.firstChild`,
 					isMarker: true,
 					textVarName: structure.varName,
 				});
@@ -404,7 +404,7 @@ function generateFragmentTraversal(structures, rootVar, isComponentRoot) {
 			if (i === 0) {
 				steps.push({
 					varName: structure.varName,
-					code: isComponentRoot ? 'this.firstChild' : `${rootVar}.firstChild`,
+					code: isComponentRoot ? "this.firstChild" : `${rootVar}.firstChild`,
 				});
 			} else {
 				steps.push({
@@ -448,7 +448,7 @@ function jsxToHtml(node, nameGen, riftComponentTags = new Set()) {
 		showBlocks,
 		[],
 		riftComponentTags,
-		isSvg
+		isSvg,
 	);
 
 	return { html, bindings, events, forBlocks, showBlocks, structure, isSvg };
@@ -493,14 +493,14 @@ function processElement(
 	showBlocks,
 	path,
 	riftComponentTags = new Set(),
-	inSvg = false
+	inSvg = false,
 ) {
 	const tagName = getJSXElementName(node);
 	const varName = nameGen.generate(tagName);
 	const attrs = extractJSXAttributes(node.openingElement);
 
 	// Check if this is a custom element (has hyphen in name - web component standard)
-	const isCustomElement = tagName.includes('-');
+	const isCustomElement = tagName.includes("-");
 
 	// Check if this is a Rift-defined custom element (registered via defineComponent)
 	// Only Rift components get special prop handling; external custom elements are left alone
@@ -521,13 +521,13 @@ function processElement(
 
 	// Process attributes
 	for (const [name, value] of attrs) {
-		if (name === '...') {
+		if (name === "...") {
 			// Spread attributes - skip for now (could add runtime handling)
 			continue;
 		}
 
 		// Check for event handlers (onclick, oninput, etc.)
-		if (name.startsWith('on')) {
+		if (name.startsWith("on")) {
 			const eventName = name.slice(2).toLowerCase();
 			events.push({
 				varName,
@@ -542,20 +542,20 @@ function processElement(
 		if (value === null) {
 			// Boolean attribute: <button disabled>
 			html += ` ${name}`;
-		} else if (value.type === 'StringLiteral') {
+		} else if (value.type === "StringLiteral") {
 			// Static string: class="foo"
 			// Always include static attributes in the HTML template
 			// This ensures getAttribute() works for all elements including custom elements
 			html += ` ${name}="${escapeAttr(value.value)}"`;
-		} else if (value.type === 'JSXExpressionContainer') {
+		} else if (value.type === "JSXExpressionContainer") {
 			// Dynamic expression: class={expr}
 			// Add placeholder for static attributes, bind for dynamic
-			if (name === 'class' || name === 'className') {
+			if (name === "class" || name === "className") {
 				// For class bindings, we'll handle at runtime
 				bindings.push({
-					type: 'attribute',
+					type: "attribute",
 					varName,
-					attrName: 'className',
+					attrName: "className",
 					expression: value.expression,
 					path: [...path],
 					isSvg: isInSvgContext,
@@ -563,7 +563,7 @@ function processElement(
 			} else if (isRiftComponent) {
 				// For Rift-defined custom elements, use setProp() to pass data
 				bindings.push({
-					type: 'prop',
+					type: "prop",
 					varName,
 					propName: name,
 					expression: value.expression,
@@ -573,7 +573,7 @@ function processElement(
 				// For other custom elements (third-party web components),
 				// set properties directly on the element before it connects
 				bindings.push({
-					type: 'prop',
+					type: "prop",
 					varName,
 					propName: name,
 					expression: value.expression,
@@ -582,7 +582,7 @@ function processElement(
 				});
 			} else {
 				bindings.push({
-					type: 'attribute',
+					type: "attribute",
 					varName,
 					attrName: name,
 					expression: value.expression,
@@ -593,7 +593,7 @@ function processElement(
 		}
 	}
 
-	html += '>';
+	html += ">";
 
 	// Process children - first pass to collect all content parts
 	const children = getJSXChildren(node);
@@ -603,20 +603,20 @@ function processElement(
 	for (const child of children) {
 		if (isJSXText(child)) {
 			// Static text - normalize whitespace but preserve spaces between elements
-			const text = child.value.replace(/\s+/g, ' ');
+			const text = child.value.replace(/\s+/g, " ");
 			if (text) {
-				contentParts.push({ type: 'static', value: text });
+				contentParts.push({ type: "static", value: text });
 			}
 		} else if (isJSXExpressionContainer(child)) {
 			hasDynamicContent = true;
-			contentParts.push({ type: 'dynamic', expression: child.expression });
+			contentParts.push({ type: "dynamic", expression: child.expression });
 		} else if (isJSXElement(child)) {
 			// Element child - flush content parts and process element
 			if (contentParts.length > 0) {
 				// If we have mixed content before an element, handle it
 				if (hasDynamicContent) {
 					// Add space placeholder for dynamic content
-					html += ' ';
+					html += " ";
 					const textVarName = nameGen.generateTextNode(varName);
 					structure.hasTextChild = true;
 					structure.textVarName = textVarName;
@@ -626,7 +626,7 @@ function processElement(
 						isDynamic: true,
 					});
 					bindings.push({
-						type: 'text',
+						type: "text",
 						varName,
 						textVarName,
 						contentParts: [...contentParts],
@@ -667,7 +667,7 @@ function processElement(
 					showBlocks,
 					[...path, structure.children.length],
 					riftComponentTags,
-					isInSvgContext
+					isInSvgContext,
 				);
 				html += childResult.html;
 				structure.children.push(childResult.structure);
@@ -679,7 +679,7 @@ function processElement(
 	if (contentParts.length > 0) {
 		if (hasDynamicContent) {
 			// Element has dynamic content - use space placeholder
-			html += ' ';
+			html += " ";
 			const textVarName = nameGen.generateTextNode(varName);
 			structure.hasTextChild = true;
 			structure.textVarName = textVarName;
@@ -689,7 +689,7 @@ function processElement(
 				isDynamic: true,
 			});
 			bindings.push({
-				type: 'text',
+				type: "text",
 				varName,
 				textVarName,
 				contentParts: [...contentParts],
@@ -697,7 +697,7 @@ function processElement(
 			});
 		} else {
 			// All static content - join and trim only leading/trailing whitespace
-			const staticContent = contentParts.map((p) => p.value).join('');
+			const staticContent = contentParts.map((p) => p.value).join("");
 			// Only trim if this is trailing content (after last element)
 			// We need to preserve internal spacing but can trim the end
 			const trimmedContent = structure.children.length > 0 ? staticContent : staticContent.trim();
@@ -709,20 +709,20 @@ function processElement(
 
 	// Self-closing tags
 	const voidElements = new Set([
-		'area',
-		'base',
-		'br',
-		'col',
-		'embed',
-		'hr',
-		'img',
-		'input',
-		'link',
-		'meta',
-		'param',
-		'source',
-		'track',
-		'wbr',
+		"area",
+		"base",
+		"br",
+		"col",
+		"embed",
+		"hr",
+		"img",
+		"input",
+		"link",
+		"meta",
+		"param",
+		"source",
+		"track",
+		"wbr",
 	]);
 
 	if (!voidElements.has(tagName)) {
@@ -752,7 +752,7 @@ function generateTraversal(structure, rootVar, isComponentRoot = false) {
 	// For nested templates (like inside for_block), we use the rootVar
 	steps.push({
 		varName: structure.varName,
-		code: isComponentRoot ? 'this.firstChild' : `${rootVar}.firstChild`,
+		code: isComponentRoot ? "this.firstChild" : `${rootVar}.firstChild`,
 	});
 
 	// Generate traversal for text nodes and children
@@ -831,7 +831,7 @@ function generateChildTraversal(structure, steps) {
 				// Fallback - traverse from parent
 				let traversal = `${varName}.firstChild`;
 				for (let j = 0; j < textNode.childIndex; j++) {
-					traversal += '.nextSibling';
+					traversal += ".nextSibling";
 				}
 				steps.push({
 					varName: textNode.varName,
@@ -847,15 +847,15 @@ function generateChildTraversal(structure, steps) {
  */
 function escapeHtml(str) {
 	return str
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;');
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
 }
 
 /**
  * Escape attribute values
  */
 function escapeAttr(str) {
-	return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+	return str.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }

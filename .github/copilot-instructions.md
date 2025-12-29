@@ -242,22 +242,22 @@ This phase eliminates runtime overhead by:
 
 1. **Inlining primitive calls:**
 
-   - `get(cell)` → `cell.v`
-   - `cell(value)` → `{ v: value, e: [] }`
-   - `put(cell, value)` → `cell.v = value`
+- `get(cell)` → `cell.v`
+- `cell(value)` → `{ v: value, e: [] }`
+- `put(cell, value)` → `cell.v = value`
 
 2. **Inlining `set()` with DOM updates:**
 
-   ```js
-   // Before
-   set(count, count.v + 1);
+```js
+// Before
+set(count, count.v + 1);
 
-   // After (bind callbacks inlined)
-   {
-     count.v = count.v + 1;
-     count.ref_1.nodeValue = count.v;
-   }
-   ```
+// After (bind callbacks inlined)
+{
+  count.v = count.v + 1;
+  count.ref_1.nodeValue = count.v;
+}
+```
 
 3. **Removing `bind()` calls** and storing element refs on cells:
    ```js

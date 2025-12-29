@@ -1,5 +1,5 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './styles.css';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./styles.css";
 
 function SliderMath() {
 	const a = cell(1);
@@ -32,4 +32,4 @@ function SliderMath() {
 	);
 }
 
-defineComponent('slider-math', SliderMath);
+defineComponent("slider-math", SliderMath);

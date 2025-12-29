@@ -10,7 +10,7 @@ const { cloneNode } = Node.prototype;
  * @returns {() => Node} - A function that returns a deep clone of the template content
  */
 export const template = (html) => {
-	const t = document.createElement('template');
+	const t = document.createElement("template");
 	t.innerHTML = html;
 	return () => cloneNode.call(t.content, true);
 };
@@ -23,7 +23,7 @@ export const template = (html) => {
  */
 export const svg_template = (svg) => {
 	// Wrap in an SVG element to ensure proper namespace parsing
-	const wrapper = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+	const wrapper = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 	wrapper.innerHTML = svg;
 
 	// Use a document fragment to match the behavior of the regular template function

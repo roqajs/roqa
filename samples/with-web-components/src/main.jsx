@@ -1,13 +1,13 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './vanilla-counter';
-import './lit-counter';
-import './styles.css';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./vanilla-counter";
+import "./lit-counter";
+import "./styles.css";
 
 function App() {
 	let count;
-	
+
 	this.connected(() => {
-		count = this.querySelector('#sl-count');
+		count = this.querySelector("#sl-count");
 	});
 
 	return (
@@ -25,4 +25,4 @@ function App() {
 	);
 }
 
-defineComponent('rift-app', App);
+defineComponent("rift-app", App);

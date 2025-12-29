@@ -1,13 +1,13 @@
-import { defineComponent } from 'rift-js';
-import './styles.css';
+import { defineComponent } from "rift-js";
+import "./styles.css";
 
 function Lifecycle() {
 	this.connected(() => {
-		console.log('Component connected to DOM');
+		console.log("Component connected to DOM");
 	});
 
 	this.disconnected(() => {
-		console.log('Component disconnected from DOM');
+		console.log("Component disconnected from DOM");
 	});
 
 	return (
@@ -18,4 +18,4 @@ function Lifecycle() {
 	);
 }
 
-defineComponent('life-cycle', Lifecycle);
+defineComponent("life-cycle", Lifecycle);

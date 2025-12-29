@@ -1,4 +1,4 @@
-import { html, css, LitElement } from 'lit';
+import { html, css, LitElement } from "lit";
 
 export class LitWebComponent extends LitElement {
 	static styles = css`
@@ -19,7 +19,7 @@ export class LitWebComponent extends LitElement {
 
 	static properties = {
 		count: { type: Number },
-		incrementAmount: { type: Number, attribute: 'increment-amount' },
+		incrementAmount: { type: Number, attribute: "increment-amount" },
 	};
 
 	constructor() {
@@ -33,4 +33,4 @@ export class LitWebComponent extends LitElement {
 			><span>${this.count}</span>`;
 	}
 }
-customElements.define('lit-counter', LitWebComponent);
+customElements.define("lit-counter", LitWebComponent);

@@ -1,15 +1,15 @@
-import { defineComponent, cell, get, set, bind } from 'rift-js';
-import * as d3 from 'd3';
-import './styles.css';
+import * as d3 from "d3";
+import { defineComponent, cell, get, set, bind } from "rift-js";
+import "./styles.css";
 
 function App() {
 	const data = cell([
-		{ label: 'A', value: 30 },
-		{ label: 'B', value: 80 },
-		{ label: 'C', value: 45 },
-		{ label: 'D', value: 60 },
-		{ label: 'E', value: 20 },
-		{ label: 'F', value: 90 },
+		{ label: "A", value: 30 },
+		{ label: "B", value: 80 },
+		{ label: "C", value: 45 },
+		{ label: "D", value: 60 },
+		{ label: "E", value: 20 },
+		{ label: "F", value: 90 },
 	]);
 
 	const width = 500;
@@ -66,8 +66,8 @@ function App() {
 	};
 
 	this.connected(() => {
-		const xAxisGroup = this.querySelector('.x-axis');
-		const yAxisGroup = this.querySelector('.y-axis');
+		const xAxisGroup = this.querySelector(".x-axis");
+		const yAxisGroup = this.querySelector(".y-axis");
 
 		// Declaratively update axes when data changes
 		bind(data, () => {
@@ -114,4 +114,4 @@ function App() {
 	);
 }
 
-defineComponent('data-visualization', App);
+defineComponent("data-visualization", App);

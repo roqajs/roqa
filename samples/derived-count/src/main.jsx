@@ -1,12 +1,12 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './styles.css';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./styles.css";
 
 function DerivedCount() {
 	const count = cell(0);
 	const doubled = cell(() => get(count) * 2);
 	const quadrupled = cell(() => get(doubled) * 2);
 	const octupled = cell(() => get(quadrupled) * 2);
-	
+
 	const increment = () => {
 		set(count, get(count) + 1);
 	};
@@ -22,4 +22,4 @@ function DerivedCount() {
 	);
 }
 
-defineComponent('derived-count', DerivedCount);
+defineComponent("derived-count", DerivedCount);

@@ -9,13 +9,13 @@ Rift takes a fundamentally different approach compared to popular UI frameworks.
 
 ## Architecture Overview
 
-| Framework | Reactivity Model | DOM Updates | Component Model |
-|-----------|------------------|-------------|-----------------|
-| **Rift** | Compile-time signals | Direct DOM manipulation | Web Components |
-| React | Runtime VDOM diffing | Reconciliation | React Components |
-| Solid | Runtime signals | Direct DOM manipulation | Solid Components |
-| Svelte | Compile-time | Direct DOM manipulation | Svelte Components |
-| Vue | Runtime proxies | VDOM + patches | Vue Components |
+| Framework | Reactivity Model     | DOM Updates             | Component Model   |
+| --------- | -------------------- | ----------------------- | ----------------- |
+| **Rift**  | Compile-time signals | Direct DOM manipulation | Web Components    |
+| React     | Runtime VDOM diffing | Reconciliation          | React Components  |
+| Solid     | Runtime signals      | Direct DOM manipulation | Solid Components  |
+| Svelte    | Compile-time         | Direct DOM manipulation | Svelte Components |
+| Vue       | Runtime proxies      | VDOM + patches          | Vue Components    |
 
 ### Rift's Approach
 
@@ -48,7 +48,7 @@ React re-renders entire component trees when state changes:
 // React
 function Counter() {
   const [count, setCount] = useState(0);
-  
+
   // Entire function re-runs on every click
   return (
     <button onClick={() => setCount(count + 1)}>
@@ -71,7 +71,7 @@ Solid uses signals similar to Rift, but at runtime:
 // Solid
 function Counter() {
   const [count, setCount] = createSignal(0);
-  
+
   // Only executes once
   return (
     <button onClick={() => setCount(count() + 1)}>
@@ -114,7 +114,7 @@ Rift combines explicit signals with compile-time optimization:
 // Rift
 function Counter() {
   const count = cell(0);
-  
+
   return (
     <button onclick={() => set(count, get(count) + 1)}>
       Count: {get(count)}
@@ -134,23 +134,23 @@ function Counter() {
 
 ### Initial Load
 
-| Framework | Runtime Size | Notes |
-|-----------|--------------|-------|
-| **Rift** | ~3-5 KB | Only template + event delegation helpers |
-| React | ~40-45 KB | Full reconciler + hooks |
-| Solid | ~7-10 KB | Signal runtime + reactivity |
-| Svelte | ~2-3 KB | Minimal runtime |
-| Vue | ~35-40 KB | Reactivity + VDOM + compiler |
+| Framework | Runtime Size | Notes                                    |
+| --------- | ------------ | ---------------------------------------- |
+| **Rift**  | ~3-5 KB      | Only template + event delegation helpers |
+| React     | ~40-45 KB    | Full reconciler + hooks                  |
+| Solid     | ~7-10 KB     | Signal runtime + reactivity              |
+| Svelte    | ~2-3 KB      | Minimal runtime                          |
+| Vue       | ~35-40 KB    | Reactivity + VDOM + compiler             |
 
 ### Update Performance
 
-| Framework | Update Model | Overhead |
-|-----------|--------------|----------|
-| **Rift** | Direct property assignment | None |
-| React | VDOM diff → DOM patch | O(tree size) |
-| Solid | Signal subscription → update | Minimal |
-| Svelte | Dirty checking → update | Minimal |
-| Vue | Proxy trap → patch | Moderate |
+| Framework | Update Model                 | Overhead     |
+| --------- | ---------------------------- | ------------ |
+| **Rift**  | Direct property assignment   | None         |
+| React     | VDOM diff → DOM patch        | O(tree size) |
+| Solid     | Signal subscription → update | Minimal      |
+| Svelte    | Dirty checking → update      | Minimal      |
+| Vue       | Proxy trap → patch           | Moderate     |
 
 <Aside type="tip">
 Rift's updates are literally `element.property = value`. There's no framework code between your `set()` call and the DOM update.
@@ -166,6 +166,7 @@ const count = { v: 0, e: [], ref_1: textNode };
 ```
 
 This is more memory-efficient than:
+
 - React's fiber tree
 - Vue's component instances with observers
 - Solid's subscription sets
@@ -212,12 +213,14 @@ defineComponent('my-card', Card);
 ```
 
 **Benefits:**
+
 - Use Rift components in any framework
 - Use other frameworks' web components in Rift
 - No framework lock-in
 - Browser-native interop
 
 **Trade-offs:**
+
 - No JSX composition (`<MyComponent />`)
 - Must define custom element names
 - Shadow DOM optional (currently light DOM)
@@ -228,33 +231,37 @@ defineComponent('my-card', Card);
 
 ### Syntax Comparison
 
-| Task | React | Solid | Svelte | Rift |
-|------|-------|-------|--------|------|
-| State | `useState(0)` | `createSignal(0)` | `let x = 0` | `cell(0)` |
-| Read | `count` | `count()` | `count` | `get(count)` |
-| Write | `setCount(1)` | `setCount(1)` | `count = 1` | `set(count, 1)` |
-| Effect | `useEffect(() => {})` | `createEffect(() => {})` | `$: {}` | `bind(cell, fn)` |
-| Event | `onClick` | `onClick` | `on:click` | `onclick` |
-| Class | `className` | `class` | `class` | `class` |
+| Task   | React                 | Solid                    | Svelte      | Rift             |
+| ------ | --------------------- | ------------------------ | ----------- | ---------------- |
+| State  | `useState(0)`         | `createSignal(0)`        | `let x = 0` | `cell(0)`        |
+| Read   | `count`               | `count()`                | `count`     | `get(count)`     |
+| Write  | `setCount(1)`         | `setCount(1)`            | `count = 1` | `set(count, 1)`  |
+| Effect | `useEffect(() => {})` | `createEffect(() => {})` | `$: {}`     | `bind(cell, fn)` |
+| Event  | `onClick`             | `onClick`                | `on:click`  | `onclick`        |
+| Class  | `className`           | `class`                  | `class`     | `class`          |
 
 ### Mental Model
 
 **React**: "UI as a function of state"
+
 - Think in terms of renders and re-renders
 - Manage when things re-execute
 - Use hooks for side effects and optimization
 
 **Solid**: "Reactive primitives that track themselves"
+
 - Signals auto-track in reactive contexts
 - Effects run when dependencies change
 - Fine-grained without manual optimization
 
 **Svelte**: "Assignments are reactive"
+
 - Write normal JavaScript
 - Compiler makes assignments reactive
 - `$:` for derived values and effects
 
 **Rift**: "Explicit cells with compiled updates"
+
 - `get()` reads, `set()` writes
 - Compiler connects cells to DOM
 - No runtime magic—what you write is what runs
@@ -263,18 +270,18 @@ defineComponent('my-card', Card);
 
 ## Feature Comparison
 
-| Feature | Rift | React | Solid | Svelte |
-|---------|------|-------|-------|--------|
-| JSX | ✅ | ✅ | ✅ | ❌ (template) |
-| TypeScript | ✅ | ✅ | ✅ | ✅ |
-| SSR | ⚠️ Limited | ✅ | ✅ | ✅ |
-| Hydration | ⚠️ Limited | ✅ | ✅ | ✅ |
-| DevTools | ❌ | ✅ | ✅ | ✅ |
-| Suspense | ❌ | ✅ | ✅ | ❌ |
-| Transitions | ❌ | ✅ | ✅ | ✅ |
-| Component Composition | ❌ (web components) | ✅ | ✅ | ✅ |
-| Web Component Output | ✅ Native | ⚠️ Wrapper | ⚠️ Wrapper | ⚠️ Compiler option |
-| Hot Module Reload | ✅ (Vite) | ✅ | ✅ | ✅ |
+| Feature               | Rift                | React      | Solid      | Svelte             |
+| --------------------- | ------------------- | ---------- | ---------- | ------------------ |
+| JSX                   | ✅                  | ✅         | ✅         | ❌ (template)      |
+| TypeScript            | ✅                  | ✅         | ✅         | ✅                 |
+| SSR                   | ⚠️ Limited          | ✅         | ✅         | ✅                 |
+| Hydration             | ⚠️ Limited          | ✅         | ✅         | ✅                 |
+| DevTools              | ❌                  | ✅         | ✅         | ✅                 |
+| Suspense              | ❌                  | ✅         | ✅         | ❌                 |
+| Transitions           | ❌                  | ✅         | ✅         | ✅                 |
+| Component Composition | ❌ (web components) | ✅         | ✅         | ✅                 |
+| Web Component Output  | ✅ Native           | ⚠️ Wrapper | ⚠️ Wrapper | ⚠️ Compiler option |
+| Hot Module Reload     | ✅ (Vite)           | ✅         | ✅         | ✅                 |
 
 ---
 
@@ -326,6 +333,7 @@ defineComponent('my-counter', Counter);
 ```
 
 Key changes:
+
 - `useState` → `cell`
 - `value` → `get(value)`
 - `setValue(x)` → `set(value, x)`
@@ -359,6 +367,7 @@ defineComponent('my-counter', Counter);
 ```
 
 Key changes:
+
 - `createSignal` → `cell`
 - `count()` → `get(count)`
 - `setCount(x)` → `set(count, x)`
@@ -369,13 +378,13 @@ Key changes:
 
 ## Summary
 
-| Aspect | Rift's Advantage | Rift's Trade-off |
-|--------|------------------|------------------|
-| Performance | Zero runtime overhead | Less optimization tooling |
-| Bundle Size | Smallest possible | — |
-| Interoperability | Native web components | No JSX composition |
-| Learning Curve | Explicit, predictable | Different from React patterns |
-| Ecosystem | Web platform compatibility | Smaller community |
-| DX | Simple mental model | Fewer dev tools |
+| Aspect           | Rift's Advantage           | Rift's Trade-off              |
+| ---------------- | -------------------------- | ----------------------------- |
+| Performance      | Zero runtime overhead      | Less optimization tooling     |
+| Bundle Size      | Smallest possible          | —                             |
+| Interoperability | Native web components      | No JSX composition            |
+| Learning Curve   | Explicit, predictable      | Different from React patterns |
+| Ecosystem        | Web platform compatibility | Smaller community             |
+| DX               | Simple mental model        | Fewer dev tools               |
 
 Rift is ideal for performance-focused applications where you want minimal abstraction over the DOM and native web component output. It's less suited for teams heavily invested in React's ecosystem or requiring advanced features like SSR and Suspense.

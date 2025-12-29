@@ -33,19 +33,19 @@ defineComponent('event-example', EventExample);
 
 Rift supports all standard DOM events with lowercase names:
 
-| Event | Handler | Example |
-|-------|---------|---------|
-| click | `onclick` | `<button onclick={handleClick}>` |
-| input | `oninput` | `<input oninput={handleInput}>` |
-| change | `onchange` | `<select onchange={handleChange}>` |
-| submit | `onsubmit` | `<form onsubmit={handleSubmit}>` |
-| keydown | `onkeydown` | `<input onkeydown={handleKey}>` |
-| keyup | `onkeyup` | `<input onkeyup={handleKey}>` |
-| focus | `onfocus` | `<input onfocus={handleFocus}>` |
-| blur | `onblur` | `<input onblur={handleBlur}>` |
-| mouseover | `onmouseover` | `<div onmouseover={handleHover}>` |
-| mouseout | `onmouseout` | `<div onmouseout={handleLeave}>` |
-| ... | ... | Any DOM event |
+| Event     | Handler       | Example                            |
+| --------- | ------------- | ---------------------------------- |
+| click     | `onclick`     | `<button onclick={handleClick}>`   |
+| input     | `oninput`     | `<input oninput={handleInput}>`    |
+| change    | `onchange`    | `<select onchange={handleChange}>` |
+| submit    | `onsubmit`    | `<form onsubmit={handleSubmit}>`   |
+| keydown   | `onkeydown`   | `<input onkeydown={handleKey}>`    |
+| keyup     | `onkeyup`     | `<input onkeyup={handleKey}>`      |
+| focus     | `onfocus`     | `<input onfocus={handleFocus}>`    |
+| blur      | `onblur`      | `<input onblur={handleBlur}>`      |
+| mouseover | `onmouseover` | `<div onmouseover={handleHover}>`  |
+| mouseout  | `onmouseout`  | `<div onmouseout={handleLeave}>`   |
+| ...       | ...           | Any DOM event                      |
 
 ## Accessing the Event Object
 
@@ -59,13 +59,13 @@ function FormExample() {
     // Access event properties
     console.log(event.target.value);
     console.log(event.type); // 'input'
-    
+
     set(value, event.target.value);
   };
 
   return (
-    <input 
-      type="text" 
+    <input
+      type="text"
       value={get(value)}
       oninput={handleInput}
     />
@@ -149,7 +149,7 @@ Use `event.preventDefault()` to stop default browser behavior:
 function FormExample() {
   const handleSubmit = (event) => {
     event.preventDefault(); // Stop form submission
-    
+
     // Handle form data manually
     console.log('Form submitted');
   };
@@ -208,8 +208,8 @@ function KeyboardExample() {
   };
 
   return (
-    <input 
-      type="text" 
+    <input
+      type="text"
       onkeydown={handleKeyDown}
       placeholder="Press Enter, Escape, or Ctrl+S"
     />
@@ -234,13 +234,13 @@ function InputBinding() {
         value={get(email)}
         oninput={(e) => set(email, e.target.value)}
       />
-      
+
       <input
         type="password"
         value={get(password)}
         oninput={(e) => set(password, e.target.value)}
       />
-      
+
       <label>
         <input
           type="checkbox"
@@ -261,7 +261,7 @@ function SelectExample() {
   const selected = cell('option1');
 
   return (
-    <select 
+    <select
       value={get(selected)}
       onchange={(e) => set(selected, e.target.value)}
     >
@@ -329,6 +329,7 @@ delegate(['click']);
 ```
 
 When a click occurs anywhere in the document, Rift:
+
 1. Checks if the clicked element (or its ancestors) has a `__click` property
 2. If found, calls that handler with the event
 
@@ -392,7 +393,7 @@ function ColorPicker() {
     <div>
       <For each={cell(colors)}>
         {(color) => (
-          <button 
+          <button
             style={`background: ${color}`}
             onclick={() => selectColor(color)}
           >
@@ -449,7 +450,7 @@ function SearchInput() {
   };
 
   return (
-    <input 
+    <input
       type="search"
       oninput={handleInput}
       placeholder="Search..."

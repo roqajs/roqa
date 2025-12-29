@@ -1,5 +1,5 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './styles.css';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./styles.css";
 
 function TempConverter() {
 	const celsius = cell(0);
@@ -8,13 +8,13 @@ function TempConverter() {
 	const setFromC = (e) => {
 		const c = parseFloat(e.target.value) || 0;
 		set(celsius, c);
-		set(fahrenheit, (c * 9 / 5 + 32).toFixed(1));
+		set(fahrenheit, ((c * 9) / 5 + 32).toFixed(1));
 	};
 
 	const setFromF = (e) => {
 		const f = parseFloat(e.target.value) || 0;
 		set(fahrenheit, f);
-		set(celsius, ((f - 32) * 5 / 9).toFixed(1));
+		set(celsius, (((f - 32) * 5) / 9).toFixed(1));
 	};
 
 	return (
@@ -26,4 +26,4 @@ function TempConverter() {
 	);
 }
 
-defineComponent('temp-converter', TempConverter);
+defineComponent("temp-converter", TempConverter);

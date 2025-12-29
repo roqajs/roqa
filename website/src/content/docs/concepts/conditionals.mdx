@@ -20,7 +20,7 @@ function ToggleExample() {
       <button onclick={() => set(visible, !get(visible))}>
         Toggle
       </button>
-      
+
       <Show when={visible}>
         <p>This content is visible!</p>
       </Show>
@@ -64,7 +64,7 @@ function LoginStatus() {
   const user = cell(null);
 
   return (
-    <Show 
+    <Show
       when={cell(() => get(user) !== null)}
       fallback={<p>Please log in</p>}
     >
@@ -102,11 +102,11 @@ function DataLoader() {
       <Show when={loading}>
         <p>Loading...</p>
       </Show>
-      
+
       <Show when={error} fallback={null}>
         <p class="error">Error: {get(error)}</p>
       </Show>
-      
+
       <Show when={cell(() => !get(loading) && !get(error) && get(data))}>
         <div class="data">
           {/* Render data */}
@@ -127,10 +127,10 @@ function AdminPanel() {
   return (
     <div>
       <h1>Dashboard</h1>
-      
+
       {/* Regular content */}
       <p>Welcome to the dashboard</p>
-      
+
       {/* Admin-only section */}
       <Show when={isAdmin}>
         <section class="admin-tools">
@@ -150,14 +150,14 @@ function AdminPanel() {
 function SignupForm() {
   const email = cell('');
   const password = cell('');
-  
+
   const emailError = cell(() => {
     const e = get(email);
     if (!e) return '';
     if (!e.includes('@')) return 'Invalid email address';
     return '';
   });
-  
+
   const passwordError = cell(() => {
     const p = get(password);
     if (!p) return '';
@@ -178,7 +178,7 @@ function SignupForm() {
           <span class="error">{get(emailError)}</span>
         </Show>
       </div>
-      
+
       <div>
         <input
           type="password"
@@ -206,7 +206,7 @@ function Accordion() {
   ]);
 
   const toggleSection = (index) => {
-    set(sections, get(sections).map((s, i) => 
+    set(sections, get(sections).map((s, i) =>
       i === index ? { ...s, open: !s.open } : s
     ));
   };
@@ -244,16 +244,16 @@ function NestedConditions() {
     <div>
       <Show when={cell(() => get(step) >= 1)}>
         <div>Step 1: Basic Info</div>
-        
+
         <Show when={cell(() => get(step) >= 2)}>
           <div>Step 2: Contact Details</div>
-          
+
           <Show when={cell(() => get(step) >= 3)}>
             <div>Step 3: Review & Submit</div>
           </Show>
         </Show>
       </Show>
-      
+
       <button onclick={() => set(step, get(step) + 1)}>
         Next Step
       </button>
@@ -275,6 +275,7 @@ Both approaches work in Rift:
 ```
 
 Best for:
+
 - Complex content blocks
 - Content with its own state/lifecycle
 - Multiple nested conditions
@@ -286,6 +287,7 @@ Best for:
 ```
 
 Best for:
+
 - Simple text changes
 - Single element swaps
 - Inline conditional classes
@@ -297,6 +299,7 @@ Best for:
 ```
 
 Best for:
+
 - Show/hide without fallback
 - Simple conditional rendering
 
@@ -319,6 +322,7 @@ show_block(container, visible, (anchor) => {
 ```
 
 When the condition changes:
+
 - **True → False**: Content is removed from DOM
 - **False → True**: Content is created and inserted
 
@@ -352,7 +356,7 @@ Create derived cells for complex conditions instead of inline expressions:
 
 ```jsx
 // ✅ Good - single derived cell
-const showAdvanced = cell(() => 
+const showAdvanced = cell(() =>
   get(user).role === 'admin' && get(settings).advancedMode
 );
 

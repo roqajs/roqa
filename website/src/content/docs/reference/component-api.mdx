@@ -15,14 +15,14 @@ import { defineComponent, cell, get, set } from 'rift-js';
 function MyComponent(props) {
   // 'this' is the component context
   // props contains data passed to the component
-  
+
   // Create state
   const state = cell('initial');
-  
+
   // Register lifecycle hooks
   this.connected(() => { /* ... */ });
   this.disconnected(() => { /* ... */ });
-  
+
   // Return JSX
   return <div>{get(state)}</div>;
 }
@@ -43,10 +43,12 @@ this.connected(callback: () => void): void
 ```
 
 **When it runs:**
+
 - After the component is inserted into the document
 - After the component's DOM has been rendered
 
 **Use cases:**
+
 - Starting timers or intervals
 - Fetching initial data
 - Setting up subscriptions
@@ -88,10 +90,12 @@ this.disconnected(callback: () => void): void
 ```
 
 **When it runs:**
+
 - When the component is removed from the document
 - Before the component is garbage collected
 
 **Use cases:**
+
 - Clearing timers or intervals
 - Canceling pending requests
 - Removing global event listeners
@@ -131,10 +135,12 @@ this.on(eventName: string, handler: EventListener): void
 ```
 
 **Parameters:**
+
 - `eventName` - The event to listen for
 - `handler` - The event handler function
 
 **Behavior:**
+
 - Listens on `window` by default (for global events)
 - Automatically removes the listener when the component disconnects
 - Uses `AbortController` internally for cleanup
@@ -181,10 +187,12 @@ this.emit(eventName: string, detail?: any): void
 ```
 
 **Parameters:**
+
 - `eventName` - The custom event name
 - `detail` - Optional data to include with the event
 
 **Behavior:**
+
 - Creates and dispatches a `CustomEvent`
 - The event bubbles by default
 - Parent components can listen with `addEventListener`
@@ -231,14 +239,14 @@ function DomExample() {
     console.log(this.tagName);        // e.g., 'DOM-EXAMPLE'
     console.log(this.parentElement);  // Parent element
     console.log(this.children);       // Child elements
-    
+
     // Query within the component
     const btn = this.querySelector('button');
     const items = this.querySelectorAll('.item');
-    
+
     // Access attributes
     const id = this.getAttribute('id');
-    
+
     // Access computed styles
     const styles = getComputedStyle(this);
   });
@@ -262,7 +270,7 @@ Props are passed as the first argument to your component function:
 ```jsx
 function Greeting(props) {
   const { name, greeting = 'Hello' } = props;
-  
+
   return <p>{greeting}, {name}!</p>;
 }
 
@@ -276,6 +284,7 @@ defineComponent('my-greeting', Greeting);
 ```
 
 All attributes are strings:
+
 ```jsx
 function Item(props) {
   const { count } = props;
@@ -301,7 +310,7 @@ setProp(element, 'onUpdate', (user) => console.log(user));
 ```jsx
 function UserCard(props) {
   const { user, onUpdate } = props;
-  
+
   return (
     <div onclick={() => onUpdate(user)}>
       {user.name}
@@ -340,9 +349,9 @@ function TodoItem(props) {
   };
 
   const saveEdit = () => {
-    this.emit('todo-updated', { 
-      id: todo.id, 
-      text: get(editText) 
+    this.emit('todo-updated', {
+      id: todo.id,
+      text: get(editText)
     });
     set(editing, false);
   };
@@ -367,13 +376,13 @@ function TodoItem(props) {
           onblur={cancelEdit}
         />
       </Show>
-      
+
       <input
         type="checkbox"
         checked={todo.done}
         onchange={() => onToggle(todo.id)}
       />
-      
+
       <button onclick={() => onDelete(todo.id)}>×</button>
     </li>
   );
@@ -426,18 +435,18 @@ defineComponent('user-editor', UserEditor);
 
 ## API Summary
 
-| Method | Purpose |
-|--------|---------|
-| `this.connected(fn)` | Run code when mounted |
-| `this.disconnected(fn)` | Run code when unmounted |
-| `this.on(event, handler)` | Listen to events (auto-cleanup) |
-| `this.emit(event, detail)` | Dispatch custom events |
+| Method                     | Purpose                         |
+| -------------------------- | ------------------------------- |
+| `this.connected(fn)`       | Run code when mounted           |
+| `this.disconnected(fn)`    | Run code when unmounted         |
+| `this.on(event, handler)`  | Listen to events (auto-cleanup) |
+| `this.emit(event, detail)` | Dispatch custom events          |
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `this.tagName` | `string` | The element's tag name |
-| `this.parentElement` | `Element` | Parent element |
-| `this.children` | `HTMLCollection` | Child elements |
-| `this.firstChild` | `Node` | First child node |
+| Property             | Type             | Description            |
+| -------------------- | ---------------- | ---------------------- |
+| `this.tagName`       | `string`         | The element's tag name |
+| `this.parentElement` | `Element`        | Parent element         |
+| `this.children`      | `HTMLCollection` | Child elements         |
+| `this.firstChild`    | `Node`           | First child node       |
 
 All standard `HTMLElement` properties and methods are available on `this`.

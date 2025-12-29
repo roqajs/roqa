@@ -1,4 +1,4 @@
-import { extractJSXAttributes, getJSXChildren, isJSXExpressionContainer } from '../parser.js';
+import { extractJSXAttributes, getJSXChildren, isJSXExpressionContainer } from "../parser.js";
 
 /**
  * Transform <Show> components into show_block() calls
@@ -30,7 +30,7 @@ export function extractShowInfo(node, containerVar) {
 	const attrs = extractJSXAttributes(node.openingElement);
 
 	// Get the `when` prop
-	const whenValue = attrs.get('when');
+	const whenValue = attrs.get("when");
 	if (!whenValue || !isJSXExpressionContainer(whenValue)) {
 		throw createShowError(node, "Missing required 'when' prop on <Show> component");
 	}
@@ -39,25 +39,25 @@ export function extractShowInfo(node, containerVar) {
 	// Get the children - should have at least one child element
 	const children = getJSXChildren(node);
 	if (children.length === 0) {
-		throw createShowError(node, '<Show> must have at least one child element');
+		throw createShowError(node, "<Show> must have at least one child element");
 	}
 
 	// Get the first JSX element child
 	let bodyJSX = null;
 	for (const child of children) {
-		if (child.type === 'JSXElement') {
+		if (child.type === "JSXElement") {
 			bodyJSX = child;
 			break;
 		}
 		// Support expression container with JSX: {<div>...</div>}
-		if (isJSXExpressionContainer(child) && child.expression.type === 'JSXElement') {
+		if (isJSXExpressionContainer(child) && child.expression.type === "JSXElement") {
 			bodyJSX = child.expression;
 			break;
 		}
 	}
 
 	if (!bodyJSX) {
-		throw createShowError(node, '<Show> must have a JSX element as child');
+		throw createShowError(node, "<Show> must have a JSX element as child");
 	}
 
 	return {
@@ -72,7 +72,7 @@ export function extractShowInfo(node, containerVar) {
  */
 function createShowError(node, message) {
 	const error = new Error(message);
-	error.code = 'SHOW_COMPONENT_ERROR';
+	error.code = "SHOW_COMPONENT_ERROR";
 	error.loc = node.loc;
 	return error;
 }

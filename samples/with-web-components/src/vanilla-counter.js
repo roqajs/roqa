@@ -1,9 +1,9 @@
 class VanillaCounter extends HTMLElement {
-  constructor() {
-    super();
-    this.count = 0;
-    this.attachShadow({ mode: 'open' });
-    this.shadowRoot.innerHTML = `
+	constructor() {
+		super();
+		this.count = 0;
+		this.attachShadow({ mode: "open" });
+		this.shadowRoot.innerHTML = `
       <button id="increment">Increment</button>
       <span id="value">${this.count}</span>
       <style>
@@ -22,20 +22,20 @@ class VanillaCounter extends HTMLElement {
         }
       </style>
     `;
-  }
+	}
 
-  connectedCallback() {
-    this.incrementAmount = parseInt(this.getAttribute('increment-amount')) || 1;
-    
-    this.shadowRoot.getElementById('increment').addEventListener('click', () => {
-      this.count += this.incrementAmount;
-      this.shadowRoot.getElementById('value').textContent = this.count;
-    });
-  }
+	connectedCallback() {
+		this.incrementAmount = parseInt(this.getAttribute("increment-amount")) || 1;
 
-  disconnectedCallback() {
-    this.shadowRoot.getElementById('increment').removeEventListener('click');
-  }
+		this.shadowRoot.getElementById("increment").addEventListener("click", () => {
+			this.count += this.incrementAmount;
+			this.shadowRoot.getElementById("value").textContent = this.count;
+		});
+	}
+
+	disconnectedCallback() {
+		this.shadowRoot.getElementById("increment").removeEventListener("click");
+	}
 }
 
-customElements.define('vanilla-counter', VanillaCounter);
+customElements.define("vanilla-counter", VanillaCounter);

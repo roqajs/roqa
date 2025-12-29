@@ -106,7 +106,7 @@ export type ComponentFunction<P extends ComponentProps = ComponentProps> = (
 		disconnected(callback: () => void): void;
 		on(eventName: string, handler: EventListener): void;
 	},
-	props: P
+	props: P,
 ) => void;
 
 /**
@@ -127,7 +127,7 @@ export function getProps(element: Element): ComponentProps;
  */
 export function defineComponent<P extends ComponentProps = ComponentProps>(
 	tagName: string,
-	fn: ComponentFunction<P>
+	fn: ComponentFunction<P>,
 ): void;
 
 // ============================================
@@ -151,5 +151,9 @@ export interface ForBlockController<T> {
 export function for_block<T>(
 	container: Element,
 	source: Cell<T[]>,
-	render: (anchor: Node, item: T, index: number) => { start: Node; end: Node; cleanup?: () => void }
+	render: (
+		anchor: Node,
+		item: T,
+		index: number,
+	) => { start: Node; end: Node; cleanup?: () => void },
 ): ForBlockController<T>;

@@ -1,18 +1,18 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './styles.css';
-import './child-component.jsx';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./styles.css";
+import "./child-component.jsx";
 
 function ParentComponent() {
 	const count = cell(0);
 	const childCount = cell(0);
 
 	const passDataIntoChild = () => {
-		const child = this.querySelector('child-component');
+		const child = this.querySelector("child-component");
 		child.setCount(get(count));
 	};
 
 	// Component level listener for events from child component
-	this.on('child-count-changed', (event) => {
+	this.on("child-count-changed", (event) => {
 		set(childCount, event.detail.count);
 	});
 
@@ -27,4 +27,4 @@ function ParentComponent() {
 	);
 }
 
-defineComponent('parent-component', ParentComponent);
+defineComponent("parent-component", ParentComponent);

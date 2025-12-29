@@ -1,5 +1,5 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './styles.css';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./styles.css";
 
 let taskId = 0;
 
@@ -13,27 +13,27 @@ function createTask(text) {
 function KanbanBoard() {
 	const columns = cell([
 		{
-			id: 'todo',
-			name: 'Todo',
+			id: "todo",
+			name: "Todo",
 			tasks: cell([
-				createTask('Build something cool'),
-				createTask('Write tests'),
-				createTask('Read documentation'),
+				createTask("Build something cool"),
+				createTask("Write tests"),
+				createTask("Read documentation"),
 			]),
 		},
 		{
-			id: 'in-progress',
-			name: 'In Progress',
-			tasks: cell([createTask('Learn Rift')]),
+			id: "in-progress",
+			name: "In Progress",
+			tasks: cell([createTask("Learn Rift")]),
 		},
 		{
-			id: 'done',
-			name: 'Done',
-			tasks: cell([createTask('Install dependencies')]),
+			id: "done",
+			name: "Done",
+			tasks: cell([createTask("Install dependencies")]),
 		},
 	]);
 
-	const newTaskText = cell('');
+	const newTaskText = cell("");
 
 	function addTask() {
 		const text = get(newTaskText).trim();
@@ -42,7 +42,7 @@ function KanbanBoard() {
 		const cols = get(columns);
 		const todoColumn = cols[0];
 		set(todoColumn.tasks, [...get(todoColumn.tasks), createTask(text)]);
-		set(newTaskText, '');
+		set(newTaskText, "");
 	}
 
 	function moveTask(fromColumnIndex, taskId, direction) {
@@ -60,7 +60,7 @@ function KanbanBoard() {
 
 		set(
 			fromColumn.tasks,
-			fromTasks.filter((t) => t.id !== taskId)
+			fromTasks.filter((t) => t.id !== taskId),
 		);
 		set(toColumn.tasks, [...get(toColumn.tasks), task]);
 	}
@@ -70,7 +70,7 @@ function KanbanBoard() {
 		const column = cols[columnIndex];
 		set(
 			column.tasks,
-			get(column.tasks).filter((t) => t.id !== taskId)
+			get(column.tasks).filter((t) => t.id !== taskId),
 		);
 	}
 
@@ -83,7 +83,7 @@ function KanbanBoard() {
 					placeholder="New task..."
 					value={get(newTaskText)}
 					oninput={(e) => set(newTaskText, e.target.value)}
-					onkeydown={(e) => e.key === 'Enter' && addTask()}
+					onkeydown={(e) => e.key === "Enter" && addTask()}
 				/>
 				<button onclick={addTask}>Add to Todo</button>
 			</div>
@@ -121,4 +121,4 @@ function KanbanBoard() {
 	);
 }
 
-defineComponent('kanban-board', KanbanBoard);
+defineComponent("kanban-board", KanbanBoard);

@@ -2,7 +2,7 @@
 // Event delegation primitives
 // ============================================
 
-const PASSIVE_EVENTS = ['touchstart', 'touchmove'];
+const PASSIVE_EVENTS = ["touchstart", "touchmove"];
 const all_registered_events = new Set();
 const root_event_handles = new Set();
 
@@ -30,7 +30,7 @@ function handle_event_propagation(event) {
 
 	if ((current_target = path[path_idx] || event.target) === handler_element) return;
 
-	Object.defineProperty(event, 'currentTarget', {
+	Object.defineProperty(event, "currentTarget", {
 		configurable: true,
 		get: () => current_target || handler_element.ownerDocument,
 	});
@@ -40,7 +40,7 @@ function handle_event_propagation(event) {
 			const parent_element =
 				current_target.assignedSlot || current_target.parentNode || current_target.host || null;
 
-			const delegated = current_target['__' + event.type];
+			const delegated = current_target["__" + event.type];
 			try {
 				if (delegated && !current_target.disabled) {
 					if (Array.isArray(delegated)) {

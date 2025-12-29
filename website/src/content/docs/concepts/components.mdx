@@ -41,6 +41,7 @@ Custom element names **must** contain a hyphen (e.g., `my-counter`, not `counter
 ## The Component Function
 
 Your component function:
+
 1. Receives `props` as its first argument (if any)
 2. Has access to `this` for lifecycle hooks and utilities
 3. Returns JSX that defines the component's DOM
@@ -49,15 +50,15 @@ Your component function:
 function MyComponent(props) {
   // Access props
   const { title, count } = props;
-  
+
   // Create local state
   const expanded = cell(false);
-  
+
   // Use lifecycle hooks via this
   this.connected(() => {
     console.log('Component added to DOM');
   });
-  
+
   // Return JSX
   return (
     <div>
@@ -95,6 +96,7 @@ defineComponent('my-timer', Timer);
 ```
 
 Use `connected()` for:
+
 - Starting timers or intervals
 - Fetching initial data
 - Setting up subscriptions
@@ -127,6 +129,7 @@ defineComponent('my-timer', Timer);
 ```
 
 Use `disconnected()` for:
+
 - Clearing timers/intervals
 - Removing event listeners
 - Closing connections
@@ -199,11 +202,11 @@ function DomAccess() {
   this.connected(() => {
     // 'this' is the custom element
     console.log(this.tagName); // 'DOM-ACCESS'
-    
+
     // Access children
     const button = this.querySelector('button');
     console.log(button);
-    
+
     // Access shadow DOM (if using)
     // console.log(this.shadowRoot);
   });
@@ -232,7 +235,7 @@ Pass data to components using attributes or the `setProp()` function:
 function GreetingCard(props) {
   // Props from attributes are strings
   const { name, age } = props;
-  
+
   return (
     <div>
       <h2>Hello, {name}!</h2>
@@ -254,7 +257,7 @@ import { defineComponent, setProp, cell, get } from 'rift-js';
 // Child component
 function UserCard(props) {
   const { user } = props;
-  
+
   return (
     <div class="card">
       <h2>{user.name}</h2>
@@ -268,7 +271,7 @@ defineComponent('user-card', UserCard);
 // Parent component
 function App() {
   const user = { name: 'Alice', email: 'alice@example.com' };
-  
+
   this.connected(() => {
     const card = this.querySelector('user-card');
     setProp(card, 'user', user);
@@ -334,7 +337,7 @@ defineComponent('my-app', App);
 // Presentational - just renders props
 function TodoItem(props) {
   const { text, done, onToggle } = props;
-  
+
   return (
     <li onclick={onToggle} class={done ? 'done' : ''}>
       {text}
@@ -388,7 +391,7 @@ Slots require Shadow DOM. By default, Rift components render to Light DOM. Shado
 // ❌ Too much in one component
 function App() {
   // User state
-  // Todo state  
+  // Todo state
   // Settings state
   // ... hundreds of lines
 }
@@ -407,7 +410,7 @@ function DataFetcher() {
 
   this.connected(() => {
     abortController = new AbortController();
-    
+
     fetch('/api/data', { signal: abortController.signal })
       .then(/* ... */);
   });

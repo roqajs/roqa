@@ -37,7 +37,7 @@ todo-list .todo {
 	--checkbox-disabled-color: #858585;
 	--checkbox-size: 24px;
 }
-todo-list input[type='checkbox'] {
+todo-list input[type="checkbox"] {
 	-webkit-appearance: none;
 	appearance: none;
 	margin: 0;
@@ -49,9 +49,9 @@ todo-list input[type='checkbox'] {
 	place-content: center;
 	cursor: pointer;
 }
-todo-list input[type='checkbox']::before {
+todo-list input[type="checkbox"]::before {
 	--checkmark-size: 12px;
-	content: '';
+	content: "";
 	box-shadow: inset var(--checkmark-size) var(--checkmark-size) var(--checkbox-color);
 	background-color: CanvasText;
 	width: var(--checkmark-size);
@@ -67,14 +67,14 @@ todo-list input[type='checkbox']::before {
 	transform: scale(0);
 	transition: transform 100ms ease-in-out;
 }
-todo-list input[type='checkbox']:checked::before {
+todo-list input[type="checkbox"]:checked::before {
 	transform: scale(1);
 }
-todo-list input[type='checkbox']:focus-visible {
+todo-list input[type="checkbox"]:focus-visible {
 	outline: none;
 	border-color: #015fcc;
 }
-todo-list label:has(input[type='checkbox']:checked) {
+todo-list label:has(input[type="checkbox"]:checked) {
 	text-decoration: line-through;
 }
 todo-list button {

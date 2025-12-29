@@ -66,6 +66,7 @@ const fruits = cell(['Apple', 'Banana', 'Cherry']);
 ```
 
 Output:
+
 ```html
 <li>1. Apple</li>
 <li>2. Banana</li>
@@ -224,14 +225,14 @@ function TodoApp() {
   let nextId = 3;
 
   // Derived cells
-  const remaining = cell(() => 
+  const remaining = cell(() =>
     get(todos).filter(t => !t.done).length
   );
 
   const addTodo = () => {
     const text = get(newTodo).trim();
     if (!text) return;
-    
+
     set(todos, [
       ...get(todos),
       { id: nextId++, text, done: false }
@@ -252,7 +253,7 @@ function TodoApp() {
   return (
     <div>
       <h1>Todos ({get(remaining)} remaining)</h1>
-      
+
       <form onsubmit={(e) => { e.preventDefault(); addTodo(); }}>
         <input
           type="text"

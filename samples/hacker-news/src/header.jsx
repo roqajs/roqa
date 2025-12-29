@@ -1,11 +1,11 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import { FEEDS } from './feeds.js';
-import './header.css';
+import { defineComponent, cell, get, set } from "rift-js";
+import { FEEDS } from "./feeds.js";
+import "./header.css";
 
 function Header({ changeFeed }) {
 	const currentFeed = cell(FEEDS.top);
 
-	const activeClass = (current, feed) => (current === feed ? 'nav-link active' : 'nav-link');
+	const activeClass = (current, feed) => (current === feed ? "nav-link active" : "nav-link");
 
 	const handleFeedClick = (feed) => {
 		set(currentFeed, feed);
@@ -62,4 +62,4 @@ function Header({ changeFeed }) {
 	);
 }
 
-defineComponent('hn-header', Header);
+defineComponent("hn-header", Header);

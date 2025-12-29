@@ -1,66 +1,66 @@
-import { defineComponent, delegate, for_block, template } from '../lib.js';
+import { defineComponent, delegate, for_block, template } from "../lib.js";
 
 const $tmpl_1 = template(
-	'<div class="container"><div class="jumbotron"><div class="row"><div class="col-md-6"><h1>Rift (Inlined)</h1></div><div class="col-md-6"><div class="row"><div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="run">Create 1,000 rows</button></div><div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="runlots">Create 10,000 rows</button></div><div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="add">Append 1,000 rows</button></div><div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="update">Update every 10th row</button></div><div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="clear">Clear</button></div><div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="swaprows">Swap Rows</button></div></div></div></div></div><table class="table table-hover table-striped test-data"><tbody></tbody></table><span class="preloadicon glyphicon glyphicon-remove" aria-hidden="true"></span></div>'
+	'<div class="container"><div class="jumbotron"><div class="row"><div class="col-md-6"><h1>Rift (Inlined)</h1></div><div class="col-md-6"><div class="row"><div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="run">Create 1,000 rows</button></div><div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="runlots">Create 10,000 rows</button></div><div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="add">Append 1,000 rows</button></div><div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="update">Update every 10th row</button></div><div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="clear">Clear</button></div><div class="col-sm-6 smallpad"><button type="button" class="btn btn-primary btn-block" id="swaprows">Swap Rows</button></div></div></div></div></div><table class="table table-hover table-striped test-data"><tbody></tbody></table><span class="preloadicon glyphicon glyphicon-remove" aria-hidden="true"></span></div>',
 );
 const $tmpl_2 = template(
-	'<tr><td class="col-md-1"> </td><td class="col-md-4"><a> </a></td><td class="col-md-1"><a><span class="glyphicon glyphicon-remove" aria-hidden="true"></span></a></td><td class="col-md-6"></td></tr>'
+	'<tr><td class="col-md-1"> </td><td class="col-md-4"><a> </a></td><td class="col-md-1"><a><span class="glyphicon glyphicon-remove" aria-hidden="true"></span></a></td><td class="col-md-6"></td></tr>',
 );
 
 const adjectives = [
-	'pretty',
-	'large',
-	'big',
-	'small',
-	'tall',
-	'short',
-	'long',
-	'handsome',
-	'plain',
-	'quaint',
-	'clean',
-	'elegant',
-	'easy',
-	'angry',
-	'crazy',
-	'helpful',
-	'mushy',
-	'odd',
-	'unsightly',
-	'adorable',
-	'important',
-	'inexpensive',
-	'cheap',
-	'expensive',
-	'fancy',
+	"pretty",
+	"large",
+	"big",
+	"small",
+	"tall",
+	"short",
+	"long",
+	"handsome",
+	"plain",
+	"quaint",
+	"clean",
+	"elegant",
+	"easy",
+	"angry",
+	"crazy",
+	"helpful",
+	"mushy",
+	"odd",
+	"unsightly",
+	"adorable",
+	"important",
+	"inexpensive",
+	"cheap",
+	"expensive",
+	"fancy",
 ];
 const colours = [
-	'red',
-	'yellow',
-	'blue',
-	'green',
-	'pink',
-	'brown',
-	'purple',
-	'brown',
-	'white',
-	'black',
-	'orange',
+	"red",
+	"yellow",
+	"blue",
+	"green",
+	"pink",
+	"brown",
+	"purple",
+	"brown",
+	"white",
+	"black",
+	"orange",
 ];
 const nouns = [
-	'table',
-	'chair',
-	'house',
-	'bbq',
-	'desk',
-	'car',
-	'pony',
-	'cookie',
-	'sandwich',
-	'burger',
-	'pizza',
-	'mouse',
-	'keyboard',
+	"table",
+	"chair",
+	"house",
+	"bbq",
+	"desk",
+	"car",
+	"pony",
+	"cookie",
+	"sandwich",
+	"burger",
+	"pizza",
+	"mouse",
+	"keyboard",
 ];
 
 const _rand = (dict) => dict[Math.round(Math.random() * 1000) % dict.length];
@@ -79,7 +79,7 @@ function App() {
 	function build_data(count = 1000) {
 		const data = new Array(count);
 		for (let i = 0; i < count; i++) {
-			const text = _rand(adjectives) + ' ' + _rand(colours) + ' ' + _rand(nouns);
+			const text = _rand(adjectives) + " " + _rand(colours) + " " + _rand(nouns);
 			data[i] = {
 				id: row_id++,
 				label: {
@@ -113,7 +113,7 @@ function App() {
 	};
 	const update_rows = () => {
 		for (let i = 0, item; (item = rows.v[i]); i += 10) {
-			item.label.v += ' !!!';
+			item.label.v += " !!!";
 			// Direct DOM update - no function call overhead!
 			item.label.ref_1.nodeValue = item.label.v;
 		}
@@ -133,11 +133,11 @@ function App() {
 		if (prev) {
 			prev.is_selected.v = false;
 			// Direct DOM update - no effect loop!
-			prev.is_selected.ref_1.className = prev.is_selected.v ? 'danger' : '';
+			prev.is_selected.ref_1.className = prev.is_selected.v ? "danger" : "";
 		}
 		item.is_selected.v = true;
 		// Direct DOM update - no effect loop!
-		item.is_selected.ref_1.className = item.is_selected.v ? 'danger' : '';
+		item.is_selected.ref_1.className = item.is_selected.v ? "danger" : "";
 		selected_row.v = item;
 	};
 	const remove = (e, item) => {
@@ -190,5 +190,5 @@ function App() {
 		});
 	});
 }
-defineComponent('bench-app', App);
-delegate(['click']);
+defineComponent("bench-app", App);
+delegate(["click"]);

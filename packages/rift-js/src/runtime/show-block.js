@@ -2,7 +2,7 @@
 // show_block - conditional rendering primitive
 // ============================================
 
-import { bind } from './cell.js';
+import { bind } from "./cell.js";
 
 /**
  * Create a show_block for conditional rendering
@@ -14,7 +14,7 @@ import { bind } from './cell.js';
  */
 export function show_block(container, condition, render_fn, deps) {
 	// Create anchor node at end of container
-	const anchor = document.createTextNode('');
+	const anchor = document.createTextNode("");
 	container.appendChild(anchor);
 
 	// Track current state
@@ -22,8 +22,8 @@ export function show_block(container, condition, render_fn, deps) {
 	let isShowing = false;
 
 	// Determine if condition is a cell, a getter function, or a static value
-	const isCell = condition && typeof condition === 'object' && 'v' in condition;
-	const isGetter = typeof condition === 'function';
+	const isCell = condition && typeof condition === "object" && "v" in condition;
+	const isGetter = typeof condition === "function";
 
 	const getConditionValue = () => {
 		if (isCell) return !!condition.v;

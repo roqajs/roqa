@@ -49,23 +49,23 @@ function ReactiveCircle() {
   return (
     <div>
       <svg width="200" height="200">
-        <circle 
-          cx="100" 
-          cy="100" 
+        <circle
+          cx="100"
+          cy="100"
           r={get(radius)}
           fill={get(color)}
         />
       </svg>
-      
-      <input 
-        type="range" 
-        min="10" 
+
+      <input
+        type="range"
+        min="10"
         max="90"
         value={get(radius)}
         oninput={(e) => set(radius, parseInt(e.target.value))}
       />
-      
-      <select 
+
+      <select
         value={get(color)}
         onchange={(e) => set(color, e.target.value)}
       >
@@ -140,7 +140,7 @@ function PulsingCircle() {
     };
 
     const intervalId = setInterval(animate, 16);
-    
+
     this.disconnected(() => {
       clearInterval(intervalId);
     });
@@ -176,10 +176,10 @@ function D3Chart() {
 
   this.connected(() => {
     const svg = this.querySelector('svg');
-    
+
     // Initial render
     renderChart(svg, get(data));
-    
+
     // Re-render when data changes
     bind(data, (newData) => {
       renderChart(svg, newData);
@@ -190,7 +190,7 @@ function D3Chart() {
     const selection = d3.select(svg)
       .selectAll('rect')
       .data(data);
-    
+
     selection.enter()
       .append('rect')
       .merge(selection)
@@ -199,7 +199,7 @@ function D3Chart() {
       .attr('width', 50)
       .attr('height', d => d * 3)
       .attr('fill', 'steelblue');
-    
+
     selection.exit().remove();
   };
 
@@ -229,7 +229,7 @@ Create reusable icon components:
 ```jsx
 function Icon(props) {
   const { name, size = 24, color = 'currentColor' } = props;
-  
+
   const icons = {
     check: 'M20 6L9 17l-5-5',
     x: 'M18 6L6 18M6 6l12 12',
@@ -237,9 +237,9 @@ function Icon(props) {
   };
 
   return (
-    <svg 
-      width={size} 
-      height={size} 
+    <svg
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke={color}

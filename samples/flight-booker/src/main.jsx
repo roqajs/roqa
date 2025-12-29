@@ -1,5 +1,5 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './styles.css';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./styles.css";
 
 function pad(n, s = String(n)) {
 	return s.length < 2 ? `0${s}` : s;
@@ -10,15 +10,15 @@ function dateToString(date) {
 }
 
 function stringToDate(str) {
-	const [y, m, d] = str.split('-');
+	const [y, m, d] = str.split("-");
 	return new Date(+y, m - 1, +d);
 }
 
 function FlightBooker() {
 	const today = dateToString(new Date());
 
-	const destination = cell('El Dorado');
-	const tripType = cell('one-way');
+	const destination = cell("El Dorado");
+	const tripType = cell("one-way");
 	const departDate = cell(today);
 	const returnDate = cell(today);
 	const returnDateDisabled = cell(true);
@@ -26,8 +26,8 @@ function FlightBooker() {
 	const showDateError = cell(false);
 	const showDestinationError = cell(false);
 
-	const isRoundTrip = () => get(tripType) === 'round-trip';
-	const hasDestination = () => get(destination) !== '';
+	const isRoundTrip = () => get(tripType) === "round-trip";
+	const hasDestination = () => get(destination) !== "";
 	const canBook = () =>
 		!isRoundTrip() || stringToDate(get(returnDate)) >= stringToDate(get(departDate));
 
@@ -61,8 +61,8 @@ function FlightBooker() {
 	const bookTrip = () => {
 		const message = isRoundTrip()
 			? `You booked a round-trip to ${get(destination)} leaving on ${get(
-					departDate
-			  )} and returning on ${get(returnDate)}.`
+					departDate,
+				)} and returning on ${get(returnDate)}.`
 			: `You booked a one-way flight to ${get(destination)} leaving on ${get(departDate)}.`;
 		alert(message);
 	};
@@ -89,14 +89,14 @@ function FlightBooker() {
 			<button onclick={bookTrip} disabled={get(bookDisabled)}>
 				Book
 			</button>
-			<p class={get(showDateError) ? 'error visible' : 'error'}>
+			<p class={get(showDateError) ? "error visible" : "error"}>
 				Return date must be after departure date.
 			</p>
-			<p class={get(showDestinationError) ? 'error visible' : 'error'}>
+			<p class={get(showDestinationError) ? "error visible" : "error"}>
 				Please choose a destination.
 			</p>
 		</>
 	);
 }
 
-defineComponent('flight-booker', FlightBooker);
+defineComponent("flight-booker", FlightBooker);

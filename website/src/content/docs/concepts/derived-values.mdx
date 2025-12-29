@@ -73,7 +73,7 @@ const filter = cell('all'); // 'all' | 'active' | 'completed'
 const filteredTodos = cell(() => {
   const f = get(filter);
   const list = get(todos);
-  
+
   switch (f) {
     case 'active':
       return list.filter(t => !t.done);
@@ -200,6 +200,7 @@ const removeItem = (index) => {
 ```
 
 Problems:
+
 - Easy to forget updating `count`
 - Multiple `set()` calls = multiple updates
 - More code to maintain
@@ -222,6 +223,7 @@ const removeItem = (index) => {
 ```
 
 Benefits:
+
 - Always in sync
 - Single source of truth
 - Less code
@@ -257,12 +259,12 @@ let cachedInput = null;
 
 const expensiveComputed = cell(() => {
   const input = get(someCell);
-  
+
   // Return cached if input hasn't changed
   if (input === cachedInput && cachedResult !== null) {
     return cachedResult;
   }
-  
+
   cachedInput = input;
   cachedResult = expensiveOperation(input);
   return cachedResult;

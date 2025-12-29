@@ -114,6 +114,7 @@ Use `get()` to read the current value. When this appears in JSX, Rift automatica
 ```
 
 Use `set()` to update a cell's value. This:
+
 1. Updates the cell's value
 2. Triggers all DOM updates that depend on this cell
 
@@ -189,14 +190,14 @@ function Counter() {
   return (
     <div>
       <p>Count: {get(count)}</p>
-      
+
       {/* Number input bound to count */}
-      <input 
-        type="number" 
+      <input
+        type="number"
         value={get(count)}
-        oninput={(e) => set(count, parseInt(e.target.value) || 0)} 
+        oninput={(e) => set(count, parseInt(e.target.value) || 0)}
       />
-      
+
       <button onclick={() => set(count, get(count) + 1)}>
         +1
       </button>

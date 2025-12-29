@@ -1,8 +1,8 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './styles.css';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./styles.css";
 
 function HelloWorld() {
-	const name = cell('World');
+	const name = cell("World");
 
 	const updateName = (event) => {
 		set(name, event.target.value);
@@ -17,4 +17,4 @@ function HelloWorld() {
 	);
 }
 
-defineComponent('hello-world', HelloWorld);
+defineComponent("hello-world", HelloWorld);

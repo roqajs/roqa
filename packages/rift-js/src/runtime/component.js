@@ -2,7 +2,7 @@
 // Component definition primitive
 // ============================================
 
-import { handle_root_events } from './events.js';
+import { handle_root_events } from "./events.js";
 
 // WeakMap to store props for elements before they're upgraded
 const elementProps = new WeakMap();
@@ -10,37 +10,37 @@ const elementProps = new WeakMap();
 // Set of known element property names to exclude when collecting props
 const EXCLUDED_PROPS = new Set([
 	// Standard HTMLElement properties
-	'accessKey',
-	'autocapitalize',
-	'autofocus',
-	'className',
-	'contentEditable',
-	'dir',
-	'draggable',
-	'enterKeyHint',
-	'hidden',
-	'id',
-	'inert',
-	'innerText',
-	'inputMode',
-	'lang',
-	'nonce',
-	'outerText',
-	'popover',
-	'spellcheck',
-	'style',
-	'tabIndex',
-	'title',
-	'translate',
+	"accessKey",
+	"autocapitalize",
+	"autofocus",
+	"className",
+	"contentEditable",
+	"dir",
+	"draggable",
+	"enterKeyHint",
+	"hidden",
+	"id",
+	"inert",
+	"innerText",
+	"inputMode",
+	"lang",
+	"nonce",
+	"outerText",
+	"popover",
+	"spellcheck",
+	"style",
+	"tabIndex",
+	"title",
+	"translate",
 	// Common DOM properties
-	'innerHTML',
-	'outerHTML',
-	'textContent',
-	'nodeValue',
+	"innerHTML",
+	"outerHTML",
+	"textContent",
+	"nodeValue",
 	// Internal Rift properties
-	'_connectedCallbacks',
-	'_disconnectedCallbacks',
-	'_abortController',
+	"_connectedCallbacks",
+	"_disconnectedCallbacks",
+	"_abortController",
 ]);
 
 /**
@@ -65,7 +65,7 @@ export function getProps(element) {
 	// Collect own properties set directly on the element (not inherited)
 	const directProps = {};
 	for (const key of Object.keys(element)) {
-		if (!EXCLUDED_PROPS.has(key) && !key.startsWith('_')) {
+		if (!EXCLUDED_PROPS.has(key) && !key.startsWith("_")) {
 			directProps[key] = element[key];
 		}
 	}
@@ -105,7 +105,7 @@ export function defineComponent(tagName, fn) {
 				const { bubbles = true, composed = false } = options;
 				this.dispatchEvent(new CustomEvent(eventName, { detail, bubbles, composed }));
 			}
-		}
+		},
 	);
 	handle_root_events(document);
 }

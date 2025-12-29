@@ -73,7 +73,7 @@ For simple string values, use regular attributes:
 // Child reads from props
 function Greeting(props) {
   const { name, greeting = 'Hello' } = props;
-  
+
   return <p>{greeting}, {name}!</p>;
 }
 
@@ -134,7 +134,7 @@ function App() {
 
   this.connected(() => {
     const picker = this.querySelector('color-picker');
-    
+
     picker.addEventListener('color-change', (e) => {
       set(selectedColor, e.detail.color);
     });
@@ -179,7 +179,7 @@ function App() {
 
   this.connected(() => {
     const counter = this.querySelector('my-counter');
-    
+
     // Pass callbacks as props
     setProp(counter, 'count', get(count));
     setProp(counter, 'onIncrement', () => {
@@ -245,7 +245,7 @@ export const notifications = cell([]);
 
 export const login = (userData) => set(user, userData);
 export const logout = () => set(user, null);
-export const toggleTheme = () => 
+export const toggleTheme = () =>
   set(theme, get(theme) === 'light' ? 'dark' : 'light');
 ```
 
@@ -303,14 +303,14 @@ setProp(el, 'items', [1, 2, 3]);
 
 ## Patterns Summary
 
-| Direction | Pattern | Best For |
-|-----------|---------|----------|
-| Parent → Child | `setProp()` | Complex data, callbacks |
-| Parent → Child | HTML attributes | Simple strings |
-| Child → Parent | `this.emit()` | Notifications, actions |
-| Child → Parent | Callback props | Direct interaction |
-| Siblings | Through parent | Coordinated state |
-| Global | Shared state module | App-wide state |
+| Direction      | Pattern             | Best For                |
+| -------------- | ------------------- | ----------------------- |
+| Parent → Child | `setProp()`         | Complex data, callbacks |
+| Parent → Child | HTML attributes     | Simple strings          |
+| Child → Parent | `this.emit()`       | Notifications, actions  |
+| Child → Parent | Callback props      | Direct interaction      |
+| Siblings       | Through parent      | Coordinated state       |
+| Global         | Shared state module | App-wide state          |
 
 ## Best Practices
 
@@ -343,11 +343,11 @@ this.emit('filter-changed', { filter });
 ```jsx
 /**
  * User Card Component
- * 
+ *
  * Props:
  *   - user: { name: string, email: string }
  *   - onSelect: (user) => void
- * 
+ *
  * Events:
  *   - user-deleted: { userId: number }
  */
@@ -362,13 +362,13 @@ function UserCard(props) {
 function Parent() {
   this.connected(() => {
     const child = this.querySelector('child-component');
-    
+
     const handler = (e) => {
       // Handle event
     };
-    
+
     child.addEventListener('custom-event', handler);
-    
+
     // Clean up is automatic with this.on(), but manual listeners need cleanup
     this.disconnected(() => {
       child.removeEventListener('custom-event', handler);

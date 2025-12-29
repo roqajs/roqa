@@ -8,10 +8,10 @@ packages:
 catalogs:
   default:
     # Babel tooling
-    '@babel/generator': ^7.28.5
-    '@babel/parser': ^7.28.5
-    '@babel/traverse': ^7.28.5
-    '@babel/types': ^7.28.5
+    "@babel/generator": ^7.28.5
+    "@babel/parser": ^7.28.5
+    "@babel/traverse": ^7.28.5
+    "@babel/types": ^7.28.5
     # Build tools
     magic-string: ^0.30.21
     vite: ^7.1.9

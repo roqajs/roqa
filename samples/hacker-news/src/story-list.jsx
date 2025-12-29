@@ -1,6 +1,6 @@
-import { defineComponent, cell, get, set } from 'rift-js';
-import './story-list.css';
-import './story-item.jsx';
+import { defineComponent, cell, get, set } from "rift-js";
+import "./story-list.css";
+import "./story-item.jsx";
 
 function StoryList() {
 	const stories = cell([]);
@@ -36,4 +36,4 @@ function StoryList() {
 	);
 }
 
-defineComponent('story-list', StoryList);
+defineComponent("story-list", StoryList);

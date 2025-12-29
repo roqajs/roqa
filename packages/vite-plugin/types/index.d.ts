@@ -1,5 +1,5 @@
-import type { Plugin } from 'vite';
+import type { Plugin } from "vite";
 
-declare module 'rift-vite-plugin' {
+declare module "rift-vite-plugin" {
 	export function rift(): Plugin;
 }

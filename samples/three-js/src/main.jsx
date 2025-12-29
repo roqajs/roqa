@@ -1,11 +1,10 @@
-import { defineComponent } from 'rift-js';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-
-import './styles.css';
+import { defineComponent } from "rift-js";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import "./styles.css";
 
 function App() {
 	let mixer;
@@ -16,7 +15,7 @@ function App() {
 	let clock = new THREE.Clock();
 
 	this.connected(() => {
-		const container = this.querySelector('#container');
+		const container = this.querySelector("#container");
 
 		renderer = new THREE.WebGLRenderer({ antialias: true });
 		renderer.setPixelRatio(window.devicePixelRatio);
@@ -39,12 +38,12 @@ function App() {
 		controls.enableDamping = true;
 
 		const dracoLoader = new DRACOLoader();
-		dracoLoader.setDecoderPath('/draco/');
+		dracoLoader.setDecoderPath("/draco/");
 
 		const loader = new GLTFLoader();
 		loader.setDRACOLoader(dracoLoader);
 		loader.load(
-			'/LittlestTokyo.glb',
+			"/LittlestTokyo.glb",
 			(gltf) => {
 				const model = gltf.scene;
 				model.position.set(1, 1, 0);
@@ -57,7 +56,7 @@ function App() {
 			undefined,
 			(e) => {
 				console.error(e);
-			}
+			},
 		);
 
 		window.onresize = () => {
@@ -66,7 +65,7 @@ function App() {
 			renderer.setSize(window.innerWidth, window.innerHeight);
 		};
 	});
-	
+
 	const animate = () => {
 		const delta = clock.getDelta();
 		mixer.update(delta);
@@ -79,7 +78,8 @@ function App() {
 			<p id="info">
 				<a href="https://artstation.com/artwork/1AGwX" target="_blank" rel="noopener">
 					Littlest Tokyo
-				</a> by
+				</a>{" "}
+				by
 				<a href="https://artstation.com/glenatron" target="_blank" rel="noopener">
 					Glen Fox
 				</a>
@@ -90,4 +90,4 @@ function App() {
 	);
 }
 
-defineComponent('three-js', App);
+defineComponent("three-js", App);

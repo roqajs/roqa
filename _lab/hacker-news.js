@@ -36,23 +36,26 @@ function handle_event_propagation(event) {
 	if ((current_target = path[path_idx] || event.target) === handler_element) return;
 	Object.defineProperty(event, "currentTarget", {
 		configurable: true,
-		get: () => current_target || handler_element.ownerDocument
+		get: () => current_target || handler_element.ownerDocument,
 	});
 	try {
-		for (; current_target;) {
-			const parent_element = current_target.assignedSlot || current_target.parentNode || current_target.host || null;
+		for (; current_target; ) {
+			const parent_element =
+				current_target.assignedSlot || current_target.parentNode || current_target.host || null;
 			const delegated = current_target["__" + event.type];
 			try {
-				if (delegated && !current_target.disabled) if (Array.isArray(delegated)) {
-					const [fn, ...data] = delegated;
-					fn.apply(current_target, [...data, event]);
-				} else delegated.call(current_target, event);
+				if (delegated && !current_target.disabled)
+					if (Array.isArray(delegated)) {
+						const [fn, ...data] = delegated;
+						fn.apply(current_target, [...data, event]);
+					} else delegated.call(current_target, event);
 			} catch (error) {
 				queueMicrotask(() => {
 					throw error;
 				});
 			}
-			if (event.cancelBubble || parent_element === handler_element || parent_element === null) break;
+			if (event.cancelBubble || parent_element === handler_element || parent_element === null)
+				break;
 			current_target = parent_element;
 		}
 	} finally {
@@ -78,7 +81,8 @@ function handle_root_events(target) {
 	event_handle(Array.from(all_registered_events));
 	root_event_handles.add(event_handle);
 	return () => {
-		for (const event_name of registered_events) target.removeEventListener(event_name, handle_event_propagation);
+		for (const event_name of registered_events)
+			target.removeEventListener(event_name, handle_event_propagation);
 		root_event_handles.delete(event_handle);
 	};
 }
@@ -96,37 +100,46 @@ function getProps(element) {
 }
 function defineComponent(tagName, fn) {
 	if (customElements.get(tagName)) return;
-	customElements.define(tagName, class extends HTMLElement {
-		_connectedCallbacks = [];
-		_disconnectedCallbacks = [];
-		_abortController;
-		connectedCallback() {
-			this._abortController = new AbortController();
-			const props = getProps(this);
-			fn.call(this, props);
-			if (this._connectedCallbacks) for (const cb of this._connectedCallbacks) cb();
-		}
-		disconnectedCallback() {
-			if (this._disconnectedCallbacks) for (const cb of this._disconnectedCallbacks) cb();
-			this._abortController.abort();
-		}
-		connected(fn$1) {
-			this._connectedCallbacks.push(fn$1);
-		}
-		disconnected(fn$1) {
-			this._disconnectedCallbacks.push(fn$1);
-		}
-		on(eventName, handler) {
-			this.addEventListener(eventName, handler, { signal: this._abortController.signal });
-		}
-	});
+	customElements.define(
+		tagName,
+		class extends HTMLElement {
+			_connectedCallbacks = [];
+			_disconnectedCallbacks = [];
+			_abortController;
+			connectedCallback() {
+				this._abortController = new AbortController();
+				const props = getProps(this);
+				fn.call(this, props);
+				if (this._connectedCallbacks) for (const cb of this._connectedCallbacks) cb();
+			}
+			disconnectedCallback() {
+				if (this._disconnectedCallbacks) for (const cb of this._disconnectedCallbacks) cb();
+				this._abortController.abort();
+			}
+			connected(fn$1) {
+				this._connectedCallbacks.push(fn$1);
+			}
+			disconnected(fn$1) {
+				this._disconnectedCallbacks.push(fn$1);
+			}
+			on(eventName, handler) {
+				this.addEventListener(eventName, handler, { signal: this._abortController.signal });
+			}
+		},
+	);
 	handle_root_events(document);
 }
 var lis_result;
 var lis_p;
 var lis_max_len = 0;
 function lis_algorithm(arr) {
-	let arrI = 0, i = 0, j = 0, k = 0, u = 0, v = 0, c = 0;
+	let arrI = 0,
+		i = 0,
+		j = 0,
+		k = 0,
+		u = 0,
+		v = 0,
+		c = 0;
 	const len = arr.length;
 	if (len > lis_max_len) {
 		lis_max_len = len;
@@ -146,7 +159,7 @@ function lis_algorithm(arr) {
 			u = 0;
 			v = k;
 			while (u < v) {
-				c = u + v >> 1;
+				c = (u + v) >> 1;
 				if (arr[lis_result[c]] < arrI) u = c + 1;
 				else v = c;
 			}
@@ -173,22 +186,23 @@ function get_next_sibling(node) {
 function create_item(anchor, value, index, render_fn) {
 	return {
 		s: render_fn(anchor, value, index),
-		v: value
+		v: value,
 	};
 }
 function move_item(item, anchor) {
 	const state = item.s;
 	let node = state.start;
 	const end = state.end;
-	if (node !== end) while (node !== null) {
-		const next_node = get_next_sibling(node);
-		anchor.before(node);
-		if (next_node === end) {
-			anchor.before(end);
-			break;
+	if (node !== end)
+		while (node !== null) {
+			const next_node = get_next_sibling(node);
+			anchor.before(node);
+			if (next_node === end) {
+				anchor.before(end);
+				break;
+			}
+			node = next_node;
 		}
-		node = next_node;
-	}
 	else anchor.before(node);
 }
 function destroy_item(item) {
@@ -211,7 +225,16 @@ function reconcile_fast_clear(anchor, for_state, array) {
 	for_state.items = [];
 }
 function reconcile_by_ref(anchor, for_state, b, render_fn) {
-	let a_start = 0, b_start = 0, a_left = 0, b_left = 0, sources = new Int32Array(0), moved = false, pos = 0, patched = 0, i = 0, j = 0;
+	let a_start = 0,
+		b_start = 0,
+		a_left = 0,
+		b_left = 0,
+		sources = new Int32Array(0),
+		moved = false,
+		pos = 0,
+		patched = 0,
+		i = 0,
+		j = 0;
 	const a = for_state.array;
 	const a_length = a.length;
 	const b_length = b.length;
@@ -250,12 +273,13 @@ function reconcile_by_ref(anchor, for_state, b, render_fn) {
 		let fast_path_removal = false;
 		let target;
 		if (j > a_end) {
-			if (j <= b_end) while (j <= b_end) {
-				b_val = b[j];
-				target = j >= a_length ? anchor : a_items[j].s.start;
-				b_items[j] = create_item(target, b_val, j, render_fn);
-				j++;
-			}
+			if (j <= b_end)
+				while (j <= b_end) {
+					b_val = b[j];
+					target = j >= a_length ? anchor : a_items[j].s.start;
+					b_items[j] = create_item(target, b_val, j, render_fn);
+					j++;
+				}
 		} else if (j > b_end) while (j <= a_end) destroy_item(a_items[j++]);
 		else {
 			a_start = j;
@@ -268,24 +292,26 @@ function reconcile_by_ref(anchor, for_state, b, render_fn) {
 			patched = 0;
 			i = 0;
 			fast_path_removal = a_left === a_length;
-			if (b_length < 4 || (a_left | b_left) < 32) for (i = a_start; i <= a_end; ++i) {
-				a_val = a[i];
-				if (patched < b_left) {
-					for (j = b_start; j <= b_end; j++) if (a_val === (b_val = b[j])) {
-						sources[j - b_start] = i + 1;
-						if (fast_path_removal) {
-							fast_path_removal = false;
-							while (a_start < i) destroy_item(a_items[a_start++]);
-						}
-						if (pos > j) moved = true;
-						else pos = j;
-						b_items[j] = a_items[i];
-						++patched;
-						break;
-					}
-					if (!fast_path_removal && j > b_end) destroy_item(a_items[i]);
-				} else if (!fast_path_removal) destroy_item(a_items[i]);
-			}
+			if (b_length < 4 || (a_left | b_left) < 32)
+				for (i = a_start; i <= a_end; ++i) {
+					a_val = a[i];
+					if (patched < b_left) {
+						for (j = b_start; j <= b_end; j++)
+							if (a_val === (b_val = b[j])) {
+								sources[j - b_start] = i + 1;
+								if (fast_path_removal) {
+									fast_path_removal = false;
+									while (a_start < i) destroy_item(a_items[a_start++]);
+								}
+								if (pos > j) moved = true;
+								else pos = j;
+								b_items[j] = a_items[i];
+								++patched;
+								break;
+							}
+						if (!fast_path_removal && j > b_end) destroy_item(a_items[i]);
+					} else if (!fast_path_removal) destroy_item(a_items[i]);
+				}
 			else {
 				const map = /* @__PURE__ */ new Map();
 				for (i = b_start; i <= b_end; ++i) map.set(b[i], i);
@@ -327,13 +353,14 @@ function reconcile_by_ref(anchor, for_state, b, render_fn) {
 					else j--;
 				}
 			} else if (patched !== b_left) {
-				for (i = b_left - 1; i >= 0; i--) if (sources[i] === 0) {
-					pos = i + b_start;
-					b_val = b[pos];
-					const next_pos = pos + 1;
-					target = next_pos < b_length ? b_items[next_pos].s.start : anchor;
-					b_items[pos] = create_item(target, b_val, pos, render_fn);
-				}
+				for (i = b_left - 1; i >= 0; i--)
+					if (sources[i] === 0) {
+						pos = i + b_start;
+						b_val = b[pos];
+						const next_pos = pos + 1;
+						target = next_pos < b_length ? b_items[next_pos].s.start : anchor;
+						b_items[pos] = create_item(target, b_val, pos, render_fn);
+					}
 			}
 		}
 		for_state.array = b;
@@ -345,11 +372,16 @@ function for_block(container, source_cell, render_fn) {
 	container.appendChild(anchor);
 	const for_state = {
 		array: [],
-		items: []
+		items: [],
 	};
 	const do_update = () => {
 		const collection = source_cell.v;
-		reconcile_by_ref(anchor, for_state, Array.isArray(collection) ? collection : collection == null ? [] : Array.from(collection), render_fn);
+		reconcile_by_ref(
+			anchor,
+			for_state,
+			Array.isArray(collection) ? collection : collection == null ? [] : Array.from(collection),
+			render_fn,
+		);
 	};
 	const unsubscribe = bind(source_cell, do_update);
 	do_update();
@@ -366,7 +398,7 @@ function for_block(container, source_cell, render_fn) {
 		destroy,
 		get state() {
 			return for_state;
-		}
+		},
 	};
 }
 function show_block(container, condition, render_fn, deps) {
@@ -419,7 +451,7 @@ function show_block(container, condition, render_fn, deps) {
 		destroy,
 		get isShowing() {
 			return isShowing;
-		}
+		},
 	};
 }
 const HN_API_BASE = "https://hacker-news.firebaseio.com/v0";
@@ -429,7 +461,7 @@ const ENDPOINTS = {
 	best: "beststories",
 	ask: "askstories",
 	show: "showstories",
-	job: "jobstories"
+	job: "jobstories",
 };
 const FEEDS = {
 	top: "top",
@@ -437,15 +469,17 @@ const FEEDS = {
 	best: "best",
 	ask: "ask",
 	show: "show",
-	job: "job"
+	job: "job",
 };
-var $tmpl_1$5 = template("<header><div class=\"header-content\"><a href=\"#\" class=\"logo\"><span class=\"logo-icon\">Y</span><span class=\"logo-text\">Hacker News</span></a><nav class=\"nav-links\"><button>top</button><button>new</button><button>best</button><button>ask</button><button>show</button><button>job</button></nav></div></header>");
+var $tmpl_1$5 = template(
+	'<header><div class="header-content"><a href="#" class="logo"><span class="logo-icon">Y</span><span class="logo-text">Hacker News</span></a><nav class="nav-links"><button>top</button><button>new</button><button>best</button><button>ask</button><button>show</button><button>job</button></nav></div></header>',
+);
 function Header({ changeFeed }) {
 	const currentFeed = {
 		v: FEEDS.top,
-		e: []
+		e: [],
 	};
-	const activeClass = (current, feed) => current === feed ? "nav-link active" : "nav-link";
+	const activeClass = (current, feed) => (current === feed ? "nav-link active" : "nav-link");
 	const handleFeedClick = (feed) => {
 		currentFeed.v = feed;
 		currentFeed.ref_1.className = activeClass(currentFeed.v, FEEDS.top);
@@ -487,7 +521,9 @@ function Header({ changeFeed }) {
 }
 defineComponent("hn-header", Header);
 delegate(["click"]);
-var $tmpl_1$4 = template("<article class=\"story\"><span class=\"rank\"> </span><div class=\"story-content\"><div class=\"story-title\"><a target=\"_blank\" rel=\"noopener noreferrer\" class=\"title-link\"> </a><span class=\"domain\"> </span></div><div class=\"story-meta\"><span class=\"score\"> </span><span class=\"separator\">|</span><span class=\"author\"> </span><span class=\"separator\">|</span><span class=\"time\"> </span><span class=\"separator\">|</span><a href=\"#\" class=\"comments\"> </a></div></div></article>");
+var $tmpl_1$4 = template(
+	'<article class="story"><span class="rank"> </span><div class="story-content"><div class="story-title"><a target="_blank" rel="noopener noreferrer" class="title-link"> </a><span class="domain"> </span></div><div class="story-meta"><span class="score"> </span><span class="separator">|</span><span class="author"> </span><span class="separator">|</span><span class="time"> </span><span class="separator">|</span><a href="#" class="comments"> </a></div></div></article>',
+);
 function StoryItem({ story, index }) {
 	const timeAgo = (timestamp) => {
 		const seconds = Math.floor(Date.now() / 1e3 - timestamp);
@@ -508,10 +544,12 @@ function StoryItem({ story, index }) {
 	};
 	const handleCommentsClick = (e) => {
 		e.preventDefault();
-		this.dispatchEvent(new CustomEvent("viewcomments", {
-			bubbles: true,
-			detail: { storyId: story.id }
-		}));
+		this.dispatchEvent(
+			new CustomEvent("viewcomments", {
+				bubbles: true,
+				detail: { storyId: story.id },
+			}),
+		);
 	};
 	const storyUrl = story.url || `https://news.ycombinator.com/item?id=${story.id}`;
 	const domain = getDomain(story.url);
@@ -546,23 +584,27 @@ function StoryItem({ story, index }) {
 }
 defineComponent("story-item", StoryItem);
 delegate(["click"]);
-var $tmpl_1$3 = template("<section class=\"story-list\"></section>");
-var $tmpl_2$3 = template("<div class=\"loading visible\"><div class=\"loading-spinner\"></div><span>Loading stories...</span></div>");
-var $tmpl_3$1 = template("<div class=\"error visible\"><p>Failed to load stories. Please try again.</p></div>");
-var $tmpl_4 = template("<div class=\"stories visible\"></div>");
+var $tmpl_1$3 = template('<section class="story-list"></section>');
+var $tmpl_2$3 = template(
+	'<div class="loading visible"><div class="loading-spinner"></div><span>Loading stories...</span></div>',
+);
+var $tmpl_3$1 = template(
+	'<div class="error visible"><p>Failed to load stories. Please try again.</p></div>',
+);
+var $tmpl_4 = template('<div class="stories visible"></div>');
 var $tmpl_5 = template("<story-item></story-item>");
 function StoryList() {
 	const stories = {
 		v: [],
-		e: []
+		e: [],
 	};
 	const loading = {
 		v: true,
-		e: []
+		e: [],
 	};
 	const error = {
 		v: false,
-		e: []
+		e: [],
 	};
 	this.setStories = (value) => {
 		stories.v = value;
@@ -585,7 +627,7 @@ function StoryList() {
 			anchor.before($root_2_first);
 			return {
 				start: $root_2_first,
-				end: $root_2_first
+				end: $root_2_first,
 			};
 		});
 		show_block(section_1, error, (anchor) => {
@@ -593,48 +635,55 @@ function StoryList() {
 			anchor.before($root_3_first);
 			return {
 				start: $root_3_first,
-				end: $root_3_first
+				end: $root_3_first,
 			};
 		});
-		show_block(section_1, () => !loading.v && !error.v, (anchor) => {
-			const div_4 = $tmpl_4().firstChild;
-			for_block(div_4, stories, (anchor$1, story, index) => {
-				const story_item_1 = $tmpl_5().firstChild;
-				setProp(story_item_1, "story", story);
-				setProp(story_item_1, "index", index);
-				anchor$1.before(story_item_1);
+		show_block(
+			section_1,
+			() => !loading.v && !error.v,
+			(anchor) => {
+				const div_4 = $tmpl_4().firstChild;
+				for_block(div_4, stories, (anchor$1, story, index) => {
+					const story_item_1 = $tmpl_5().firstChild;
+					setProp(story_item_1, "story", story);
+					setProp(story_item_1, "index", index);
+					anchor$1.before(story_item_1);
+					return {
+						start: story_item_1,
+						end: story_item_1,
+					};
+				});
+				anchor.before(div_4);
 				return {
-					start: story_item_1,
-					end: story_item_1
+					start: div_4,
+					end: div_4,
 				};
-			});
-			anchor.before(div_4);
-			return {
-				start: div_4,
-				end: div_4
-			};
-		}, [loading, error]);
+			},
+			[loading, error],
+		);
 	});
 }
 defineComponent("story-list", StoryList);
-var $tmpl_1$2 = template("<div class=\"comment-wrapper\"><div><div><button class=\"collapse-btn\"> </button><span class=\"comment-author\"> </span><span class=\"comment-time\"> </span><span> </span></div><div><div></div><span>[deleted]</span></div></div><div><div>Loading replies...</div></div></div>");
+var $tmpl_1$2 = template(
+	'<div class="comment-wrapper"><div><div><button class="collapse-btn"> </button><span class="comment-author"> </span><span class="comment-time"> </span><span> </span></div><div><div></div><span>[deleted]</span></div></div><div><div>Loading replies...</div></div></div>',
+);
 var $tmpl_2$2 = template("<comment-item></comment-item>");
 function CommentItem({ comment, depth = 0 }) {
 	const collapsed = {
 		v: false,
-		e: []
+		e: [],
 	};
 	const childComments = {
 		v: [],
-		e: []
+		e: [],
 	};
 	const loadingChildren = {
 		v: false,
-		e: []
+		e: [],
 	};
 	const childrenLoaded = {
 		v: false,
-		e: []
+		e: [],
 	};
 	const HN_API_BASE$1 = "https://hacker-news.firebaseio.com/v0";
 	const timeAgo = (timestamp) => {
@@ -651,12 +700,16 @@ function CommentItem({ comment, depth = 0 }) {
 		if (!comment || !comment.kids || comment.kids.length === 0) return;
 		if (childrenLoaded.v) return;
 		loadingChildren.v = true;
-		loadingChildren.ref_1.className = loadingChildren.v ? "loading-children visible" : "loading-children";
+		loadingChildren.ref_1.className = loadingChildren.v
+			? "loading-children visible"
+			: "loading-children";
 		try {
 			const commentPromises = comment.kids.map(async (id) => {
 				return (await fetch(`${HN_API_BASE$1}/item/${id}.json`)).json();
 			});
-			childComments.v = (await Promise.all(commentPromises)).filter((c) => c && !c.deleted && !c.dead);
+			childComments.v = (await Promise.all(commentPromises)).filter(
+				(c) => c && !c.deleted && !c.dead,
+			);
 			childComments_for_block.update();
 			childrenLoaded.v = true;
 			for (let i = 0; i < childrenLoaded.e.length; i++) childrenLoaded.e[i](childrenLoaded.v);
@@ -664,25 +717,37 @@ function CommentItem({ comment, depth = 0 }) {
 			console.error("Failed to fetch child comments:", err);
 		} finally {
 			loadingChildren.v = false;
-			loadingChildren.ref_1.className = loadingChildren.v ? "loading-children visible" : "loading-children";
+			loadingChildren.ref_1.className = loadingChildren.v
+				? "loading-children visible"
+				: "loading-children";
 		}
 	};
 	const toggleCollapse = () => {
 		const wasCollapsed = collapsed.v;
 		collapsed.v = !wasCollapsed;
-		collapsed.ref_1.className = isDeleted ? "comment deleted" : collapsed.v ? "comment collapsed" : "comment";
+		collapsed.ref_1.className = isDeleted
+			? "comment deleted"
+			: collapsed.v
+				? "comment collapsed"
+				: "comment";
 		collapsed.ref_2.className = collapsed.v && hasChildren ? "child-count visible" : "child-count";
-		collapsed.ref_3.className = isDeleted ? "deleted-text" : collapsed.v ? "comment-body hidden" : "comment-body";
-		collapsed.ref_4.className = isDeleted || collapsed.v || !hasChildren ? "comment-children hidden" : "comment-children";
+		collapsed.ref_3.className = isDeleted
+			? "deleted-text"
+			: collapsed.v
+				? "comment-body hidden"
+				: "comment-body";
+		collapsed.ref_4.className =
+			isDeleted || collapsed.v || !hasChildren ? "comment-children hidden" : "comment-children";
 		collapsed.ref_1.nodeValue = collapsed.v ? "[+]" : "[-]";
 		if (wasCollapsed && !childrenLoaded.v && comment?.kids?.length > 0) fetchChildComments();
 	};
 	this.connected(() => {
 		const textEl = this.querySelector(".comment-text");
 		if (textEl && comment?.text) textEl.innerHTML = comment.text;
-		if (depth === 0 && comment?.kids?.length > 0) requestAnimationFrame(() => {
-			fetchChildComments();
-		});
+		if (depth === 0 && comment?.kids?.length > 0)
+			requestAnimationFrame(() => {
+				fetchChildComments();
+			});
 	});
 	const authorName = comment?.by || "[unknown]";
 	const commentTime = comment?.time ? timeAgo(comment.time) : "";
@@ -716,7 +781,7 @@ function CommentItem({ comment, depth = 0 }) {
 			anchor.before(comment_item_1);
 			return {
 				start: comment_item_1,
-				end: comment_item_1
+				end: comment_item_1,
 			};
 		});
 		div_2.className = isDeleted ? "comment deleted" : collapsed.v ? "comment collapsed" : "comment";
@@ -729,11 +794,16 @@ function CommentItem({ comment, depth = 0 }) {
 		span_3.className = collapsed.v && hasChildren ? "child-count visible" : "child-count";
 		collapsed.ref_2 = span_3;
 		span_3_text.nodeValue = "(" + childCount + " " + (childCount === 1 ? "reply" : "replies") + ")";
-		div_4.className = isDeleted ? "deleted-text" : collapsed.v ? "comment-body hidden" : "comment-body";
+		div_4.className = isDeleted
+			? "deleted-text"
+			: collapsed.v
+				? "comment-body hidden"
+				: "comment-body";
 		collapsed.ref_3 = div_4;
 		div_5.className = isDeleted ? "hidden" : "comment-text";
 		span_4.className = isDeleted ? "" : "hidden";
-		div_6.className = isDeleted || collapsed.v || !hasChildren ? "comment-children hidden" : "comment-children";
+		div_6.className =
+			isDeleted || collapsed.v || !hasChildren ? "comment-children hidden" : "comment-children";
 		collapsed.ref_4 = div_6;
 		div_7.className = loadingChildren.v ? "loading-children visible" : "loading-children";
 		loadingChildren.ref_1 = div_7;
@@ -741,24 +811,26 @@ function CommentItem({ comment, depth = 0 }) {
 }
 defineComponent("comment-item", CommentItem);
 delegate(["click"]);
-var $tmpl_1$1 = template("<section class=\"comment-page\"><div><div class=\"loading-spinner\"></div><span>Loading comments...</span></div><div><p>Failed to load story. Please try again.</p><button class=\"back-btn\">← Back to stories</button></div><div><button class=\"back-btn\">← Back to stories</button><article class=\"story-detail\"><h1 class=\"story-title\"><a target=\"_blank\" rel=\"noopener noreferrer\" class=\"title-link\"> </a><span class=\"domain\"> </span></h1><div class=\"story-meta\"><span class=\"score\"> </span><span class=\"separator\">|</span><span class=\"author\"> </span><span class=\"separator\">|</span><span class=\"time\"> </span><span class=\"separator\">|</span><span class=\"comment-count\"> </span></div><div class=\"story-text\"></div></article><div class=\"comments-section\"><h2 class=\"comments-header\">Comments</h2><div>No comments yet.</div><div class=\"comments-list\"></div></div></div></section>");
+var $tmpl_1$1 = template(
+	'<section class="comment-page"><div><div class="loading-spinner"></div><span>Loading comments...</span></div><div><p>Failed to load story. Please try again.</p><button class="back-btn">← Back to stories</button></div><div><button class="back-btn">← Back to stories</button><article class="story-detail"><h1 class="story-title"><a target="_blank" rel="noopener noreferrer" class="title-link"> </a><span class="domain"> </span></h1><div class="story-meta"><span class="score"> </span><span class="separator">|</span><span class="author"> </span><span class="separator">|</span><span class="time"> </span><span class="separator">|</span><span class="comment-count"> </span></div><div class="story-text"></div></article><div class="comments-section"><h2 class="comments-header">Comments</h2><div>No comments yet.</div><div class="comments-list"></div></div></div></section>',
+);
 var $tmpl_2$1 = template("<comment-item></comment-item>");
 function CommentPage() {
 	const story = {
 		v: null,
-		e: []
+		e: [],
 	};
 	const comments = {
 		v: [],
-		e: []
+		e: [],
 	};
 	const loading = {
 		v: false,
-		e: []
+		e: [],
 	};
 	const error = {
 		v: false,
-		e: []
+		e: [],
 	};
 	let pendingStoryId = null;
 	const HN_API_BASE$1 = "https://hacker-news.firebaseio.com/v0";
@@ -899,7 +971,7 @@ function CommentPage() {
 			anchor.before(comment_item_1);
 			return {
 				start: comment_item_1,
-				end: comment_item_1
+				end: comment_item_1,
 			};
 		});
 		div_1.className = loading.v ? "loading visible" : "loading";
@@ -938,15 +1010,15 @@ var $tmpl_3 = template("<comment-page></comment-page>");
 function App() {
 	const currentFeed = {
 		v: FEEDS.top,
-		e: []
+		e: [],
 	};
 	const showStoryList = {
 		v: true,
-		e: []
+		e: [],
 	};
 	const currentStoryId = {
 		v: null,
-		e: []
+		e: [],
 	};
 	const fetchStory = async (id) => {
 		return (await fetch(`${HN_API_BASE}/item/${id}.json`)).json();
@@ -958,8 +1030,12 @@ function App() {
 		storyList.setStories([]);
 		try {
 			const endpoint = ENDPOINTS[feed];
-			const storyPromises = (await (await fetch(`${HN_API_BASE}/${endpoint}.json`)).json()).slice(0, 30).map(fetchStory);
-			const validStories = (await Promise.all(storyPromises)).filter((story) => story && !story.deleted);
+			const storyPromises = (await (await fetch(`${HN_API_BASE}/${endpoint}.json`)).json())
+				.slice(0, 30)
+				.map(fetchStory);
+			const validStories = (await Promise.all(storyPromises)).filter(
+				(story) => story && !story.deleted,
+			);
 			storyList.setStories(validStories);
 		} catch (err) {
 			console.error("Failed to fetch stories:", err);
@@ -1010,17 +1086,22 @@ function App() {
 			anchor.before($root_2_first);
 			return {
 				start: $root_2_first,
-				end: $root_2_first
+				end: $root_2_first,
 			};
 		});
-		show_block(main_1, () => !showStoryList.v, (anchor) => {
-			const $root_3_first = $tmpl_3().firstChild;
-			anchor.before($root_3_first);
-			return {
-				start: $root_3_first,
-				end: $root_3_first
-			};
-		}, [showStoryList]);
+		show_block(
+			main_1,
+			() => !showStoryList.v,
+			(anchor) => {
+				const $root_3_first = $tmpl_3().firstChild;
+				anchor.before($root_3_first);
+				return {
+					start: $root_3_first,
+					end: $root_3_first,
+				};
+			},
+			[showStoryList],
+		);
 	});
 }
 defineComponent("hacker-news", App);

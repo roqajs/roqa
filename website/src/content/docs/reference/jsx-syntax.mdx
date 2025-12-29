@@ -64,9 +64,11 @@ The only PascalCase component for rendering lists:
 ```
 
 **Props:**
+
 - `each` - A cell containing an array
 
 **Callback parameters:**
+
 - `item` - The current item
 - `index` - The current index (optional)
 
@@ -85,6 +87,7 @@ The only other PascalCase component for conditional content:
 ```
 
 **Props:**
+
 - `when` - A cell or expression that evaluates to boolean
 - `fallback` - Optional content to show when condition is false
 
@@ -206,21 +209,21 @@ Use lowercase `on*` (not `onClick`):
 
 All standard DOM events work:
 
-| Event | Handler |
-|-------|---------|
-| click | `onclick` |
-| input | `oninput` |
-| change | `onchange` |
-| submit | `onsubmit` |
-| keydown | `onkeydown` |
-| keyup | `onkeyup` |
-| focus | `onfocus` |
-| blur | `onblur` |
-| mouseover | `onmouseover` |
-| mouseout | `onmouseout` |
+| Event      | Handler        |
+| ---------- | -------------- |
+| click      | `onclick`      |
+| input      | `oninput`      |
+| change     | `onchange`     |
+| submit     | `onsubmit`     |
+| keydown    | `onkeydown`    |
+| keyup      | `onkeyup`      |
+| focus      | `onfocus`      |
+| blur       | `onblur`       |
+| mouseover  | `onmouseover`  |
+| mouseout   | `onmouseout`   |
 | mouseenter | `onmouseenter` |
 | mouseleave | `onmouseleave` |
-| ... | Any DOM event |
+| ...        | Any DOM event  |
 
 ---
 
@@ -305,7 +308,7 @@ Use JavaScript comments inside JSX:
 <div>
   {/* This is a comment */}
   <p>Content</p>
-  {/* 
+  {/*
     Multi-line
     comment
   */}
@@ -378,34 +381,34 @@ Using `.map()` won't create reactive bindings. The list won't update when items 
 
 ## Summary Table
 
-| Feature | Supported | Notes |
-|---------|-----------|-------|
-| HTML elements | ✅ | All standard elements |
-| SVG elements | ✅ | Within `<svg>` tags |
-| Web components | ✅ | Must have hyphen in name |
-| `<For>` | ✅ | Only for lists |
-| `<Show>` | ✅ | Only for conditionals |
-| Custom components | ❌ | Use web components |
-| `class` attribute | ✅ | Not `className` |
-| `onclick` events | ✅ | Lowercase, not `onClick` |
-| Style strings | ✅ | Not style objects |
-| Fragments `<>` | ✅ | |
-| `get()` in expressions | ✅ | Creates reactive bindings |
-| `.map()` for lists | ⚠️ | Use `<For>` instead |
+| Feature                | Supported | Notes                     |
+| ---------------------- | --------- | ------------------------- |
+| HTML elements          | ✅        | All standard elements     |
+| SVG elements           | ✅        | Within `<svg>` tags       |
+| Web components         | ✅        | Must have hyphen in name  |
+| `<For>`                | ✅        | Only for lists            |
+| `<Show>`               | ✅        | Only for conditionals     |
+| Custom components      | ❌        | Use web components        |
+| `class` attribute      | ✅        | Not `className`           |
+| `onclick` events       | ✅        | Lowercase, not `onClick`  |
+| Style strings          | ✅        | Not style objects         |
+| Fragments `<>`         | ✅        |                           |
+| `get()` in expressions | ✅        | Creates reactive bindings |
+| `.map()` for lists     | ⚠️        | Use `<For>` instead       |
 
 ---
 
 ## Migration from React
 
-| React | Rift |
-|-------|------|
-| `className="foo"` | `class="foo"` |
-| `onClick={fn}` | `onclick={fn}` |
-| `onChange={fn}` | `onchange={fn}` |
-| `style={{ color: 'red' }}` | `style="color: red"` |
-| `<MyComponent />` | `<my-component></my-component>` |
-| `{items.map(...)}` | `<For each={items}>...</For>` |
-| `{condition && <X />}` | `<Show when={condition}><X /></Show>` |
-| `useState(0)` | `cell(0)` |
-| `value={state}` | `value={get(state)}` |
-| `setValue(x)` | `set(state, x)` |
+| React                      | Rift                                  |
+| -------------------------- | ------------------------------------- |
+| `className="foo"`          | `class="foo"`                         |
+| `onClick={fn}`             | `onclick={fn}`                        |
+| `onChange={fn}`            | `onchange={fn}`                       |
+| `style={{ color: 'red' }}` | `style="color: red"`                  |
+| `<MyComponent />`          | `<my-component></my-component>`       |
+| `{items.map(...)}`         | `<For each={items}>...</For>`         |
+| `{condition && <X />}`     | `<Show when={condition}><X /></Show>` |
+| `useState(0)`              | `cell(0)`                             |
+| `value={state}`            | `value={get(state)}`                  |
+| `setValue(x)`              | `set(state, x)`                       |

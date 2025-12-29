@@ -1,5 +1,5 @@
-import _traverse from '@babel/traverse';
-import { getJSXElementName, isPascalCase, isControlFlowComponent } from '../parser.js';
+import _traverse from "@babel/traverse";
+import { getJSXElementName, isPascalCase, isControlFlowComponent } from "../parser.js";
 
 // Handle CJS/ESM interop
 const traverse = _traverse.default || _traverse;
@@ -55,10 +55,10 @@ function createComponentError(name, node) {
 	const kebabName = toKebabCase(name);
 
 	const error = new Error(
-		`Unsupported component '${name}'.\n` + `PascalCase components are not supported in Rift.\n`
+		`Unsupported component '${name}'.\n` + `PascalCase components are not supported in Rift.\n`,
 	);
 
-	error.code = 'UNSUPPORTED_COMPONENT';
+	error.code = "UNSUPPORTED_COMPONENT";
 	error.componentName = name;
 	error.loc = node.loc;
 	error.suggestions = [
@@ -77,7 +77,7 @@ function createComponentError(name, node) {
  */
 function toKebabCase(str) {
 	return str
-		.replace(/([a-z])([A-Z])/g, '$1-$2')
-		.replace(/([A-Z])([A-Z][a-z])/g, '$1-$2')
+		.replace(/([a-z])([A-Z])/g, "$1-$2")
+		.replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
 		.toLowerCase();
 }

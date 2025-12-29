@@ -1,4 +1,4 @@
-import { extractJSXAttributes, getJSXChildren, isJSXExpressionContainer } from '../parser.js';
+import { extractJSXAttributes, getJSXChildren, isJSXExpressionContainer } from "../parser.js";
 
 /**
  * Transform <For> components into for_block() calls
@@ -33,7 +33,7 @@ export function extractForInfo(node, containerVar) {
 	const attrs = extractJSXAttributes(node.openingElement);
 
 	// Get the `each` prop
-	const eachValue = attrs.get('each');
+	const eachValue = attrs.get("each");
 	if (!eachValue || !isJSXExpressionContainer(eachValue)) {
 		throw createForError(node, "Missing required 'each' prop on <For> component");
 	}
@@ -42,23 +42,23 @@ export function extractForInfo(node, containerVar) {
 	// Get the children - should be a single expression container with arrow function
 	const children = getJSXChildren(node);
 	if (children.length !== 1) {
-		throw createForError(node, '<For> must have exactly one child (render callback)');
+		throw createForError(node, "<For> must have exactly one child (render callback)");
 	}
 
 	const child = children[0];
 	if (!isJSXExpressionContainer(child)) {
-		throw createForError(node, '<For> child must be an expression: {(item) => <element>}');
+		throw createForError(node, "<For> child must be an expression: {(item) => <element>}");
 	}
 
 	const callback = child.expression;
-	if (callback.type !== 'ArrowFunctionExpression' && callback.type !== 'FunctionExpression') {
-		throw createForError(node, '<For> child must be an arrow function or function expression');
+	if (callback.type !== "ArrowFunctionExpression" && callback.type !== "FunctionExpression") {
+		throw createForError(node, "<For> child must be an arrow function or function expression");
 	}
 
 	// Extract callback parameters
 	const params = callback.params;
 	if (params.length < 1) {
-		throw createForError(node, '<For> callback must have at least one parameter (item)');
+		throw createForError(node, "<For> callback must have at least one parameter (item)");
 	}
 
 	const itemParam = extractParamName(params[0]);
@@ -67,7 +67,7 @@ export function extractForInfo(node, containerVar) {
 	// Extract the JSX from the callback body
 	const bodyJSX = extractCallbackJSX(callback);
 	if (!bodyJSX) {
-		throw createForError(node, '<For> callback must return JSX');
+		throw createForError(node, "<For> callback must return JSX");
 	}
 
 	return {
@@ -86,13 +86,13 @@ export function extractForInfo(node, containerVar) {
  * @returns {string}
  */
 function extractParamName(param) {
-	if (param.type === 'Identifier') {
+	if (param.type === "Identifier") {
 		return param.name;
 	}
-	if (param.type === 'AssignmentPattern' && param.left.type === 'Identifier') {
+	if (param.type === "AssignmentPattern" && param.left.type === "Identifier") {
 		return param.left.name;
 	}
-	throw new Error('Unsupported parameter type in <For> callback');
+	throw new Error("Unsupported parameter type in <For> callback");
 }
 
 /**
@@ -104,21 +104,21 @@ function extractCallbackJSX(callback) {
 	const body = callback.body;
 
 	// Arrow function with expression body: (item) => <tr>...</tr>
-	if (body.type === 'JSXElement') {
+	if (body.type === "JSXElement") {
 		return body;
 	}
 
 	// Block body: (item) => { return <tr>...</tr>; }
-	if (body.type === 'BlockStatement') {
+	if (body.type === "BlockStatement") {
 		// Look for return statement with JSX
 		for (const stmt of body.body) {
-			if (stmt.type === 'ReturnStatement' && stmt.argument) {
-				if (stmt.argument.type === 'JSXElement') {
+			if (stmt.type === "ReturnStatement" && stmt.argument) {
+				if (stmt.argument.type === "JSXElement") {
 					return stmt.argument;
 				}
 				// Handle parenthesized JSX: return (<tr>...</tr>)
-				if (stmt.argument.type === 'ParenthesizedExpression') {
-					if (stmt.argument.expression.type === 'JSXElement') {
+				if (stmt.argument.type === "ParenthesizedExpression") {
+					if (stmt.argument.expression.type === "JSXElement") {
 						return stmt.argument.expression;
 					}
 				}
@@ -138,13 +138,13 @@ function extractCallbackJSX(callback) {
 export function getCallbackPreamble(callback) {
 	const body = callback.body;
 
-	if (body.type !== 'BlockStatement') {
+	if (body.type !== "BlockStatement") {
 		return [];
 	}
 
 	const preamble = [];
 	for (const stmt of body.body) {
-		if (stmt.type === 'ReturnStatement') {
+		if (stmt.type === "ReturnStatement") {
 			break;
 		}
 		preamble.push(stmt);
@@ -158,7 +158,7 @@ export function getCallbackPreamble(callback) {
  */
 function createForError(node, message) {
 	const error = new Error(message);
-	error.code = 'FOR_COMPONENT_ERROR';
+	error.code = "FOR_COMPONENT_ERROR";
 	error.loc = node.loc;
 	return error;
 }

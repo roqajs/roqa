@@ -2,7 +2,7 @@
 // for_block and reconciliation primitives
 // ============================================
 
-import { bind } from './cell.js';
+import { bind } from "./cell.js";
 
 // LIS algorithm state (reused across calls for performance)
 let lis_result;
@@ -128,7 +128,7 @@ function destroy_item(item) {
  */
 function reconcile_fast_clear(anchor, for_state, array) {
 	const parent_node = anchor.parentNode;
-	parent_node.textContent = '';
+	parent_node.textContent = "";
 	parent_node.append(anchor);
 	for_state.array = array;
 	for_state.items = [];
@@ -330,7 +330,7 @@ function reconcile_by_ref(anchor, for_state, b, render_fn) {
  */
 export function for_block(container, source_cell, render_fn) {
 	// Create anchor node at end of container
-	const anchor = document.createTextNode('');
+	const anchor = document.createTextNode("");
 	container.appendChild(anchor);
 
 	// Initialize state
@@ -344,8 +344,8 @@ export function for_block(container, source_cell, render_fn) {
 		const array = Array.isArray(collection)
 			? collection
 			: collection == null
-			? []
-			: Array.from(collection);
+				? []
+				: Array.from(collection);
 		reconcile_by_ref(anchor, for_state, array, render_fn);
 	};
 

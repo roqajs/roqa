@@ -19,6 +19,7 @@ function cell<T>(computeFn: () => T): Cell<T>
 ```
 
 **Parameters:**
+
 - `initialValue` - The initial value, or a function that computes the value
 
 **Returns:** A cell object
@@ -48,6 +49,7 @@ function get<T>(cell: Cell<T>): T
 ```
 
 **Parameters:**
+
 - `cell` - The cell to read from
 
 **Returns:** The current value
@@ -74,6 +76,7 @@ function set<T>(cell: Cell<T>, value: T): void
 ```
 
 **Parameters:**
+
 - `cell` - The cell to update
 - `value` - The new value
 
@@ -100,6 +103,7 @@ function put<T>(cell: Cell<T>, value: T): void
 ```
 
 **Parameters:**
+
 - `cell` - The cell to update
 - `value` - The new value
 
@@ -125,6 +129,7 @@ function bind<T>(cell: Cell<T>, effect: (value: T) => void): () => void
 ```
 
 **Parameters:**
+
 - `cell` - The cell to subscribe to
 - `effect` - Function called when the cell changes
 
@@ -154,6 +159,7 @@ function unbind<T>(cell: Cell<T>, effect: (value: T) => void): void
 ```
 
 **Parameters:**
+
 - `cell` - The cell to unsubscribe from
 - `effect` - The effect function to remove
 
@@ -177,6 +183,7 @@ function notify<T>(cell: Cell<T>): void
 ```
 
 **Parameters:**
+
 - `cell` - The cell whose subscribers to notify
 
 **Example:**
@@ -198,6 +205,7 @@ function batch<T>(fn: () => T): T
 ```
 
 **Parameters:**
+
 - `fn` - Function containing multiple `set()` calls
 
 **Returns:** Whatever `fn` returns
@@ -223,6 +231,7 @@ function set_with_batch<T>(cell: Cell<T>, value: T): void
 ```
 
 **Parameters:**
+
 - `cell` - The cell to update
 - `value` - The new value
 
@@ -247,6 +256,7 @@ function template(html: string): () => DocumentFragment
 ```
 
 **Parameters:**
+
 - `html` - HTML string
 
 **Returns:** A function that returns a cloned DocumentFragment
@@ -270,6 +280,7 @@ function svg_template(svg: string): () => DocumentFragment
 ```
 
 **Parameters:**
+
 - `svg` - SVG markup string (without outer `<svg>` tag)
 
 **Returns:** A function that returns a cloned DocumentFragment
@@ -294,12 +305,13 @@ Registers a function as a web component.
 
 ```ts
 function defineComponent<P>(
-  tagName: string, 
+  tagName: string,
   fn: ComponentFunction<P>
 ): void
 ```
 
 **Parameters:**
+
 - `tagName` - The custom element tag name (must contain a hyphen)
 - `fn` - The component function
 
@@ -325,6 +337,7 @@ function setProp(element: Element, propName: string, value: unknown): void
 ```
 
 **Parameters:**
+
 - `element` - The target element
 - `propName` - Name of the prop
 - `value` - Value to set
@@ -348,6 +361,7 @@ function getProps(element: Element): Record<string, unknown>
 ```
 
 **Parameters:**
+
 - `element` - The element to get props from
 
 **Returns:** Object containing all props
@@ -372,6 +386,7 @@ function delegate(events: string[]): void
 ```
 
 **Parameters:**
+
 - `events` - Array of event names to delegate
 
 **Example:**
@@ -395,6 +410,7 @@ function handle_root_events(target: EventTarget): () => void
 ```
 
 **Parameters:**
+
 - `target` - The root element to handle events on
 
 **Returns:** A cleanup function
@@ -428,6 +444,7 @@ function for_block<T>(
 ```
 
 **Parameters:**
+
 - `container` - Parent element
 - `source` - Cell containing the array
 - `render` - Function to render each item
@@ -462,6 +479,7 @@ function show_block(
 ```
 
 **Parameters:**
+
 - `container` - Parent element
 - `condition` - When to show content
 - `render` - Function to render content
@@ -521,20 +539,20 @@ import {
   notify,
   batch,
   set_with_batch,
-  
+
   // Templates
   template,
   svg_template,
-  
+
   // Components
   defineComponent,
   setProp,
   getProps,
-  
+
   // Events
   delegate,
   handle_root_events,
-  
+
   // Control flow (usually not imported directly)
   for_block,
   show_block,
