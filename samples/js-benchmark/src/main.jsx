@@ -64,7 +64,7 @@ function App() {
 	const selected_row = cell(null);
 
 	function build_data(count = 1000) {
-		const data = new Array(count);
+		const data = Array.from({ length: count });
 		for (let i = 0; i < count; i++) {
 			const text = rand(adjectives) + ' ' + rand(colours) + ' ' + rand(nouns);
 			data[i] = {
