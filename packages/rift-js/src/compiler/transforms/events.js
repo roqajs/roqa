@@ -1,4 +1,4 @@
-import { isJSXExpressionContainer } from '../parser.js';
+import { isJSXExpressionContainer } from "../parser.js";
 
 /**
  * Transform event handlers from JSX attributes to inline assignments
@@ -36,24 +36,24 @@ import { isJSXExpressionContainer } from '../parser.js';
  * @returns {ProcessedEvent[]}
  */
 export function processEvents(events, itemParam = null) {
-	const processed = [];
+  const processed = [];
 
-	for (const event of events) {
-		const { varName, eventName, handler } = event;
+  for (const event of events) {
+    const { varName, eventName, handler } = event;
 
-		if (!handler) {
-			// Boolean attribute like onclick without value - skip
-			continue;
-		}
+    if (!handler) {
+      // Boolean attribute like onclick without value - skip
+      continue;
+    }
 
-		// Extract the actual expression from JSXExpressionContainer
-		const expression = isJSXExpressionContainer(handler) ? handler.expression : handler;
+    // Extract the actual expression from JSXExpressionContainer
+    const expression = isJSXExpressionContainer(handler) ? handler.expression : handler;
 
-		const processedEvent = analyzeHandler(expression, varName, eventName, itemParam);
-		processed.push(processedEvent);
-	}
+    const processedEvent = analyzeHandler(expression, varName, eventName, itemParam);
+    processed.push(processedEvent);
+  }
 
-	return processed;
+  return processed;
 }
 
 /**
@@ -65,44 +65,44 @@ export function processEvents(events, itemParam = null) {
  * @returns {ProcessedEvent}
  */
 function analyzeHandler(expression, varName, eventName, itemParam) {
-	// Case 1: Simple identifier - onclick={run}
-	if (expression.type === 'Identifier') {
-		return {
-			varName,
-			eventName,
-			handlerExpression: expression,
-			isParameterized: false,
-			params: [],
-		};
-	}
+  // Case 1: Simple identifier - onclick={run}
+  if (expression.type === "Identifier") {
+    return {
+      varName,
+      eventName,
+      handlerExpression: expression,
+      isParameterized: false,
+      params: [],
+    };
+  }
 
-	// Case 2: Arrow function - onclick={() => select(row)}
-	if (expression.type === 'ArrowFunctionExpression' || expression.type === 'FunctionExpression') {
-		return analyzeArrowHandler(expression, varName, eventName, itemParam);
-	}
+  // Case 2: Arrow function - onclick={() => select(row)}
+  if (expression.type === "ArrowFunctionExpression" || expression.type === "FunctionExpression") {
+    return analyzeArrowHandler(expression, varName, eventName, itemParam);
+  }
 
-	// Case 3: Call expression directly - onclick={handler(item)}
-	// This is unusual but handle it
-	if (expression.type === 'CallExpression') {
-		// Wrap in array format: [handler, ...args]
-		const args = expression.arguments;
-		return {
-			varName,
-			eventName,
-			handlerExpression: expression.callee,
-			isParameterized: true,
-			params: args,
-		};
-	}
+  // Case 3: Call expression directly - onclick={handler(item)}
+  // This is unusual but handle it
+  if (expression.type === "CallExpression") {
+    // Wrap in array format: [handler, ...args]
+    const args = expression.arguments;
+    return {
+      varName,
+      eventName,
+      handlerExpression: expression.callee,
+      isParameterized: true,
+      params: args,
+    };
+  }
 
-	// Default: treat as simple handler
-	return {
-		varName,
-		eventName,
-		handlerExpression: expression,
-		isParameterized: false,
-		params: [],
-	};
+  // Default: treat as simple handler
+  return {
+    varName,
+    eventName,
+    handlerExpression: expression,
+    isParameterized: false,
+    params: [],
+  };
 }
 
 /**
@@ -113,65 +113,65 @@ function analyzeHandler(expression, varName, eventName, itemParam) {
  * @returns {boolean}
  */
 function isStaticExpression(node, boundParams = new Set()) {
-	if (!node) return true;
+  if (!node) return true;
 
-	switch (node.type) {
-		// Identifiers are static ONLY if they are not bound parameters
-		case 'Identifier':
-			return !boundParams.has(node.name);
+  switch (node.type) {
+    // Identifiers are static ONLY if they are not bound parameters
+    case "Identifier":
+      return !boundParams.has(node.name);
 
-		// Literals are always static
-		case 'NumericLiteral':
-		case 'StringLiteral':
-		case 'BooleanLiteral':
-		case 'NullLiteral':
-			return true;
+    // Literals are always static
+    case "NumericLiteral":
+    case "StringLiteral":
+    case "BooleanLiteral":
+    case "NullLiteral":
+      return true;
 
-		// Member expressions like obj.prop are static only if obj is static
-		case 'MemberExpression':
-			return (
-				isStaticExpression(node.object, boundParams) &&
-				isStaticExpression(node.property, boundParams)
-			);
+    // Member expressions like obj.prop are static only if obj is static
+    case "MemberExpression":
+      return (
+        isStaticExpression(node.object, boundParams) &&
+        isStaticExpression(node.property, boundParams)
+      );
 
-		// Function calls are NOT static - they need to be evaluated at click time
-		case 'CallExpression':
-			return false;
+    // Function calls are NOT static - they need to be evaluated at click time
+    case "CallExpression":
+      return false;
 
-		// Binary/unary expressions containing calls are not static
-		case 'BinaryExpression':
-		case 'LogicalExpression':
-			return (
-				isStaticExpression(node.left, boundParams) && isStaticExpression(node.right, boundParams)
-			);
+    // Binary/unary expressions containing calls are not static
+    case "BinaryExpression":
+    case "LogicalExpression":
+      return (
+        isStaticExpression(node.left, boundParams) && isStaticExpression(node.right, boundParams)
+      );
 
-		case 'UnaryExpression':
-			return isStaticExpression(node.argument, boundParams);
+    case "UnaryExpression":
+      return isStaticExpression(node.argument, boundParams);
 
-		// Conditional expressions need all parts to be static
-		case 'ConditionalExpression':
-			return (
-				isStaticExpression(node.test, boundParams) &&
-				isStaticExpression(node.consequent, boundParams) &&
-				isStaticExpression(node.alternate, boundParams)
-			);
+    // Conditional expressions need all parts to be static
+    case "ConditionalExpression":
+      return (
+        isStaticExpression(node.test, boundParams) &&
+        isStaticExpression(node.consequent, boundParams) &&
+        isStaticExpression(node.alternate, boundParams)
+      );
 
-		// Array/object literals - check all elements
-		case 'ArrayExpression':
-			return node.elements.every((el) => el === null || isStaticExpression(el, boundParams));
+    // Array/object literals - check all elements
+    case "ArrayExpression":
+      return node.elements.every((el) => el === null || isStaticExpression(el, boundParams));
 
-		case 'ObjectExpression':
-			return node.properties.every(
-				(prop) =>
-					prop.type === 'ObjectProperty' &&
-					isStaticExpression(prop.key, boundParams) &&
-					isStaticExpression(prop.value, boundParams)
-			);
+    case "ObjectExpression":
+      return node.properties.every(
+        (prop) =>
+          prop.type === "ObjectProperty" &&
+          isStaticExpression(prop.key, boundParams) &&
+          isStaticExpression(prop.value, boundParams),
+      );
 
-		// Default: not static (be conservative)
-		default:
-			return false;
-	}
+    // Default: not static (be conservative)
+    default:
+      return false;
+  }
 }
 
 /**
@@ -179,48 +179,48 @@ function isStaticExpression(node, boundParams = new Set()) {
  * @param {import("@babel/types").ArrowFunctionExpression} arrow
  * @param {string} varName
  * @param {string} eventName
- * @param {string|null} itemParam
+ * @param {string|null} _itemParam
  * @returns {ProcessedEvent}
  */
-function analyzeArrowHandler(arrow, varName, eventName, itemParam) {
-	const body = arrow.body;
+function analyzeArrowHandler(arrow, varName, eventName, _itemParam) {
+  const body = arrow.body;
 
-	// Collect parameter names that are bound by this arrow function
-	const boundParams = new Set();
-	for (const param of arrow.params) {
-		if (param.type === 'Identifier') {
-			boundParams.add(param.name);
-		}
-	}
+  // Collect parameter names that are bound by this arrow function
+  const boundParams = new Set();
+  for (const param of arrow.params) {
+    if (param.type === "Identifier") {
+      boundParams.add(param.name);
+    }
+  }
 
-	// Check if it's a simple call expression: () => fn(args)
-	// Transform to array format: [fn, ...args] ONLY if all args are static
-	// (don't reference arrow function parameters)
-	if (body.type === 'CallExpression' && body.callee.type === 'Identifier') {
-		const allArgsStatic = body.arguments.every((arg) => isStaticExpression(arg, boundParams));
+  // Check if it's a simple call expression: () => fn(args)
+  // Transform to array format: [fn, ...args] ONLY if all args are static
+  // (don't reference arrow function parameters)
+  if (body.type === "CallExpression" && body.callee.type === "Identifier") {
+    const allArgsStatic = body.arguments.every((arg) => isStaticExpression(arg, boundParams));
 
-		if (allArgsStatic) {
-			return {
-				varName,
-				eventName,
-				handlerExpression: body.callee,
-				isParameterized: body.arguments.length > 0,
-				params: body.arguments,
-			};
-		}
-	}
+    if (allArgsStatic) {
+      return {
+        varName,
+        eventName,
+        handlerExpression: body.callee,
+        isParameterized: body.arguments.length > 0,
+        params: body.arguments,
+      };
+    }
+  }
 
-	// For more complex arrow functions, keep them as-is
-	// e.g., () => { multiple; statements; } or () => obj.method()
-	// or when arguments contain dynamic expressions like get(count) + 1
-	// or when arguments reference arrow function parameters like e.target.value
-	return {
-		varName,
-		eventName,
-		handlerExpression: arrow,
-		isParameterized: false,
-		params: [],
-	};
+  // For more complex arrow functions, keep them as-is
+  // e.g., () => { multiple; statements; } or () => obj.method()
+  // or when arguments contain dynamic expressions like get(count) + 1
+  // or when arguments reference arrow function parameters like e.target.value
+  return {
+    varName,
+    eventName,
+    handlerExpression: arrow,
+    isParameterized: false,
+    params: [],
+  };
 }
 
 /**
@@ -230,16 +230,16 @@ function analyzeArrowHandler(arrow, varName, eventName, itemParam) {
  * @returns {string}
  */
 export function generateEventAssignment(event, generateExpr) {
-	const { varName, eventName, handlerExpression, isParameterized, params } = event;
+  const { varName, eventName, handlerExpression, isParameterized, params } = event;
 
-	if (isParameterized) {
-		// Array format: element.__click = [handler, arg1, arg2]
-		const handlerCode = generateExpr(handlerExpression);
-		const paramsCode = params.map((p) => generateExpr(p)).join(', ');
-		return `${varName}.__${eventName} = [${handlerCode}, ${paramsCode}];`;
-	}
+  if (isParameterized) {
+    // Array format: element.__click = [handler, arg1, arg2]
+    const handlerCode = generateExpr(handlerExpression);
+    const paramsCode = params.map((p) => generateExpr(p)).join(", ");
+    return `${varName}.__${eventName} = [${handlerCode}, ${paramsCode}];`;
+  }
 
-	// Simple assignment: element.__click = handler
-	const handlerCode = generateExpr(handlerExpression);
-	return `${varName}.__${eventName} = ${handlerCode};`;
+  // Simple assignment: element.__click = handler
+  const handlerCode = generateExpr(handlerExpression);
+  return `${varName}.__${eventName} = ${handlerCode};`;
 }
