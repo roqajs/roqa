@@ -16,13 +16,13 @@ export default function rift() {
 					jsx: "preserve",
 				},
 				optimizeDeps: {
-					entries: ["!**/*.jsx"],
+					entries: ["!**/*.jsx", "!**/*.tsx"],
 				},
 			};
 		},
 
 		transform(code, id) {
-			if (!id.endsWith(".jsx")) return null;
+			if (!id.endsWith(".jsx") && !id.endsWith(".tsx")) return null;
 			try {
 				const result = compile(code, id);
 				return {

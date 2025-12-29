@@ -7,9 +7,12 @@ import * as parser from "@babel/parser";
  * @returns {import("@babel/types").File} - Babel AST
  */
 export function parse(code, filename) {
+	const isTypeScript = filename && (filename.endsWith(".tsx") || filename.endsWith(".ts"));
+	const plugins = isTypeScript ? ["jsx", "typescript"] : ["jsx"];
+
 	return parser.parse(code, {
 		sourceType: "module",
-		plugins: ["jsx"],
+		plugins,
 		sourceFilename: filename,
 	});
 }
