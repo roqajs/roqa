@@ -1,4 +1,5 @@
 import { isJSXExpressionContainer } from "../parser.js";
+import { CONSTANTS } from "../utils.js";
 
 /**
  * Transform event handlers from JSX attributes to inline assignments
@@ -236,10 +237,10 @@ export function generateEventAssignment(event, generateExpr) {
 		// Array format: element.__click = [handler, arg1, arg2]
 		const handlerCode = generateExpr(handlerExpression);
 		const paramsCode = params.map((p) => generateExpr(p)).join(", ");
-		return `${varName}.__${eventName} = [${handlerCode}, ${paramsCode}];`;
+		return `${varName}.${CONSTANTS.EVENT_PREFIX}${eventName} = [${handlerCode}, ${paramsCode}];`;
 	}
 
 	// Simple assignment: element.__click = handler
 	const handlerCode = generateExpr(handlerExpression);
-	return `${varName}.__${eventName} = ${handlerCode};`;
+	return `${varName}.${CONSTANTS.EVENT_PREFIX}${eventName} = ${handlerCode};`;
 }

@@ -1,9 +1,5 @@
-import _generate from "@babel/generator";
-import _traverse from "@babel/traverse";
 import MagicString from "magic-string";
-
-// Handle CJS/ESM interop
-const traverse = _traverse.default || _traverse;
+import { CONSTANTS, traverse, escapeStringLiteral } from "./utils.js";
 import { isJSXElement, isJSXFragment } from "./parser.js";
 import { processBindings, findGetCalls } from "./transforms/bind-detector.js";
 import { processEvents, generateEventAssignment } from "./transforms/events.js";
@@ -985,7 +981,7 @@ function generateBinding(
 		// Emit: initial value assignment + ref storage on cell
 		// cell.ref_N = element;
 		return `${targetVar}.${targetProperty} = ${initialExprCode};
-${indent}${cellCode}.ref_${refNum} = ${targetVar};`;
+${indent}${cellCode}.${CONSTANTS.REF_PREFIX}${refNum} = ${targetVar};`;
 	}
 
 	// Fall back to bind() for complex bindings (or SVG attributes)
@@ -1079,7 +1075,7 @@ function generateContentPartsBinding(
 		// Store ref on cell for direct DOM updates
 		// The setter will recompute the full expression using the ref
 		return `${targetVar}.${targetProperty} = ${initialExpr};
-${indent}${cellCode}.ref_${refNum} = ${targetVar};`;
+${indent}${cellCode}.${CONSTANTS.REF_PREFIX}${refNum} = ${targetVar};`;
 	}
 
 	// Fallback if no cellRefCounts provided (shouldn't happen in practice)
@@ -1096,28 +1092,15 @@ ${indent}});`;
 }
 
 /**
- * Escape special characters in a string literal
- */
-function escapeStringLiteral(str) {
-	return str
-		.replace(/\\/g, "\\\\")
-		.replace(/"/g, '\\"')
-		.replace(/\n/g, "\\n")
-		.replace(/\r/g, "\\r")
-		.replace(/\t/g, "\\t");
-}
-
-/**
  * Generate code for a prop binding (for custom elements)
  */
-function generatePropBinding(code, binding, usedImports, _insideForBlock = false) {
+function generatePropBinding(code, binding, usedImports) {
 	const {
 		targetVar,
 		propName,
 		expression,
 		fullExpression,
 		isStatic,
-		cellArg: _cellArg,
 		isThirdParty,
 	} = binding;
 

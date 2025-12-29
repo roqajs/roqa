@@ -9,6 +9,7 @@ import {
 	isShowComponent,
 	isJSXFragment,
 } from "../parser.js";
+import { CONSTANTS, escapeTemplateString, escapeHtml, escapeAttr } from "../utils.js";
 
 /**
  * Template extraction and DOM traversal generation
@@ -118,7 +119,7 @@ export class TemplateRegistry {
 		this.counter++;
 		const info = {
 			id: this.counter,
-			varName: `$tmpl_${this.counter}`,
+			varName: `${CONSTANTS.TEMPLATE_PREFIX}${this.counter}`,
 			isSvg,
 		};
 		this.templates.set(key, info);
@@ -149,13 +150,6 @@ export class TemplateRegistry {
 		}
 		return false;
 	}
-}
-
-/**
- * Escape single quotes and backslashes in template strings
- */
-function escapeTemplateString(str) {
-	return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
 /**
@@ -207,9 +201,9 @@ export class VariableNameGenerator {
 	 * @returns {string}
 	 */
 	generateRoot() {
-		const current = this.counters.get("$root") || 0;
-		this.counters.set("$root", current + 1);
-		return `$root_${current + 1}`;
+		const current = this.counters.get(CONSTANTS.ROOT_COUNTER_KEY) || 0;
+		this.counters.set(CONSTANTS.ROOT_COUNTER_KEY, current + 1);
+		return `${CONSTANTS.ROOT_PREFIX}${current + 1}`;
 	}
 }
 
@@ -874,22 +868,4 @@ function generateChildTraversal(structure, steps) {
 			}
 		}
 	}
-}
-
-/**
- * Escape HTML special characters
- */
-function escapeHtml(str) {
-	return str
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
-}
-
-/**
- * Escape attribute values
- */
-function escapeAttr(str) {
-	return str.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }

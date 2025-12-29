@@ -1,9 +1,6 @@
 import { parse } from "@babel/parser";
-import _traverse from "@babel/traverse";
 import MagicString from "magic-string";
-
-// Handle CJS/ESM interop
-const traverse = _traverse.default || _traverse;
+import { CONSTANTS, traverse } from "../utils.js";
 
 /**
  * Inline get(), cell(), put(), set(), and bind() calls
@@ -24,88 +21,154 @@ const traverse = _traverse.default || _traverse;
  */
 
 /**
- * Map to track derived cells: cellName -> { body: string, dependencies: string[] }
- * body is the function body code (with get() already transformed to .v)
- * dependencies is an array of cell names this derived cell depends on (direct dependencies only)
+ * Pre-compiled regex for property pattern extraction
+ * Matches patterns like "row.is_selected" -> prefix="row", pattern="is_selected"
  */
-const derivedCells = new Map();
+const PROPERTY_PATTERN_REGEX = /^([a-zA-Z_][a-zA-Z0-9_]*)\.([a-zA-Z_][a-zA-Z0-9_]*)$/;
 
 /**
- * Get the fully expanded body for a derived cell, recursively resolving any
- * references to other derived cells.
- * @param {string} cellName - The name of the derived cell
- * @param {Set<string>} visited - Set of already visited cells (to prevent infinite loops)
- * @returns {string|null} - The fully expanded body, or null if not a derived cell
+ * Context class that encapsulates mutable state for a single compilation.
+ * This eliminates global state and makes the compiler safe for parallel execution.
  */
-function getExpandedDerivedBody(cellName, visited = new Set()) {
-	const info = derivedCells.get(cellName);
-	if (!info) return null;
+class InlineContext {
+	constructor() {
+		/**
+		 * Map to track derived cells: cellName -> { body: string, dependencies: string[] }
+		 * body is the function body code (with get() already transformed to .v)
+		 * dependencies is an array of cell names this derived cell depends on (direct dependencies only)
+		 * @type {Map<string, {body: string, dependencies: string[]}>}
+		 */
+		this.derivedCells = new Map();
 
-	// Prevent infinite loops from circular dependencies
-	if (visited.has(cellName)) {
-		return info.body;
+		/**
+		 * Cache for extractPropertyPattern to avoid repeated regex matching
+		 * @type {Map<string, {prefix: string, pattern: string} | null>}
+		 */
+		this.propertyPatternCache = new Map();
 	}
-	visited.add(cellName);
 
-	let expandedBody = info.body;
+	/**
+	 * Register a derived cell
+	 * @param {string} cellName - The cell variable name
+	 * @param {string} body - The transformed function body
+	 * @param {string[]} dependencies - Direct dependencies
+	 */
+	registerDerivedCell(cellName, body, dependencies) {
+		this.derivedCells.set(cellName, { body, dependencies });
+	}
 
-	// Replace any references to other derived cells with their expanded bodies
-	for (const [otherCellName, _otherInfo] of derivedCells) {
-		if (otherCellName === cellName) continue;
+	/**
+	 * Check if a cell is a derived cell
+	 * @param {string} cellName
+	 * @returns {boolean}
+	 */
+	isDerivedCell(cellName) {
+		return this.derivedCells.has(cellName);
+	}
 
-		// Check if this body references the other derived cell
-		const cellRefRegex = new RegExp(`\\b${otherCellName}\\.v\\b`, "g");
-		if (cellRefRegex.test(expandedBody)) {
-			// Recursively get the expanded body for the other cell
-			const otherExpandedBody = getExpandedDerivedBody(otherCellName, visited);
-			if (otherExpandedBody) {
-				// Replace references with the expanded body (wrapped in parens for safety)
-				expandedBody = expandedBody.replace(
-					new RegExp(`\\b${otherCellName}\\.v\\b`, "g"),
-					`(${otherExpandedBody})`,
-				);
-			}
+	/**
+	 * Get the body of a derived cell
+	 * @param {string} cellName
+	 * @returns {{body: string, dependencies: string[]} | undefined}
+	 */
+	getDerivedCellInfo(cellName) {
+		return this.derivedCells.get(cellName);
+	}
+
+	/**
+	 * Get the fully expanded body for a derived cell, recursively resolving any
+	 * references to other derived cells.
+	 * @param {string} cellName - The name of the derived cell
+	 * @param {Set<string>} visited - Set of already visited cells (to prevent infinite loops)
+	 * @returns {string|null} - The fully expanded body, or null if not a derived cell
+	 */
+	getExpandedDerivedBody(cellName, visited = new Set()) {
+		const info = this.derivedCells.get(cellName);
+		if (!info) return null;
+
+		// Prevent infinite loops from circular dependencies
+		if (visited.has(cellName)) {
+			return info.body;
 		}
-	}
+		visited.add(cellName);
 
-	return expandedBody;
-}
+		let expandedBody = info.body;
 
-/**
- * Get all cells that transitively depend on a given cell.
- * This includes direct dependencies and dependencies of dependencies.
- * @param {string} cellName - The source cell name
- * @returns {Set<string>} - Set of all derived cell names that depend on this cell
- */
-function getTransitiveDependents(cellName) {
-	const dependents = new Set();
+		// Replace any references to other derived cells with their expanded bodies
+		for (const otherCellName of this.derivedCells.keys()) {
+			if (otherCellName === cellName) continue;
 
-	// Find direct dependents
-	for (const [derivedCellName, derivedInfo] of derivedCells) {
-		if (derivedInfo.dependencies.includes(cellName)) {
-			dependents.add(derivedCellName);
-		}
-	}
-
-	// Find transitive dependents (cells that depend on our direct dependents)
-	let changed = true;
-	while (changed) {
-		changed = false;
-		for (const [derivedCellName, derivedInfo] of derivedCells) {
-			if (dependents.has(derivedCellName)) continue;
-
-			// Check if this cell depends on any of our current dependents
-			for (const dep of derivedInfo.dependencies) {
-				if (dependents.has(dep)) {
-					dependents.add(derivedCellName);
-					changed = true;
-					break;
+			// Check if this body references the other derived cell
+			const cellRefRegex = new RegExp(`\\b${otherCellName}\\.v\\b`, "g");
+			if (cellRefRegex.test(expandedBody)) {
+				// Recursively get the expanded body for the other cell
+				const otherExpandedBody = this.getExpandedDerivedBody(otherCellName, visited);
+				if (otherExpandedBody) {
+					// Replace references with the expanded body (wrapped in parens for safety)
+					expandedBody = expandedBody.replace(
+						new RegExp(`\\b${otherCellName}\\.v\\b`, "g"),
+						`(${otherExpandedBody})`,
+					);
 				}
 			}
 		}
+
+		return expandedBody;
 	}
 
-	return dependents;
+	/**
+	 * Get all cells that transitively depend on a given cell.
+	 * This includes direct dependencies and dependencies of dependencies.
+	 * @param {string} cellName - The source cell name
+	 * @returns {Set<string>} - Set of all derived cell names that depend on this cell
+	 */
+	getTransitiveDependents(cellName) {
+		const dependents = new Set();
+
+		// Find direct dependents
+		for (const [derivedCellName, derivedInfo] of this.derivedCells) {
+			if (derivedInfo.dependencies.includes(cellName)) {
+				dependents.add(derivedCellName);
+			}
+		}
+
+		// Find transitive dependents (cells that depend on our direct dependents)
+		let changed = true;
+		while (changed) {
+			changed = false;
+			for (const [derivedCellName, derivedInfo] of this.derivedCells) {
+				if (dependents.has(derivedCellName)) continue;
+
+				// Check if this cell depends on any of our current dependents
+				for (const dep of derivedInfo.dependencies) {
+					if (dependents.has(dep)) {
+						dependents.add(derivedCellName);
+						changed = true;
+						break;
+					}
+				}
+			}
+		}
+
+		return dependents;
+	}
+
+	/**
+	 * Extract the property pattern from a cell code (with caching)
+	 * e.g., "row.is_selected" -> { pattern: "is_selected", prefix: "row" }
+	 * e.g., "count" -> null (simple identifier, no pattern)
+	 * @param {string} cellCode
+	 * @returns {{prefix: string, pattern: string} | null}
+	 */
+	extractPropertyPattern(cellCode) {
+		if (this.propertyPatternCache.has(cellCode)) {
+			return this.propertyPatternCache.get(cellCode);
+		}
+		const match = cellCode.match(PROPERTY_PATTERN_REGEX);
+		const result = match ? { prefix: match[1], pattern: match[2] } : null;
+		this.propertyPatternCache.set(cellCode, result);
+		return result;
+	}
 }
 
 /**
@@ -229,7 +292,7 @@ function findRefAssignmentsWithoutBind(ast, code) {
 					left.type === "MemberExpression" &&
 					left.object.type === "Identifier" &&
 					left.property.type === "Identifier" &&
-					left.property.name.startsWith("ref_")
+					left.property.name.startsWith(CONSTANTS.REF_PREFIX)
 				) {
 					cellCode = left.object.name;
 					refProp = left.property.name;
@@ -239,14 +302,14 @@ function findRefAssignmentsWithoutBind(ast, code) {
 					left.type === "MemberExpression" &&
 					left.object.type === "MemberExpression" &&
 					left.property.type === "Identifier" &&
-					left.property.name.startsWith("ref_")
+					left.property.name.startsWith(CONSTANTS.REF_PREFIX)
 				) {
 					cellCode = code.slice(left.object.start, left.object.end);
 					refProp = left.property.name;
 				}
 
 				if (cellCode && refProp) {
-					const refNum = parseInt(refProp.replace("ref_", ""), 10);
+					const refNum = parseInt(refProp.replace(CONSTANTS.REF_PREFIX, ""), 10);
 					const elementVar = stmt.expression.right.name;
 
 					// Look up the element assignment
@@ -314,19 +377,6 @@ function findRefAssignmentsWithoutBind(ast, code) {
 	});
 
 	return refMappings;
-}
-
-/**
- * Extract the property pattern from a cell code
- * e.g., "row.is_selected" -> { pattern: "is_selected", prefix: "row" }
- * e.g., "count" -> null (simple identifier, no pattern)
- */
-function extractPropertyPattern(cellCode) {
-	const match = cellCode.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\.([a-zA-Z_][a-zA-Z0-9_]*)$/);
-	if (match) {
-		return { prefix: match[1], pattern: match[2] };
-	}
-	return null;
 }
 
 /**
@@ -529,7 +579,7 @@ function transformCallbackBody(bodyCode, cellCode, elementVars, paramName, refNu
 	// Replace element variables with cell.ref_N
 	for (const { varName } of elementVars) {
 		const varRegex = new RegExp(`\\b${varName}\\b`, "g");
-		transformed = transformed.replace(varRegex, `${cellCode}.ref_${refNum}`);
+		transformed = transformed.replace(varRegex, `${cellCode}.${CONSTANTS.REF_PREFIX}${refNum}`);
 	}
 
 	// Transform any remaining get() calls to .v access
@@ -542,15 +592,15 @@ function transformCallbackBody(bodyCode, cellCode, elementVars, paramName, refNu
  * Generate ref assignment code: cell.ref_N = elementVar
  */
 function generateRefAssignment(cellCode, elementVar, refNum) {
-	return `${cellCode}.ref_${refNum} = ${elementVar};`;
+	return `${cellCode}.${CONSTANTS.REF_PREFIX}${refNum} = ${elementVar};`;
 }
 
 /**
  * Transform all get(), cell(), put(), set(), and bind() calls
  */
 export function inlineGetCalls(code, filename) {
-	// Clear derived cells map for each file
-	derivedCells.clear();
+	// Create a fresh context for this compilation
+	const ctx = new InlineContext();
 
 	const isTypeScript = filename && (filename.endsWith(".tsx") || filename.endsWith(".ts"));
 	const plugins = isTypeScript ? ["jsx", "typescript"] : ["jsx"];
@@ -566,13 +616,14 @@ export function inlineGetCalls(code, filename) {
 	const { sourceCells: blockSourceCells, variableMappings: blockMappings } = findBlockInfo(
 		ast,
 		code,
+		ctx,
 	);
 
 	// Find all bind() callbacks for inlining
 	const bindCallbacks = findBindCallbacks(ast, code);
 
 	// Find ref assignments without bind() (from codegen's direct ref approach)
-	const refWithoutBind = findRefAssignmentsWithoutBind(ast, code);
+	const refWithoutBind = findRefAssignmentsWithoutBind(ast, code, ctx);
 
 	// Track all calls to transform
 	const getCalls = [];
@@ -629,10 +680,7 @@ export function inlineGetCalls(code, filename) {
 
 					// Transform get() calls in the body to .v access
 					const transformedBody = bodyCode.replace(/\bget\(([^)]+)\)/g, "$1.v");
-					derivedCells.set(cellName, {
-						body: transformedBody,
-						dependencies,
-					});
+					ctx.registerDerivedCell(cellName, transformedBody, dependencies);
 				}
 			}
 		},
@@ -646,7 +694,7 @@ export function inlineGetCalls(code, filename) {
 				const arg = path.node.arguments[0];
 				if (arg) {
 					const argCode = code.slice(arg.start, arg.end);
-					const derivedInfo = derivedCells.get(argCode);
+					const derivedInfo = ctx.getDerivedCellInfo(argCode);
 					getCalls.push({
 						start: path.node.start,
 						end: path.node.end,
@@ -724,7 +772,7 @@ export function inlineGetCalls(code, filename) {
 		if (call.type === "get") {
 			// If this is a derived cell, inline the fully expanded function body
 			if (call.isDerived) {
-				const expandedBody = getExpandedDerivedBody(call.argCode);
+				const expandedBody = ctx.getExpandedDerivedBody(call.argCode);
 				s.overwrite(call.start, call.end, `(${expandedBody})`);
 			} else {
 				s.overwrite(call.start, call.end, `${call.argCode}.v`);
@@ -749,10 +797,10 @@ export function inlineGetCalls(code, filename) {
 
 				// If no exact match, try pattern match (e.g., "prev.is_selected" matches "row.is_selected")
 				if ((!callbacks || callbacks.length === 0) && call.cellCode.includes(".")) {
-					const patternInfo = extractPropertyPattern(call.cellCode);
+					const patternInfo = ctx.extractPropertyPattern(call.cellCode);
 					if (patternInfo) {
 						for (const [existingCellCode, existingCallbacks] of bindCallbacks) {
-							const existingPattern = extractPropertyPattern(existingCellCode);
+							const existingPattern = ctx.extractPropertyPattern(existingCellCode);
 							if (existingPattern && existingPattern.pattern === patternInfo.pattern) {
 								callbacks = existingCallbacks;
 								callbackCellCode = existingCellCode;
@@ -775,8 +823,8 @@ export function inlineGetCalls(code, filename) {
 								cb.refNum,
 							);
 							if (callbackCellCode !== call.cellCode) {
-								const originalPattern = extractPropertyPattern(callbackCellCode);
-								const actualPattern = extractPropertyPattern(call.cellCode);
+								const originalPattern = ctx.extractPropertyPattern(callbackCellCode);
+								const actualPattern = ctx.extractPropertyPattern(call.cellCode);
 								if (originalPattern && actualPattern) {
 									const regex = new RegExp(
 										`\\b${originalPattern.prefix}\\.${originalPattern.pattern}\\b`,
@@ -798,10 +846,10 @@ export function inlineGetCalls(code, filename) {
 				let refCellCode = call.cellCode;
 
 				if ((!refInfos || refInfos.length === 0) && call.cellCode.includes(".")) {
-					const patternInfo = extractPropertyPattern(call.cellCode);
+					const patternInfo = ctx.extractPropertyPattern(call.cellCode);
 					if (patternInfo) {
 						for (const [existingCellCode, existingRefInfos] of refWithoutBind) {
-							const existingPattern = extractPropertyPattern(existingCellCode);
+							const existingPattern = ctx.extractPropertyPattern(existingCellCode);
 							if (existingPattern && existingPattern.pattern === patternInfo.pattern) {
 								refInfos = existingRefInfos;
 								refCellCode = existingCellCode;
@@ -814,10 +862,10 @@ export function inlineGetCalls(code, filename) {
 				if (refInfos && refInfos.length > 0) {
 					return refInfos
 						.map((info) => {
-							let update = `${refCellCode}.ref_${info.refNum}.${info.property} = ${info.updateExpr};`;
+							let update = `${refCellCode}.${CONSTANTS.REF_PREFIX}${info.refNum}.${info.property} = ${info.updateExpr};`;
 							if (refCellCode !== call.cellCode) {
-								const originalPattern = extractPropertyPattern(refCellCode);
-								const actualPattern = extractPropertyPattern(call.cellCode);
+								const originalPattern = ctx.extractPropertyPattern(refCellCode);
+								const actualPattern = ctx.extractPropertyPattern(call.cellCode);
 								if (originalPattern && actualPattern) {
 									const regex = new RegExp(
 										`\\b${originalPattern.prefix}\\.${originalPattern.pattern}\\b`,
@@ -842,14 +890,14 @@ export function inlineGetCalls(code, filename) {
 				const seenUpdates = new Set(); // Deduplicate updates
 
 				// Get ALL cells that transitively depend on the cell being set
-				const transitiveDependents = getTransitiveDependents(call.cellCode);
+				const transitiveDependents = ctx.getTransitiveDependents(call.cellCode);
 
 				for (const derivedCellName of transitiveDependents) {
 					// Find refs for the derived cell to update them
 					const derivedRefInfos = refWithoutBind.get(derivedCellName);
 					if (derivedRefInfos && derivedRefInfos.length > 0) {
 						// Get the fully expanded body for this derived cell
-						const expandedBody = getExpandedDerivedBody(derivedCellName);
+						const expandedBody = ctx.getExpandedDerivedBody(derivedCellName);
 
 						for (const info of derivedRefInfos) {
 							// Replace references to the derived cell with its fully expanded body
@@ -859,7 +907,7 @@ export function inlineGetCalls(code, filename) {
 								new RegExp(`\\b${derivedCellName}\\.v\\b`, "g"),
 								`(${expandedBody})`,
 							);
-							const updateCode = `${derivedCellName}.ref_${info.refNum}.${info.property} = ${updateExpr};`;
+							const updateCode = `${derivedCellName}.${CONSTANTS.REF_PREFIX}${info.refNum}.${info.property} = ${updateExpr};`;
 
 							// Deduplicate
 							if (!seenUpdates.has(updateCode)) {
@@ -894,10 +942,10 @@ export function inlineGetCalls(code, filename) {
 			// block source has the same property name (pattern matching)
 			// e.g., todoColumn.tasks should match column.tasks
 			if (!isBlockSource && call.cellCode.includes(".")) {
-				const callPattern = extractPropertyPattern(call.cellCode);
+				const callPattern = ctx.extractPropertyPattern(call.cellCode);
 				if (callPattern) {
 					for (const sourceCell of blockSourceCells) {
-						const sourcePattern = extractPropertyPattern(sourceCell);
+						const sourcePattern = ctx.extractPropertyPattern(sourceCell);
 						if (sourcePattern && sourcePattern.pattern === callPattern.pattern) {
 							isBlockSource = true;
 							break;

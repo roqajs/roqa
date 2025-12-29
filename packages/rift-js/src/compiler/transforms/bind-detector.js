@@ -1,8 +1,5 @@
-import _traverse from "@babel/traverse";
+import { traverse } from "../utils.js";
 import { isGetCall, extractGetCellArg } from "../parser.js";
-
-// Handle CJS/ESM interop
-const traverse = _traverse.default || _traverse;
 
 /**
  * Auto-detect get() calls in JSX expressions and generate bind() wrappers

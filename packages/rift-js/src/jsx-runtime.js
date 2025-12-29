@@ -22,7 +22,7 @@
  * @param {string} [key] - Element key (unused in Rift)
  * @returns {void}
  */
-export function jsx(type, props, key) {
+export function jsx(type, _props, _key) {
 	throw new Error(
 		`[Rift] Uncompiled JSX detected: <${
 			typeof type === "function" ? type.name || "Component" : type
@@ -48,7 +48,7 @@ export function jsxs(type, props, key) {
  * @param {{ children?: any }} props - Fragment props
  * @returns {void}
  */
-export function Fragment(props) {
+export function Fragment(_props) {
 	throw new Error(
 		`[Rift] Uncompiled JSX Fragment detected. ` +
 			`Rift requires JSX to be compiled at build time. ` +
@@ -64,7 +64,7 @@ export function Fragment(props) {
  * @param {{ each: any, children: Function }} props
  * @returns {void}
  */
-export function For(props) {
+export function For(_props) {
 	throw new Error(
 		`[Rift] Uncompiled <For> component detected. ` +
 			`Rift requires JSX to be compiled at build time. ` +

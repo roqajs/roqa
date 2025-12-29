@@ -1,8 +1,5 @@
-import _traverse from "@babel/traverse";
+import { traverse } from "../utils.js";
 import { getJSXElementName, isPascalCase, isControlFlowComponent } from "../parser.js";
-
-// Handle CJS/ESM interop
-const traverse = _traverse.default || _traverse;
 
 /**
  * Validate that no unsupported PascalCase components remain in the AST
