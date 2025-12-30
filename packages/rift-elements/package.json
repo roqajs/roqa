@@ -28,6 +28,11 @@
 			"import": "./dist/index.js",
 			"default": "./dist/index.js"
 		},
+		"./avatar": {
+			"types": "./types/avatar/index.d.ts",
+			"import": "./dist/avatar/index.js",
+			"default": "./dist/avatar/index.js"
+		},
 		"./switch": {
 			"types": "./types/switch/index.d.ts",
 			"import": "./dist/switch/index.js",

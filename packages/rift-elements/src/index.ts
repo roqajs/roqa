@@ -2,3 +2,4 @@
 // Re-export all components
 
 export * from "./switch";
+export * from "./avatar";

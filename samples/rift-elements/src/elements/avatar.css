@@ -1,0 +1,59 @@
+/* Avatar base styles */
+avatar-root {
+	display: inline-flex;
+	justify-content: center;
+	align-items: center;
+	vertical-align: middle;
+	border-radius: 100%;
+	user-select: none;
+	font-weight: 500;
+	color: var(--color-gray-900);
+	background-color: var(--color-gray-100);
+	font-size: 1rem;
+	line-height: 1;
+	overflow: hidden;
+	height: 3rem;
+	width: 3rem;
+}
+
+avatar-image {
+	display: block;
+	height: 100%;
+	width: 100%;
+}
+
+avatar-fallback {
+	align-items: center;
+	display: flex;
+	justify-content: center;
+	height: 100%;
+	width: 100%;
+	font-size: 1rem;
+}
+
+/* Size variants */
+avatar-root.avatar-sm {
+	height: 2rem;
+	width: 2rem;
+	font-size: 0.75rem;
+}
+
+avatar-root.avatar-lg {
+	height: 4rem;
+	width: 4rem;
+	font-size: 1.5rem;
+}
+
+/* Layout helpers */
+.avatar-row {
+	display: flex;
+	gap: 1rem;
+	align-items: center;
+}
+
+/* Hint text */
+.hint {
+	margin: 0 0 1rem;
+	font-size: 0.875rem;
+	color: var(--color-gray-500);
+}
