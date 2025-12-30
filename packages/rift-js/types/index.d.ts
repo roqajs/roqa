@@ -132,14 +132,53 @@ export interface EmitOptions {
 export type RiftElement<T extends object = {}> = HTMLElement & RiftElementMethods & T;
 
 /**
+ * A form-associated Rift element with access to ElementInternals.
+ * Use this type when your component has `formAssociated: true`.
+ *
+ * @example
+ * ```tsx
+ * function MyInput(this: FormAssociatedRiftElement<MyInputMethods>, props: MyInputProps) {
+ *   this.connected(() => {
+ *     // Access form internals
+ *     this.internals.setFormValue(value);
+ *     this.internals.setValidity({ valueMissing: true }, "Required");
+ *   });
+ * }
+ *
+ * defineComponent("my-input", MyInput, { formAssociated: true });
+ * ```
+ */
+export type FormAssociatedRiftElement<T extends object = {}> = RiftElement<T> & {
+	/**
+	 * The ElementInternals object for form association.
+	 * Provides access to form submission, validation, and accessibility features.
+	 */
+	internals: ElementInternals;
+};
+
+/**
  * Methods available on all Rift custom elements
  */
 export interface RiftElementMethods {
 	/**
 	 * Register a callback to run when the component is connected to the DOM.
 	 * Multiple callbacks can be registered and will run in order.
+	 *
+	 * If the callback returns a function, it will be called when the component
+	 * disconnects (useful for cleanup like unsubscribing from cells).
+	 *
+	 * @example
+	 * ```tsx
+	 * this.connected(() => {
+	 *   const unbind = bind(someCell, (value) => {
+	 *     // react to changes
+	 *   });
+	 *   // Return cleanup function
+	 *   return unbind;
+	 * });
+	 * ```
 	 */
-	connected(callback: () => void): void;
+	connected(callback: () => void | (() => void)): void;
 
 	/**
 	 * Register a callback to run when the component is disconnected from the DOM.
@@ -181,6 +220,66 @@ export interface RiftElementMethods {
 	 * @param options - Optional event options (bubbles, composed)
 	 */
 	emit<T = unknown>(eventName: string, detail?: T, options?: EmitOptions): void;
+
+	/**
+	 * Toggle a boolean attribute based on a condition.
+	 * When true, the attribute is present (empty string value).
+	 * When false, the attribute is removed.
+	 *
+	 * @param name - The attribute name
+	 * @param condition - Whether the attribute should be present
+	 *
+	 * @example
+	 * ```tsx
+	 * this.toggleAttr("disabled", isDisabled);
+	 * // true  → <my-element disabled>
+	 * // false → <my-element>
+	 * ```
+	 */
+	toggleAttr(name: string, condition: boolean): void;
+
+	/**
+	 * Set a state attribute with mutually exclusive on/off variants.
+	 * Creates a pair of attributes where only one is present at a time.
+	 * The "off" variant is prefixed with "un" (e.g., "checked" / "unchecked").
+	 *
+	 * @param name - The base attribute name
+	 * @param condition - The state value
+	 *
+	 * @example
+	 * ```tsx
+	 * this.stateAttr("checked", isChecked);
+	 * // true  → <my-element checked>
+	 * // false → <my-element unchecked>
+	 * ```
+	 */
+	stateAttr(name: string, condition: boolean): void;
+
+	/**
+	 * Register a callback for when an observed attribute changes.
+	 * The attribute must be declared in the `observedAttributes` option of defineComponent.
+	 * Uses the native `attributeChangedCallback` lifecycle method.
+	 *
+	 * @param name - The attribute name (must be in observedAttributes)
+	 * @param callback - Called when attribute changes
+	 *
+	 * @example
+	 * ```tsx
+	 * // Declare observed attributes in defineComponent:
+	 * defineComponent("my-switch", MySwitch, {
+	 *   observedAttributes: ["checked", "disabled"]
+	 * });
+	 *
+	 * // Handle changes in component:
+	 * this.attrChanged("checked", (newValue, oldValue) => {
+	 *   console.log("checked changed from", oldValue, "to", newValue);
+	 * });
+	 * ```
+	 */
+	attrChanged(
+		name: string,
+		callback: (newValue: string | null, oldValue: string | null) => void,
+	): void;
 }
 
 /**
@@ -205,14 +304,40 @@ export function setProp(element: Element, propName: string, value: unknown): voi
 export function getProps(element: Element): ComponentProps;
 
 /**
+ * Options for defineComponent
+ */
+export interface DefineComponentOptions {
+	/**
+	 * Attributes to observe for changes via attributeChangedCallback.
+	 * Use `this.attrChanged()` in your component to handle changes.
+	 */
+	observedAttributes?: string[];
+	/**
+	 * Whether the element participates in form submission.
+	 * When true, the element gets access to `this.internals` (ElementInternals)
+	 * for form value submission, validation, and accessibility.
+	 *
+	 * @example
+	 * ```tsx
+	 * defineComponent("my-switch", MySwitch, {
+	 *   formAssociated: true,
+	 *   observedAttributes: ["checked"]
+	 * });
+	 * ```
+	 */
+	formAssociated?: boolean;
+}
+
+/**
  * Define a custom element component
  * @param tagName - The custom element tag name (must contain a hyphen)
  * @param fn - The component function that receives props as its first argument
+ * @param options - Optional configuration (observedAttributes, etc.)
  */
 export function defineComponent<
 	P extends ComponentProps = ComponentProps,
 	E extends object = object,
->(tagName: string, fn: ComponentFunction<P, E>): void;
+>(tagName: string, fn: ComponentFunction<P, E>, options?: DefineComponentOptions): void;
 
 // ============================================
 // List Rendering
