@@ -226,21 +226,28 @@ Use this for SVG elements to ensure they're created in the correct namespace.
 
 ## Components
 
-### `defineComponent(tagName, fn)`
+### `defineComponent(tagName, fn, options?)`
 
 Registers a function as a web component.
 
 ```ts
 function defineComponent<P>(
   tagName: string,
-  fn: ComponentFunction<P>
+  fn: ComponentFunction<P>,
+  options?: DefineComponentOptions
 ): void
+
+interface DefineComponentOptions {
+  observedAttributes?: string[];
+}
 ```
 
 **Parameters:**
 
 - `tagName` - The custom element tag name (must contain a hyphen)
 - `fn` - The component function
+- `options` - Optional configuration object
+  - `observedAttributes` - Array of attribute names to observe for changes
 
 **Example:**
 
@@ -252,6 +259,28 @@ function Counter() {
 
 defineComponent('my-counter', Counter);
 ```
+
+**With observed attributes:**
+
+```jsx
+function Switch() {
+  const checked = cell(false);
+
+  this.attrChanged('checked', (newValue) => {
+    set(checked, newValue !== null);
+  });
+
+  return <span role="switch">...</span>;
+}
+
+defineComponent('my-switch', Switch, {
+  observedAttributes: ['checked', 'disabled']
+});
+```
+
+<Aside>
+When you specify `observedAttributes`, use `this.attrChanged()` in your component to handle the changes. This uses the native `attributeChangedCallback` lifecycle method.
+</Aside>
 
 ---
 
@@ -444,6 +473,13 @@ interface ComponentContext extends HTMLElement {
   disconnected(callback: () => void): void;
   on(event: string, handler: EventListener): void;
   emit(event: string, detail?: any): void;
+  toggleAttr(name: string, condition: boolean): void;
+  stateAttr(name: string, condition: boolean): void;
+  attrChanged(name: string, callback: (newValue: string | null, oldValue: string | null) => void): void;
+}
+
+interface DefineComponentOptions {
+  observedAttributes?: string[];
 }
 
 interface ForBlockController<T> {

@@ -228,6 +228,145 @@ defineComponent('color-picker', ColorPicker);
 
 ---
 
+## Attribute Methods
+
+### `this.toggleAttr(name, condition)`
+
+Toggles a boolean attribute based on a condition.
+
+```ts
+this.toggleAttr(name: string, condition: boolean): void
+```
+
+**Parameters:**
+
+- `name` - The attribute name
+- `condition` - Whether the attribute should be present
+
+**Behavior:**
+
+- When `condition` is `true`, the attribute is added (empty string value)
+- When `condition` is `false`, the attribute is removed
+
+**Example:**
+
+```jsx
+function Switch(props) {
+  const { disabled, checked } = props;
+
+  this.connected(() => {
+    this.toggleAttr('disabled', disabled);
+    this.toggleAttr('aria-disabled', disabled);
+  });
+
+  return <span role="switch">...</span>;
+}
+
+// When disabled=true:  <my-switch disabled aria-disabled>
+// When disabled=false: <my-switch>
+```
+
+---
+
+### `this.stateAttr(name, condition)`
+
+Sets a state attribute with mutually exclusive on/off variants.
+
+```ts
+this.stateAttr(name: string, condition: boolean): void
+```
+
+**Parameters:**
+
+- `name` - The base attribute name
+- `condition` - The state value
+
+**Behavior:**
+
+- When `condition` is `true`, sets the attribute and removes the "un"-prefixed variant
+- When `condition` is `false`, removes the attribute and sets the "un"-prefixed variant
+
+**Example:**
+
+```jsx
+function Switch(props) {
+  const checked = cell(false);
+
+  const updateState = (value) => {
+    this.stateAttr('checked', value);
+  };
+
+  this.connected(() => {
+    updateState(get(checked));
+  });
+
+  return <span role="switch">...</span>;
+}
+
+// When checked=true:  <my-switch checked>
+// When checked=false: <my-switch unchecked>
+```
+
+<Aside type="tip">
+Use `stateAttr` when you need to style both states in CSS, e.g., `[checked]` for on and `[unchecked]` for off animations.
+</Aside>
+
+---
+
+### `this.attrChanged(name, callback)`
+
+Registers a callback for when an observed attribute changes.
+
+```ts
+this.attrChanged(
+  name: string,
+  callback: (newValue: string | null, oldValue: string | null) => void
+): void
+```
+
+**Parameters:**
+
+- `name` - The attribute name (must be declared in `observedAttributes`)
+- `callback` - Called when the attribute changes
+
+**Requirements:**
+
+The attribute must be declared in the `observedAttributes` option when calling `defineComponent`:
+
+```jsx
+defineComponent('my-switch', Switch, {
+  observedAttributes: ['checked', 'disabled']
+});
+```
+
+**Example:**
+
+```jsx
+function Switch(props) {
+  const checked = cell(false);
+
+  // Handle external attribute changes (controlled mode)
+  this.attrChanged('checked', (newValue, oldValue) => {
+    const isChecked = newValue !== null;
+    if (isChecked !== get(checked)) {
+      set(checked, isChecked);
+    }
+  });
+
+  return <span role="switch">...</span>;
+}
+
+defineComponent('my-switch', Switch, {
+  observedAttributes: ['checked']
+});
+```
+
+<Aside>
+This uses the native `attributeChangedCallback` lifecycle method internally, which is more efficient than using MutationObserver.
+</Aside>
+
+---
+
 ## DOM Access
 
 Inside `connected()`, `this` is the actual HTMLElement:
@@ -435,12 +574,15 @@ defineComponent('user-editor', UserEditor);
 
 ## API Summary
 
-| Method                     | Purpose                         |
-| -------------------------- | ------------------------------- |
-| `this.connected(fn)`       | Run code when mounted           |
-| `this.disconnected(fn)`    | Run code when unmounted         |
-| `this.on(event, handler)`  | Listen to events (auto-cleanup) |
-| `this.emit(event, detail)` | Dispatch custom events          |
+| Method                        | Purpose                                  |
+| ----------------------------- | ---------------------------------------- |
+| `this.connected(fn)`          | Run code when mounted                    |
+| `this.disconnected(fn)`       | Run code when unmounted                  |
+| `this.on(event, handler)`     | Listen to events (auto-cleanup)          |
+| `this.emit(event, detail)`    | Dispatch custom events                   |
+| `this.toggleAttr(name, bool)` | Toggle a boolean attribute               |
+| `this.stateAttr(name, bool)`  | Set mutually exclusive state attributes  |
+| `this.attrChanged(name, fn)`  | React to observed attribute changes      |
 
 | Property             | Type             | Description            |
 | -------------------- | ---------------- | ---------------------- |

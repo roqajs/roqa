@@ -303,14 +303,84 @@ setProp(el, 'items', [1, 2, 3]);
 
 ## Patterns Summary
 
-| Direction      | Pattern             | Best For                |
-| -------------- | ------------------- | ----------------------- |
-| Parent → Child | `setProp()`         | Complex data, callbacks |
-| Parent → Child | HTML attributes     | Simple strings          |
-| Child → Parent | `this.emit()`       | Notifications, actions  |
-| Child → Parent | Callback props      | Direct interaction      |
-| Siblings       | Through parent      | Coordinated state       |
-| Global         | Shared state module | App-wide state          |
+| Direction      | Pattern                | Best For                 |
+| -------------- | ---------------------- | ------------------------ |
+| Parent → Child | `setProp()`            | Complex data, callbacks  |
+| Parent → Child | HTML attributes        | Simple strings           |
+| Parent → Child | Attribute observation  | Reactive attribute sync  |
+| Child → Parent | `this.emit()`          | Notifications, actions   |
+| Child → Parent | Callback props         | Direct interaction       |
+| Siblings       | Through parent         | Coordinated state        |
+| Global         | Shared state module    | App-wide state           |
+
+## Observing Attribute Changes
+
+For components that need to react to external attribute changes (controlled components), use `attrChanged()`:
+
+```jsx
+function ControlledSwitch() {
+  const checked = cell(false);
+
+  // React to external attribute changes
+  this.attrChanged('checked', (newValue) => {
+    const isChecked = newValue !== null;
+    set(checked, isChecked);
+  });
+
+  this.connected(() => {
+    this.stateAttr('checked', get(checked));
+  });
+
+  return (
+    <span 
+      role="switch"
+      onclick={() => {
+        const newValue = !get(checked);
+        set(checked, newValue);
+        this.stateAttr('checked', newValue);
+        this.emit('checked-change', { checked: newValue });
+      }}
+    >
+      <span class="thumb"></span>
+    </span>
+  );
+}
+
+// Must declare observed attributes
+defineComponent('controlled-switch', ControlledSwitch, {
+  observedAttributes: ['checked']
+});
+```
+
+Now the parent can control the switch via attributes:
+
+```jsx
+function App() {
+  const isEnabled = cell(false);
+
+  this.connected(() => {
+    const toggle = this.querySelector('controlled-switch');
+
+    // Listen for changes from the switch
+    toggle.addEventListener('checked-change', (e) => {
+      set(isEnabled, e.detail.checked);
+    });
+  });
+
+  return (
+    <div>
+      <controlled-switch checked={get(isEnabled)}></controlled-switch>
+      <button onclick={() => set(isEnabled, !get(isEnabled))}>
+        Toggle from parent
+      </button>
+    </div>
+  );
+}
+```
+
+<Aside>
+`attrChanged()` uses the native `attributeChangedCallback` lifecycle method, which is more efficient than MutationObserver. Attributes must be declared in `observedAttributes` when defining the component.
+</Aside>
 
 ## Best Practices
 
