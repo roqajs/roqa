@@ -17,6 +17,8 @@ function SwitchDemo(this: RiftElement) {
 
 	return (
 		<>
+			<h1>Switch</h1>
+			<p class="description">A component used to toggle between two states, such as on and off.</p>
 			<section>
 				<h2>Basic Switch</h2>
 				<switch-root id="basic-switch">

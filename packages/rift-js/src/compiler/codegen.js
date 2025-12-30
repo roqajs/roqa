@@ -1,5 +1,4 @@
 import MagicString from "magic-string";
-import { CONSTANTS, traverse, escapeStringLiteral } from "./utils.js";
 import { isJSXElement, isJSXFragment } from "./parser.js";
 import { processBindings, findGetCalls } from "./transforms/bind-detector.js";
 import { processEvents, generateEventAssignment } from "./transforms/events.js";
@@ -10,6 +9,7 @@ import {
 	extractTemplate,
 } from "./transforms/jsx-to-template.js";
 import { extractShowInfo } from "./transforms/show-transform.js";
+import { CONSTANTS, traverse, escapeStringLiteral } from "./utils.js";
 
 /**
  * Code generator using magic-string for efficient string manipulation
@@ -946,15 +946,17 @@ function generateBinding(
 	// Build prefix string if we have static text before the dynamic expression
 	const prefixCode = staticPrefix ? `"${escapeStringLiteral(staticPrefix)}" + ` : "";
 
-	// For SVG elements, use setAttribute instead of property assignment
-	// (except for className which works as a property)
-	const useSvgSetAttribute =
-		isSvg && targetProperty !== "className" && targetProperty !== "nodeValue";
+	// For SVG elements or attributes with hyphens, use setAttribute instead of property assignment
+	// (except for className and nodeValue which work as properties)
+	const needsSetAttribute =
+		(isSvg || targetProperty.includes("-")) &&
+		targetProperty !== "className" &&
+		targetProperty !== "nodeValue";
 
 	if (isStatic) {
 		// Static assignment
 		const exprCode = generateExpr(code, fullExpression);
-		if (useSvgSetAttribute) {
+		if (needsSetAttribute) {
 			return `${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${exprCode});`;
 		}
 		return `${targetVar}.${targetProperty} = ${prefixCode}${exprCode};`;
@@ -968,8 +970,8 @@ function generateBinding(
 
 	// Check if this is a simple direct binding (works for both for_block and component level)
 	// If so, we can use ref-based direct DOM updates instead of bind()
-	// Note: For SVG we skip ref optimization since setAttribute needs different handling
-	if (isSimpleDirectBinding(binding) && cellRefCounts && !useSvgSetAttribute) {
+	// Note: For SVG or hyphenated attributes we skip ref optimization since setAttribute needs different handling
+	if (isSimpleDirectBinding(binding) && cellRefCounts && !needsSetAttribute) {
 		// Get or initialize the ref count for this cell
 		const currentCount = cellRefCounts.get(cellCode) || 0;
 		const refNum = currentCount + 1;
@@ -999,7 +1001,7 @@ ${indent}${cellCode}.${CONSTANTS.REF_PREFIX}${refNum} = ${targetVar};`;
 	}
 
 	// Set initial value AND bind for updates
-	if (useSvgSetAttribute) {
+	if (needsSetAttribute) {
 		return `${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${initialExprCode});
     bind(${cellCode}, (v) => {
       ${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${bindExprCode});
@@ -1095,14 +1097,7 @@ ${indent}});`;
  * Generate code for a prop binding (for custom elements)
  */
 function generatePropBinding(code, binding, usedImports) {
-	const {
-		targetVar,
-		propName,
-		expression,
-		fullExpression,
-		isStatic,
-		isThirdParty,
-	} = binding;
+	const { targetVar, propName, expression, fullExpression, isStatic, isThirdParty } = binding;
 
 	// For third-party web components, set property directly on the element
 	// For Rift components, use setProp() with WeakMap for pre-upgrade storage

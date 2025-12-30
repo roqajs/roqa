@@ -5,6 +5,8 @@ import "./avatar.css";
 function AvatarDemo() {
 	return (
 		<>
+			<h1>Avatar</h1>
+			<p class="description">A component used to represent users or entities visually.</p>
 			<section>
 				<h2>With Image</h2>
 				<p class="hint">Image loads successfully, fallback is hidden</p>

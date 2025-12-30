@@ -103,7 +103,7 @@ switch-thumb {
 .validation-demo .hint {
 	margin: 0 0 1rem;
 	font-size: 0.875rem;
-	color: var(--color-gray-500);
+	color: var(--color-gray-750);
 }
 
 .validation-demo .hint code {
