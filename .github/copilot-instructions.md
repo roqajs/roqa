@@ -325,6 +325,28 @@ Minimal runtime for features that can't be compile-time:
 | `show-block.js` | Conditional rendering (`<Show>` component)     |
 | `events.js`     | Event delegation system                        |
 
+### Component API (`component.js`)
+
+The `RiftElement` base class provides these methods on `this`:
+
+| Method                          | Purpose                                     |
+| ------------------------------- | ------------------------------------------- |
+| `connected(fn)`                 | Register callback for when mounted          |
+| `disconnected(fn)`              | Register callback for when unmounted        |
+| `on(event, handler)`            | Add event listener (auto-cleanup)           |
+| `emit(event, detail)`           | Dispatch custom event                       |
+| `toggleAttr(name, condition)`   | Add/remove boolean attribute                |
+| `stateAttr(name, condition)`    | Set mutually exclusive attrs (e.g. checked/unchecked) |
+| `attrChanged(name, callback)`   | React to observed attribute changes         |
+
+`defineComponent()` accepts an options object:
+
+```js
+defineComponent('my-switch', Switch, {
+  observedAttributes: ['checked', 'disabled']  // Enable attrChanged() for these
+});
+```
+
 ---
 
 ## Example Transformation
