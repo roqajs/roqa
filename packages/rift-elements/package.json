@@ -33,6 +33,11 @@
 			"import": "./dist/avatar/index.js",
 			"default": "./dist/avatar/index.js"
 		},
+		"./button": {
+			"types": "./types/button/index.d.ts",
+			"import": "./dist/button/index.js",
+			"default": "./dist/button/index.js"
+		},
 		"./switch": {
 			"types": "./types/switch/index.d.ts",
 			"import": "./dist/switch/index.js",

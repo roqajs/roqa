@@ -1,9 +1,10 @@
 import { defineComponent, cell, get, set, type RiftElement, Show } from "rift-js";
 import "./elements/switch";
 import "./elements/avatar";
+import "./elements/button";
 import "./main.css";
 
-type Demo = "avatar" | "switch";
+type Demo = "avatar" | "switch" | "button";
 
 function App(this: RiftElement) {
 	const activeDemo = cell<Demo>("avatar");
@@ -35,6 +36,13 @@ function App(this: RiftElement) {
 						>
 							Switch
 						</button>
+						<button
+							class="nav-item"
+							data-active={get(activeDemo) === "button" ? "true" : "false"}
+							onclick={() => selectDemo("button")}
+						>
+							Button
+						</button>
 					</nav>
 				</aside>
 				<main class="content">
@@ -43,6 +51,9 @@ function App(this: RiftElement) {
 					</Show>
 					<Show when={get(activeDemo) === "switch"}>
 						<switch-demo></switch-demo>
+					</Show>
+					<Show when={get(activeDemo) === "button"}>
+						<button-demo></button-demo>
 					</Show>
 				</main>
 			</div>

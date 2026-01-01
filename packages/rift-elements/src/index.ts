@@ -3,3 +3,4 @@
 
 export * from "./switch";
 export * from "./avatar";
+export * from "./button";

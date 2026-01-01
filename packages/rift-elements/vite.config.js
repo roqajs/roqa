@@ -9,6 +9,7 @@ export default defineConfig({
 			entry: {
 				index: resolve(__dirname, "src/index.ts"),
 				"switch/index": resolve(__dirname, "src/switch/index.ts"),
+				"button/index": resolve(__dirname, "src/button/index.ts"),
 			},
 			formats: ["es"],
 		},
