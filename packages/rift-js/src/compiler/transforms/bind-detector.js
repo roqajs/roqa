@@ -1,14 +1,14 @@
-import { traverse } from "../utils.js";
 import { isGetCall, extractGetCellArg } from "../parser.js";
+import { traverse } from "../utils.js";
 
 /**
  * Auto-detect get() calls in JSX expressions and generate bind() wrappers
  *
  * Input JSX:
- *   <tr class={get(row.is_selected) ? "danger" : ""}>{get(row.label)}</tr>
+ *   <tr class={get(row.isSelected) ? "danger" : ""}>{get(row.label)}</tr>
  *
  * Output:
- *   bind(row.is_selected, (v) => { tr_1.className = v ? "danger" : ""; });
+ *   bind(row.isSelected, (v) => { tr_1.className = v ? "danger" : ""; });
  *   bind(row.label, (v) => { a_1_text.nodeValue = v; });
  */
 

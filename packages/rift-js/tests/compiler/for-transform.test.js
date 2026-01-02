@@ -9,7 +9,7 @@ import {
  * Tests for the For component transformation
  *
  * The for-transform handles the <For each={items}> control flow component,
- * converting it to for_block() runtime calls. Key responsibilities:
+ * converting it to forBlock() runtime calls. Key responsibilities:
  * - Extracting the each expression (the cell/array to iterate)
  * - Parsing the callback parameters (item, index)
  * - Generating the callback preamble for indexed access
@@ -17,7 +17,7 @@ import {
  * Example transformation:
  *   <For each={items}>{(item, i) => <li>{item}</li>}</For>
  *   ->
- *   for_block(container, items, (anchor, item, i) => { ... })
+ *   forBlock(container, items, (anchor, item, i) => { ... })
  */
 
 describe("extractForInfo", () => {

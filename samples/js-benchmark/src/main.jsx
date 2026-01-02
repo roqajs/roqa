@@ -59,47 +59,47 @@ const nouns = [
 const rand = (dict) => dict[Math.round(Math.random() * 1000) % dict.length];
 
 function App() {
-	let row_id = 1;
+	let rowId = 1;
 	const rows = cell([]);
-	const selected_row = cell(null);
+	const selectedRow = cell(null);
 
-	function build_data(count = 1000) {
+	function buildData(count = 1000) {
 		const data = Array.from({ length: count });
 		for (let i = 0; i < count; i++) {
 			const text = rand(adjectives) + " " + rand(colours) + " " + rand(nouns);
 			data[i] = {
-				id: row_id++,
+				id: rowId++,
 				label: cell(text),
-				is_selected: cell(false),
+				isSelected: cell(false),
 			};
 		}
 		return data;
 	}
 
 	const run = () => {
-		set(rows, build_data(1000));
+		set(rows, buildData(1000));
 	};
 
-	const runlots = () => {
-		set(rows, build_data(10000));
+	const runLots = () => {
+		set(rows, buildData(10000));
 	};
 
 	const add = () => {
-		set(rows, [...get(rows), ...build_data(1000)]);
+		set(rows, [...get(rows), ...buildData(1000)]);
 	};
 
 	const clear = () => {
 		set(rows, []);
-		put(selected_row, null);
+		put(selectedRow, null);
 	};
 
-	const update_rows = () => {
+	const updateRows = () => {
 		for (let i = 0, row; (row = get(rows)[i]); i += 10) {
 			set(row.label, get(row.label) + " !!!");
 		}
 	};
 
-	const swaprows = () => {
+	const swapRows = () => {
 		if (get(rows).length > 998) {
 			const clone = get(rows).slice();
 			const temp = clone[1];
@@ -110,10 +110,10 @@ function App() {
 	};
 
 	const select = (row) => {
-		const prev = get(selected_row);
-		if (prev) set(prev.is_selected, false);
-		set(row.is_selected, true);
-		put(selected_row, row);
+		const prev = get(selectedRow);
+		if (prev) set(prev.isSelected, false);
+		set(row.isSelected, true);
+		put(selectedRow, row);
 	};
 
 	const remove = (row) => {
@@ -140,8 +140,8 @@ function App() {
 								<button
 									type="button"
 									class="btn btn-primary btn-block"
-									id="runlots"
-									onclick={runlots}
+									id="runLots"
+									onclick={runLots}
 								>
 									Create 10,000 rows
 								</button>
@@ -156,7 +156,7 @@ function App() {
 									type="button"
 									class="btn btn-primary btn-block"
 									id="update"
-									onclick={update_rows}
+									onclick={updateRows}
 								>
 									Update every 10th row
 								</button>
@@ -170,8 +170,8 @@ function App() {
 								<button
 									type="button"
 									class="btn btn-primary btn-block"
-									id="swaprows"
-									onclick={swaprows}
+									id="swapRows"
+									onclick={swapRows}
 								>
 									Swap Rows
 								</button>
@@ -184,7 +184,7 @@ function App() {
 				<tbody>
 					<For each={rows}>
 						{(row) => (
-							<tr class={get(row.is_selected) ? "danger" : ""}>
+							<tr class={get(row.isSelected) ? "danger" : ""}>
 								<td class="col-md-1">{row.id}</td>
 								<td class="col-md-4">
 									<a onclick={() => select(row)}>{get(row.label)}</a>

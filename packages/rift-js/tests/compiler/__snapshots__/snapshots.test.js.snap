@@ -2,9 +2,9 @@
 
 exports[`compile snapshots > SVG > compiles SVG elements 1`] = `
 "
-import { bind, defineComponent, svg_template, template } from "rift-js";
+import { bind, defineComponent, svgTemplate, template } from "rift-js";
 
-const $tmpl_1 = svg_template('<svg width="100" height="100"><circle cx="50" cy="50"></circle></svg>');
+const $tmpl_1 = svgTemplate('<svg width="100" height="100"><circle cx="50" cy="50"></circle></svg>');
 
 function Circle() {
 	const radius = { v: 50, e: [] };
@@ -238,7 +238,7 @@ defineComponent('parent-component', ParentComponent);
 
 exports[`compile snapshots > control flow > compiles For component 1`] = `
 "
-import { defineComponent, for_block, get, template } from "rift-js";
+import { defineComponent, forBlock, get, template } from "rift-js";
 
 const $tmpl_1 = template('<ul></ul>');
 const $tmpl_2 = template('<li> </li>');
@@ -246,14 +246,14 @@ const $tmpl_2 = template('<li> </li>');
 function TodoList() {
 	const items = { v: ['Learn Rift', 'Build app', 'Deploy'], e: [] };
 	
-	let items_for_block;
+	let items_forBlock;
   this.connected(() => {
     const $root_1 = $tmpl_1();
     this.appendChild($root_1);
 
     const ul_1 = this.firstChild;
 
-    items_for_block = for_block(ul_1, items, (anchor, item, index) => {
+    items_forBlock = forBlock(ul_1, items, (anchor, item, index) => {
       const $root_2 = $tmpl_2();
 
       const li_1 = $root_2.firstChild;
@@ -274,7 +274,7 @@ defineComponent('todo-list', TodoList);
 
 exports[`compile snapshots > control flow > compiles Show component 1`] = `
 "
-import { defineComponent, delegate, show_block, template } from "rift-js";
+import { defineComponent, delegate, showBlock, template } from "rift-js";
 
 const $tmpl_1 = template('<div><button>Toggle</button></div>');
 const $tmpl_2 = template('<p>Now you see me!</p>');
@@ -291,7 +291,7 @@ function Toggle() {
 
     button_1.__click = () => { visible.v = !visible.v; for (let i = 0; i < visible.e.length; i++) visible.e[i](visible.v); };
 
-    show_block(div_1, visible, (anchor) => {
+    showBlock(div_1, visible, (anchor) => {
       const $root_2 = $tmpl_2();
       const $root_2_first = $root_2.firstChild;
 
@@ -311,7 +311,7 @@ delegate(["click"]);"
 
 exports[`compile snapshots > control flow > compiles nested For and Show 1`] = `
 "
-import { defineComponent, for_block, get, show_block, template } from "rift-js";
+import { defineComponent, forBlock, get, showBlock, template } from "rift-js";
 
 const $tmpl_1 = template('<table></table>');
 const $tmpl_2 = template('<tr><td> </td><td> </td></tr>');
@@ -323,14 +323,14 @@ function DataGrid() {
 		{ id: 2, name: 'Bob', active: false },
 	], e: [] };
 	
-	let rows_for_block;
+	let rows_forBlock;
   this.connected(() => {
     const $root_1 = $tmpl_1();
     this.appendChild($root_1);
 
     const table_1 = this.firstChild;
 
-    rows_for_block = for_block(table_1, rows, (anchor, row, index) => {
+    rows_forBlock = forBlock(table_1, rows, (anchor, row, index) => {
       const $root_2 = $tmpl_2();
 
       const tr_1 = $root_2.firstChild;
@@ -339,7 +339,7 @@ function DataGrid() {
       const td_2 = td_1.nextSibling;
       const td_2_text = td_2.firstChild;
 
-      show_block(tr_1, row.active, (anchor) => {
+      showBlock(tr_1, row.active, (anchor) => {
         const $root_3 = $tmpl_3();
         const $root_3_first = $root_3.firstChild;
 

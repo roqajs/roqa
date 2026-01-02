@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { cell } from "../../src/runtime/cell.js";
-import { for_block } from "../../src/runtime/for-block.js";
+import { forBlock } from "../../src/runtime/for-block.js";
 
 /**
- * Tests for the for_block runtime function
+ * Tests for the forBlock runtime function
  *
- * for_block implements list rendering for the <For each={items}> component.
+ * forBlock implements list rendering for the <For each={items}> component.
  * It uses a Longest Increasing Subsequence (LIS) algorithm for efficient
  * reconciliation when the list changes:
  *
@@ -17,7 +17,7 @@ import { for_block } from "../../src/runtime/for-block.js";
  * These tests run in a browser environment to verify actual DOM behavior.
  */
 
-describe("for_block", () => {
+describe("forBlock", () => {
 	let container;
 
 	beforeEach(() => {
@@ -40,7 +40,7 @@ describe("for_block", () => {
 
 	it("renders initial empty array", () => {
 		const items = cell([]);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		expect(container.querySelectorAll("li").length).toBe(0);
 
@@ -49,7 +49,7 @@ describe("for_block", () => {
 
 	it("renders initial non-empty array", () => {
 		const items = cell(["a", "b", "c"]);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		const lis = container.querySelectorAll("li");
 		expect(lis.length).toBe(3);
@@ -62,7 +62,7 @@ describe("for_block", () => {
 
 	it("updates when array changes - add items", () => {
 		const items = cell(["a", "b"]);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		items.v = ["a", "b", "c"];
 		block.update();
@@ -76,7 +76,7 @@ describe("for_block", () => {
 
 	it("updates when array changes - remove items", () => {
 		const items = cell(["a", "b", "c"]);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		items.v = ["a", "c"];
 		block.update();
@@ -91,7 +91,7 @@ describe("for_block", () => {
 
 	it("updates when array changes - reorder items", () => {
 		const items = cell(["a", "b", "c"]);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		const originalFirst = container.querySelector("li");
 
@@ -112,7 +112,7 @@ describe("for_block", () => {
 
 	it("clears all items when array becomes empty", () => {
 		const items = cell(["a", "b", "c"]);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		items.v = [];
 		block.update();
@@ -124,7 +124,7 @@ describe("for_block", () => {
 
 	it("returns destroy function that cleans up", () => {
 		const items = cell(["a", "b", "c"]);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		block.destroy();
 
@@ -133,7 +133,7 @@ describe("for_block", () => {
 
 	it("handles null/undefined values", () => {
 		const items = cell(null);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		expect(container.querySelectorAll("li").length).toBe(0);
 
@@ -147,7 +147,7 @@ describe("for_block", () => {
 
 	it("handles array-like objects", () => {
 		const items = cell(new Set(["a", "b", "c"]));
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		const lis = container.querySelectorAll("li");
 		expect(lis.length).toBe(3);
@@ -158,7 +158,7 @@ describe("for_block", () => {
 	it("provides index to render function", () => {
 		const indices = [];
 		const items = cell(["a", "b", "c"]);
-		const block = for_block(container, items, (anchor, item, index) => {
+		const block = forBlock(container, items, (anchor, item, index) => {
 			indices.push(index);
 			const li = document.createElement("li");
 			anchor.before(li);
@@ -172,7 +172,7 @@ describe("for_block", () => {
 
 	it("handles render function returning multi-node items", () => {
 		const items = cell(["a", "b"]);
-		const block = for_block(container, items, (anchor, item) => {
+		const block = forBlock(container, items, (anchor, item) => {
 			const span1 = document.createElement("span");
 			span1.textContent = item + "-1";
 			const span2 = document.createElement("span");
@@ -195,7 +195,7 @@ describe("for_block", () => {
 	it("calls cleanup function when items are removed", () => {
 		const cleanups = [];
 		const items = cell(["a", "b", "c"]);
-		const block = for_block(container, items, (anchor, item) => {
+		const block = forBlock(container, items, (anchor, item) => {
 			const li = document.createElement("li");
 			li.textContent = item;
 			anchor.before(li);
@@ -220,7 +220,7 @@ describe("for_block", () => {
 		const items = cell(largeArray);
 
 		const start = performance.now();
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 		const duration = performance.now() - start;
 
 		expect(container.querySelectorAll("li").length).toBe(1000);
@@ -231,7 +231,7 @@ describe("for_block", () => {
 
 	it("handles duplicate values in array", () => {
 		const items = cell(["a", "a", "b", "b"]);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		const lis = container.querySelectorAll("li");
 		expect(lis.length).toBe(4);
@@ -239,9 +239,9 @@ describe("for_block", () => {
 		block.destroy();
 	});
 
-	it("state property returns current for_state", () => {
+	it("state property returns current forState", () => {
 		const items = cell(["a", "b", "c"]);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		expect(block.state.array).toEqual(["a", "b", "c"]);
 		expect(block.state.items.length).toBe(3);
@@ -251,7 +251,7 @@ describe("for_block", () => {
 
 	it("update() can be called manually after direct cell mutation", () => {
 		const items = cell(["a", "b"]);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		// Direct mutation (not using set())
 		items.v = ["a", "b", "c", "d"];
@@ -265,7 +265,7 @@ describe("for_block", () => {
 
 	it("handles swap operation efficiently", () => {
 		const items = cell(["a", "b", "c"]);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		const originalNodes = Array.from(container.querySelectorAll("li"));
 
@@ -285,7 +285,7 @@ describe("for_block", () => {
 
 	it("handles complete replacement of array contents", () => {
 		const items = cell(["x", "y", "z"]);
-		const block = for_block(container, items, createSimpleRenderFn());
+		const block = forBlock(container, items, createSimpleRenderFn());
 
 		// Completely different items
 		items.v = ["1", "2", "3", "4"];
@@ -300,7 +300,7 @@ describe("for_block", () => {
 	});
 });
 
-describe("for_block reconciliation", () => {
+describe("forBlock reconciliation", () => {
 	let container;
 
 	beforeEach(() => {
@@ -319,7 +319,7 @@ describe("for_block reconciliation", () => {
 		const objC = { id: "c" };
 
 		const items = cell([objA, objB, objC]);
-		const block = for_block(container, items, (anchor, item) => {
+		const block = forBlock(container, items, (anchor, item) => {
 			const li = document.createElement("li");
 			li.textContent = item.id;
 			anchor.before(li);
@@ -347,7 +347,7 @@ describe("for_block reconciliation", () => {
 		const objB = { id: "b" };
 
 		const items = cell([objA, objB]);
-		const block = for_block(container, items, (anchor, item) => {
+		const block = forBlock(container, items, (anchor, item) => {
 			const li = document.createElement("li");
 			li.textContent = item.id;
 			anchor.before(li);
@@ -372,7 +372,7 @@ describe("for_block reconciliation", () => {
 	it("handles common prefix optimization", () => {
 		const items = cell(["a", "b", "c"]);
 		const renderCount = { count: 0 };
-		const block = for_block(container, items, (anchor, item) => {
+		const block = forBlock(container, items, (anchor, item) => {
 			renderCount.count++;
 			const li = document.createElement("li");
 			li.textContent = item;
@@ -394,7 +394,7 @@ describe("for_block reconciliation", () => {
 
 	it("handles common suffix optimization", () => {
 		const items = cell(["a", "b", "c"]);
-		const block = for_block(container, items, (anchor, item) => {
+		const block = forBlock(container, items, (anchor, item) => {
 			const li = document.createElement("li");
 			li.textContent = item;
 			anchor.before(li);

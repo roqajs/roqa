@@ -60,7 +60,7 @@ export function Fragment(_props) {
  * For component - renders a list of items reactively
  * Used as: <For each={items}>{(item) => <div>{item}</div>}</For>
  *
- * This is compiled into for_block() calls by the Rift compiler.
+ * This is compiled into forBlock() calls by the Rift compiler.
  * @param {{ each: any, children: Function }} props
  * @returns {void}
  */

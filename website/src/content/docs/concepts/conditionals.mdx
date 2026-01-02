@@ -305,7 +305,7 @@ Best for:
 
 ## How It Works
 
-`<Show>` compiles to a `show_block()` runtime call:
+`<Show>` compiles to a `showBlock()` runtime call:
 
 ```jsx
 // Input
@@ -314,7 +314,7 @@ Best for:
 </Show>
 
 // Compiles to something like:
-show_block(container, visible, (anchor) => {
+showBlock(container, visible, (anchor) => {
   const p_1 = $tmpl_1().firstChild;
   anchor.before(p_1);
   return { start: p_1, end: p_1 };

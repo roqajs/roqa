@@ -17,7 +17,7 @@ import {
  * - Generating DOM traversal code (firstChild, nextSibling paths)
  * - Creating placeholder text nodes for dynamic content
  * - Deduplicating identical templates via TemplateRegistry
- * - Handling SVG elements with svg_template()
+ * - Handling SVG elements with svgTemplate()
  *
  * Example:
  *   <div><span>{get(name)}</span></div>
@@ -67,7 +67,7 @@ describe("TemplateRegistry", () => {
 		registry.register('<circle cx="50" cy="50" r="40" />', true);
 
 		const declarations = registry.getDeclarations();
-		expect(declarations[0]).toContain("svg_template");
+		expect(declarations[0]).toContain("svgTemplate");
 		expect(registry.hasSvgTemplates()).toBe(true);
 	});
 

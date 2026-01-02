@@ -100,9 +100,9 @@ packages/
 │   │  ┌──────────────────────────────────────────────────────────────┐   │   │
 │   │  │ jsx-to-template.js  │ JSX → HTML template strings + traversal│   │   │
 │   │  ├──────────────────────────────────────────────────────────────┤   │   │
-│   │  │ for-transform.js    │ <For> → for_block() calls              │   │   │
+│   │  │ for-transform.js    │ <For> → forBlock() calls              │   │   │
 │   │  ├──────────────────────────────────────────────────────────────┤   │   │
-│   │  │ show-transform.js   │ <Show> → show_block() calls            │   │   │
+│   │  │ show-transform.js   │ <Show> → showBlock() calls            │   │   │
 │   │  ├──────────────────────────────────────────────────────────────┤   │   │
 │   │  │ events.js           │ onclick={fn} → el.__click = fn         │   │   │
 │   │  ├──────────────────────────────────────────────────────────────┤   │   │
@@ -178,7 +178,7 @@ Key insight: Dynamic text uses a **space placeholder** (`' '`) in the template, 
 
 ### 3.2 For Transform (`for-transform.js`)
 
-Transforms `<For>` components into `for_block()` runtime calls.
+Transforms `<For>` components into `forBlock()` runtime calls.
 
 **Input:**
 
@@ -189,7 +189,7 @@ Transforms `<For>` components into `for_block()` runtime calls.
 **Output:**
 
 ```js
-for_block(container, items, (anchor, item, index) => {
+forBlock(container, items, (anchor, item, index) => {
   const li_1 = $tmpl_2().firstChild;
   // ... bindings
   anchor.before(li_1);
@@ -199,7 +199,7 @@ for_block(container, items, (anchor, item, index) => {
 
 ### 3.3 Show Transform (`show-transform.js`)
 
-Transforms `<Show>` components into `show_block()` runtime calls for conditional rendering.
+Transforms `<Show>` components into `showBlock()` runtime calls for conditional rendering.
 
 **Input:**
 
@@ -212,7 +212,7 @@ Transforms `<Show>` components into `show_block()` runtime calls for conditional
 **Output:**
 
 ```js
-show_block(container, isVisible, (anchor) => {
+showBlock(container, isVisible, (anchor) => {
   const div_1 = $tmpl_3().firstChild;
   anchor.before(div_1);
   return { start: div_1, end: div_1 };
@@ -396,7 +396,7 @@ delegate(['click']);
 
 1. **No component composition**: Rift does NOT support `<MyComponent>` syntax. Use web components via `defineComponent()`.
 
-2. **`<For>` and `<Show>` are special**: They're the only PascalCase elements allowed. `<For>` compiles to `for_block()`, `<Show>` compiles to `show_block()`.
+2. **`<For>` and `<Show>` are special**: They're the only PascalCase elements allowed. `<For>` compiles to `forBlock()`, `<Show>` compiles to `showBlock()`.
 
 3. **Phase order matters**: Don't try to inline `get()` calls before code generation. Phase 4 needs the full context.
 

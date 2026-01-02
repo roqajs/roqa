@@ -134,7 +134,7 @@ export class TemplateRegistry {
 		const declarations = [];
 		for (const [key, info] of this.templates) {
 			const html = info.isSvg ? key.slice(4) : key; // Remove 'svg:' prefix if present
-			const templateFn = info.isSvg ? "svg_template" : "template";
+			const templateFn = info.isSvg ? "svgTemplate" : "template";
 			declarations.push(`const ${info.varName} = ${templateFn}('${escapeTemplateString(html)}');`);
 		}
 		return declarations;
@@ -777,7 +777,7 @@ function generateTraversal(structure, rootVar, isComponentRoot = false) {
 	// First step: get root element
 	// For component roots, we use 'this.firstChild' because the DocumentFragment
 	// becomes empty after appendChild
-	// For nested templates (like inside for_block), we use the rootVar
+	// For nested templates (like inside forBlock), we use the rootVar
 	steps.push({
 		varName: structure.varName,
 		code: isComponentRoot ? "this.firstChild" : `${rootVar}.firstChild`,

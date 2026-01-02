@@ -109,7 +109,7 @@ Notice the **space placeholders** (`' '`) in the template—these create text no
 
 ### For Transform
 
-`<For>` becomes `for_block()` calls:
+`<For>` becomes `forBlock()` calls:
 
 ```jsx
 // Input
@@ -120,7 +120,7 @@ Notice the **space placeholders** (`' '`) in the template—these create text no
 
 ```js
 // Output
-for_block(container, items, (anchor, item, index) => {
+forBlock(container, items, (anchor, item, index) => {
   const li_1 = $tmpl_2().firstChild;
   const li_1_text = li_1.firstChild;
   li_1_text.nodeValue = item.name;
@@ -324,8 +324,8 @@ Notice:
 | `set(cell, value)`  | Inlined with DOM updates    | —                          |
 | `bind(cell, fn)`    | Removed, inlined at `set()` | —                          |
 | `template(html)`    | —                           | Creates DOM template       |
-| `for_block()`       | Generated from `<For>`      | List reconciliation        |
-| `show_block()`      | Generated from `<Show>`     | Conditional rendering      |
+| `forBlock()`       | Generated from `<For>`      | List reconciliation        |
+| `showBlock()`      | Generated from `<Show>`     | Conditional rendering      |
 | `delegate(events)`  | Generated once per file     | Event delegation           |
 | `defineComponent()` | —                           | Web component registration |
 

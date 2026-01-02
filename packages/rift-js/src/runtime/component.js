@@ -1,7 +1,7 @@
-import { handle_root_events } from "./events.js";
+import { handleRootEvents } from "./events.js";
 
 // Register event delegation once at module load
-handle_root_events(document);
+handleRootEvents(document);
 
 // WeakMap to store props for elements before they're upgraded
 const elementProps = new WeakMap();

@@ -1,14 +1,14 @@
 import { bind } from "./cell.js";
 
 /**
- * Create a show_block for conditional rendering
+ * Create a showBlock for conditional rendering
  * @param {Element} container - The container element
  * @param {Object|Function} condition - A cell containing the condition, or a getter function returning boolean
- * @param {Function} render_fn - (anchor) => { start, end, cleanup? }
+ * @param {Function} renderFn - (anchor) => { start, end, cleanup? }
  * @param {Array} [deps] - Optional array of cells to subscribe to for reactive updates (for complex expressions)
  * @returns {{ update: Function, destroy: Function }}
  */
-export function show_block(container, condition, render_fn, deps) {
+export function showBlock(container, condition, renderFn, deps) {
 	// Create anchor node at end of container
 	const anchor = document.createTextNode("");
 	container.appendChild(anchor);
@@ -22,10 +22,10 @@ export function show_block(container, condition, render_fn, deps) {
 
 	const create = () => {
 		if (currentState) return; // Already showing
-		currentState = render_fn(anchor);
+		currentState = renderFn(anchor);
 	};
 
-	const destroy_current = () => {
+	const destroyCurrent = () => {
 		if (!currentState) return; // Nothing to destroy
 
 		// Run cleanup function if provided
@@ -47,12 +47,12 @@ export function show_block(container, condition, render_fn, deps) {
 	};
 
 	// Optimized update functions based on condition type
-	const do_update = isCell
+	const doUpdate = isCell
 		? () => {
 				if (condition.v) {
 					if (!currentState) create();
 				} else if (currentState) {
-					destroy_current();
+					destroyCurrent();
 				}
 			}
 		: isGetter
@@ -60,7 +60,7 @@ export function show_block(container, condition, render_fn, deps) {
 					if (condition()) {
 						if (!currentState) create();
 					} else if (currentState) {
-						destroy_current();
+						destroyCurrent();
 					}
 				}
 			: () => {
@@ -77,20 +77,20 @@ export function show_block(container, condition, render_fn, deps) {
 
 	if (isCell) {
 		// Simple cell condition
-		unsubscribe = bind(condition, do_update);
+		unsubscribe = bind(condition, doUpdate);
 	} else if (depsLen === 1) {
 		// Single dependency - no array needed
-		unsubscribe = bind(deps[0], do_update);
+		unsubscribe = bind(deps[0], doUpdate);
 	} else if (depsLen > 1) {
 		// Multiple dependencies - use array
 		unsubscribes = [];
 		for (let i = 0; i < depsLen; i++) {
-			unsubscribes.push(bind(deps[i], do_update));
+			unsubscribes.push(bind(deps[i], doUpdate));
 		}
 	}
 
 	// Initial render
-	do_update();
+	doUpdate();
 
 	// Destroy function for cleanup
 	const destroy = () => {
@@ -101,12 +101,12 @@ export function show_block(container, condition, render_fn, deps) {
 				unsubscribes[i]();
 			}
 		}
-		destroy_current();
+		destroyCurrent();
 		anchor.remove();
 	};
 
 	return {
-		update: do_update,
+		update: doUpdate,
 		destroy,
 		get isShowing() {
 			return currentState !== null;

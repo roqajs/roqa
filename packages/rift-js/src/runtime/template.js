@@ -1,7 +1,3 @@
-// ============================================
-// Template primitive
-// ============================================
-
 const { cloneNode } = Node.prototype;
 
 /**
@@ -21,7 +17,7 @@ export const template = (html) => {
  * @param {string} svg - The SVG string (can be a full <svg> or inner SVG content)
  * @returns {() => Node} - A function that returns a deep clone of the SVG content
  */
-export const svg_template = (svg) => {
+export const svgTemplate = (svg) => {
 	// Wrap in an SVG element to ensure proper namespace parsing
 	const wrapper = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 	wrapper.innerHTML = svg;

@@ -102,9 +102,9 @@ export function generateOutput(code, ast, filename) {
 	const templateDecls = templateRegistry.getDeclarations();
 	if (templateDecls.length > 0) {
 		usedImports.add("template");
-		// Also add svg_template if any SVG templates are used
+		// Also add svgTemplate if any SVG templates are used
 		if (templateRegistry.hasSvgTemplates()) {
-			usedImports.add("svg_template");
+			usedImports.add("svgTemplate");
 		}
 	}
 
@@ -244,7 +244,7 @@ function transformComponent(
 		allEventTypes.add(e.eventName);
 	}
 
-	// Extract for_block cell names for variable hoisting
+	// Extract forBlock cell names for variable hoisting
 	const forBlockVars = extractForBlockVars(code, forBlocks);
 
 	// Build the connected callback body
@@ -268,7 +268,7 @@ function transformComponent(
 	const returnStart = jsxReturn.start;
 	const returnEnd = jsxReturn.end;
 
-	// Generate variable declarations for for_block captures (hoisted before connected)
+	// Generate variable declarations for forBlock captures (hoisted before connected)
 	const forBlockDecls = forBlockVars.map((fb) => `let ${fb.varName};`).join("\n  ");
 	const forBlockDeclsCode = forBlockDecls ? `${forBlockDecls}\n  ` : "";
 
@@ -327,7 +327,7 @@ ${connectedBody}
 }
 
 /**
- * Extract for_block cell names and generate variable names for capturing returns
+ * Extract forBlock cell names and generate variable names for capturing returns
  * @param {string} code - Original source code
  * @param {Array} forBlocks - For blocks from template extraction
  * @returns {Array<{cellName: string, varName: string, cellCode: string}>}
@@ -341,10 +341,10 @@ function extractForBlockVars(code, forBlocks) {
 		const cellName =
 			forInfo.itemsExpression.type === "Identifier"
 				? forInfo.itemsExpression.name
-				: `for_block_${result.length + 1}`;
+				: `forBlock_${result.length + 1}`;
 		result.push({
 			cellName,
-			varName: `${cellName}_for_block`,
+			varName: `${cellName}_forBlock`,
 			cellCode,
 		});
 	}
@@ -516,7 +516,7 @@ function buildConnectedBody(
 	for (let i = 0; i < forBlocks.length; i++) {
 		const forBlock = forBlocks[i];
 		const forBlockVar = forBlockVars[i];
-		usedImports.add("for_block");
+		usedImports.add("forBlock");
 		const forCode = generateForBlock(
 			code,
 			forBlock,
@@ -532,7 +532,7 @@ function buildConnectedBody(
 
 	// Process show blocks
 	for (const showBlock of showBlocks) {
-		usedImports.add("show_block");
+		usedImports.add("showBlock");
 		const showCode = generateShowBlock(
 			code,
 			showBlock,
@@ -558,7 +558,7 @@ function buildConnectedBody(
 }
 
 /**
- * Generate code for a for_block
+ * Generate code for a forBlock
  */
 function generateForBlock(
 	code,
@@ -608,15 +608,15 @@ function generateForBlock(
 		allEventTypes.add(e.eventName);
 	}
 
-	// Build the for_block callback body
+	// Build the forBlock callback body
 	const indexParamName = indexParam || "index";
 	const lines = [];
 
-	// Capture the for_block return value if we have a variable for it
+	// Capture the forBlock return value if we have a variable for it
 	const forBlockAssignment = forBlockVar ? `${forBlockVar.varName} = ` : "";
 
 	lines.push(
-		`    ${forBlockAssignment}for_block(${containerVarName}, ${generateExpr(
+		`    ${forBlockAssignment}forBlock(${containerVarName}, ${generateExpr(
 			code,
 			itemsExpression,
 		)}, (anchor, ${itemParam}, ${indexParamName}) => {`,
@@ -658,7 +658,7 @@ function generateForBlock(
 	// Process nested for blocks inside for block
 	if (innerForBlocks && innerForBlocks.length > 0) {
 		for (const nestedForBlock of innerForBlocks) {
-			usedImports.add("for_block");
+			usedImports.add("forBlock");
 			const nestedForCode = generateForBlock(
 				code,
 				nestedForBlock,
@@ -666,9 +666,9 @@ function generateForBlock(
 				templateRegistry,
 				usedImports,
 				allEventTypes,
-				null, // no variable capture needed inside nested for_block
+				null, // no variable capture needed inside nested forBlock
 			);
-			// Indent the for_block code by 2 extra spaces (it's inside another for_block callback)
+			// Indent the forBlock code by 2 extra spaces (it's inside another forBlock callback)
 			lines.push(nestedForCode.replace(/^    /gm, "      "));
 			lines.push("");
 		}
@@ -677,7 +677,7 @@ function generateForBlock(
 	// Process nested show blocks inside for block
 	if (innerShowBlocks && innerShowBlocks.length > 0) {
 		for (const nestedShowBlock of innerShowBlocks) {
-			usedImports.add("show_block");
+			usedImports.add("showBlock");
 			const showCode = generateShowBlock(
 				code,
 				nestedShowBlock,
@@ -686,7 +686,7 @@ function generateForBlock(
 				usedImports,
 				allEventTypes,
 			);
-			// Indent the show_block code by 2 extra spaces (it's inside for_block callback)
+			// Indent the showBlock code by 2 extra spaces (it's inside forBlock callback)
 			lines.push(showCode.replace(/^    /gm, "      "));
 			lines.push("");
 		}
@@ -717,7 +717,7 @@ function generateForBlock(
 }
 
 /**
- * Generate code for a show_block
+ * Generate code for a showBlock
  */
 function generateShowBlock(code, showBlock, nameGen, templateRegistry, usedImports, allEventTypes) {
 	const { containerVarName, node } = showBlock;
@@ -757,7 +757,7 @@ function generateShowBlock(code, showBlock, nameGen, templateRegistry, usedImpor
 		allEventTypes.add(e.eventName);
 	}
 
-	// Build the show_block callback body
+	// Build the showBlock callback body
 	const lines = [];
 
 	// Generate the condition and dependencies based on complexity
@@ -778,7 +778,7 @@ function generateShowBlock(code, showBlock, nameGen, templateRegistry, usedImpor
 		conditionCode = generateExpr(code, conditionExpression);
 	}
 
-	lines.push(`    show_block(${containerVarName}, ${conditionCode}, (anchor) => {`);
+	lines.push(`    showBlock(${containerVarName}, ${conditionCode}, (anchor) => {`);
 	lines.push(`      const ${rootVar} = ${templateVar}();`);
 
 	// Filter traversal to only include steps that are actually needed
@@ -824,7 +824,7 @@ function generateShowBlock(code, showBlock, nameGen, templateRegistry, usedImpor
 	// Process nested for blocks inside show block
 	if (innerForBlocks && innerForBlocks.length > 0) {
 		for (const forBlock of innerForBlocks) {
-			usedImports.add("for_block");
+			usedImports.add("forBlock");
 			const forCode = generateForBlock(
 				code,
 				forBlock,
@@ -832,9 +832,9 @@ function generateShowBlock(code, showBlock, nameGen, templateRegistry, usedImpor
 				templateRegistry,
 				usedImports,
 				allEventTypes,
-				null, // no variable capture needed inside show_block
+				null, // no variable capture needed inside showBlock
 			);
-			// Indent the for_block code by 2 extra spaces (it's inside show_block callback)
+			// Indent the forBlock code by 2 extra spaces (it's inside showBlock callback)
 			lines.push(forCode.replace(/^    /gm, "      "));
 			lines.push("");
 		}
@@ -843,7 +843,7 @@ function generateShowBlock(code, showBlock, nameGen, templateRegistry, usedImpor
 	// Process nested show blocks inside show block
 	if (innerShowBlocks && innerShowBlocks.length > 0) {
 		for (const nestedShowBlock of innerShowBlocks) {
-			usedImports.add("show_block");
+			usedImports.add("showBlock");
 			const showCode = generateShowBlock(
 				code,
 				nestedShowBlock,
@@ -852,7 +852,7 @@ function generateShowBlock(code, showBlock, nameGen, templateRegistry, usedImpor
 				usedImports,
 				allEventTypes,
 			);
-			// Indent the show_block code by 2 extra spaces (it's inside show_block callback)
+			// Indent the showBlock code by 2 extra spaces (it's inside showBlock callback)
 			lines.push(showCode.replace(/^    /gm, "      "));
 			lines.push("");
 		}
@@ -908,8 +908,8 @@ function isSimpleDirectBinding(binding) {
  * @param {string} code - Original source code
  * @param {object} binding - Binding info
  * @param {Set} usedImports - Set of imports to track
- * @param {string} itemParam - Item parameter name (for for_block context)
- * @param {boolean} insideForBlock - Whether we're inside a for_block callback
+ * @param {string} itemParam - Item parameter name (for forBlock context)
+ * @param {boolean} insideForBlock - Whether we're inside a forBlock callback
  * @param {Map} cellRefCounts - Map to track ref counts per cell (for numbered refs)
  */
 function generateBinding(
@@ -968,7 +968,7 @@ function generateBinding(
 	// Generate the expression code for initial value (using original get() calls)
 	const initialExprCode = generateExpr(code, fullExpression);
 
-	// Check if this is a simple direct binding (works for both for_block and component level)
+	// Check if this is a simple direct binding (works for both forBlock and component level)
 	// If so, we can use ref-based direct DOM updates instead of bind()
 	// Note: For SVG or hyphenated attributes we skip ref optimization since setAttribute needs different handling
 	if (isSimpleDirectBinding(binding) && cellRefCounts && !needsSetAttribute) {

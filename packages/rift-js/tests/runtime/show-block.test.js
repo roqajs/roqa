@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { cell } from "../../src/runtime/cell.js";
-import { show_block } from "../../src/runtime/show-block.js";
+import { showBlock } from "../../src/runtime/show-block.js";
 
 /**
- * Tests for the show_block runtime function
+ * Tests for the showBlock runtime function
  *
- * show_block implements conditional rendering for the <Show when={...}> component.
+ * showBlock implements conditional rendering for the <Show when={...}> component.
  * It efficiently toggles DOM content based on a reactive condition:
  *
  * - Creates/removes DOM nodes when condition changes
@@ -17,7 +17,7 @@ import { show_block } from "../../src/runtime/show-block.js";
  * actual DOM manipulation behavior.
  */
 
-describe("show_block", () => {
+describe("showBlock", () => {
 	let container;
 
 	beforeEach(() => {
@@ -41,7 +41,7 @@ describe("show_block", () => {
 	describe("with cell condition", () => {
 		it("shows content when cell is truthy", () => {
 			const visible = cell(true);
-			const block = show_block(container, visible, createSimpleRenderFn());
+			const block = showBlock(container, visible, createSimpleRenderFn());
 
 			expect(container.querySelector("span")).not.toBeNull();
 			expect(container.querySelector("span").textContent).toBe("Hello");
@@ -51,7 +51,7 @@ describe("show_block", () => {
 
 		it("hides content when cell is falsy", () => {
 			const visible = cell(false);
-			const block = show_block(container, visible, createSimpleRenderFn());
+			const block = showBlock(container, visible, createSimpleRenderFn());
 
 			expect(container.querySelector("span")).toBeNull();
 
@@ -60,7 +60,7 @@ describe("show_block", () => {
 
 		it("updates when cell changes from false to true", () => {
 			const visible = cell(false);
-			const block = show_block(container, visible, createSimpleRenderFn());
+			const block = showBlock(container, visible, createSimpleRenderFn());
 
 			expect(container.querySelector("span")).toBeNull();
 
@@ -74,7 +74,7 @@ describe("show_block", () => {
 
 		it("updates when cell changes from true to false", () => {
 			const visible = cell(true);
-			const block = show_block(container, visible, createSimpleRenderFn());
+			const block = showBlock(container, visible, createSimpleRenderFn());
 
 			expect(container.querySelector("span")).not.toBeNull();
 
@@ -88,7 +88,7 @@ describe("show_block", () => {
 
 		it("treats truthy values as true", () => {
 			const visible = cell(1);
-			const block = show_block(container, visible, createSimpleRenderFn());
+			const block = showBlock(container, visible, createSimpleRenderFn());
 
 			expect(block.isShowing).toBe(true);
 
@@ -105,7 +105,7 @@ describe("show_block", () => {
 
 		it("treats falsy values as false", () => {
 			const visible = cell(0);
-			const block = show_block(container, visible, createSimpleRenderFn());
+			const block = showBlock(container, visible, createSimpleRenderFn());
 
 			expect(block.isShowing).toBe(false);
 
@@ -128,7 +128,7 @@ describe("show_block", () => {
 	describe("with function condition", () => {
 		it("evaluates function for initial state", () => {
 			let value = true;
-			const block = show_block(container, () => value, createSimpleRenderFn());
+			const block = showBlock(container, () => value, createSimpleRenderFn());
 
 			expect(block.isShowing).toBe(true);
 
@@ -137,7 +137,7 @@ describe("show_block", () => {
 
 		it("re-evaluates function on update", () => {
 			let value = false;
-			const block = show_block(container, () => value, createSimpleRenderFn());
+			const block = showBlock(container, () => value, createSimpleRenderFn());
 
 			expect(block.isShowing).toBe(false);
 
@@ -152,7 +152,7 @@ describe("show_block", () => {
 
 	describe("with static condition", () => {
 		it("handles static true", () => {
-			const block = show_block(container, true, createSimpleRenderFn());
+			const block = showBlock(container, true, createSimpleRenderFn());
 
 			expect(block.isShowing).toBe(true);
 			expect(container.querySelector("span")).not.toBeNull();
@@ -161,7 +161,7 @@ describe("show_block", () => {
 		});
 
 		it("handles static false", () => {
-			const block = show_block(container, false, createSimpleRenderFn());
+			const block = showBlock(container, false, createSimpleRenderFn());
 
 			expect(block.isShowing).toBe(false);
 			expect(container.querySelector("span")).toBeNull();
@@ -175,7 +175,7 @@ describe("show_block", () => {
 			const dep1 = cell(true);
 			const dep2 = cell(true);
 
-			const block = show_block(container, () => dep1.v && dep2.v, createSimpleRenderFn(), [
+			const block = showBlock(container, () => dep1.v && dep2.v, createSimpleRenderFn(), [
 				dep1,
 				dep2,
 			]);
@@ -202,7 +202,7 @@ describe("show_block", () => {
 			const cleanupFn = vi.fn();
 			const visible = cell(true);
 
-			const block = show_block(container, visible, (anchor) => {
+			const block = showBlock(container, visible, (anchor) => {
 				const span = document.createElement("span");
 				anchor.before(span);
 				return { start: span, end: span, cleanup: cleanupFn };
@@ -222,7 +222,7 @@ describe("show_block", () => {
 			const cleanupFn = vi.fn();
 			const visible = cell(true);
 
-			const block = show_block(container, visible, (anchor) => {
+			const block = showBlock(container, visible, (anchor) => {
 				const span = document.createElement("span");
 				anchor.before(span);
 				return { start: span, end: span, cleanup: cleanupFn };
@@ -235,7 +235,7 @@ describe("show_block", () => {
 
 		it("removes DOM nodes when hiding", () => {
 			const visible = cell(true);
-			const block = show_block(container, visible, createSimpleRenderFn());
+			const block = showBlock(container, visible, createSimpleRenderFn());
 
 			expect(container.querySelector("span")).not.toBeNull();
 
@@ -249,7 +249,7 @@ describe("show_block", () => {
 
 		it("removes DOM nodes on destroy", () => {
 			const visible = cell(true);
-			const block = show_block(container, visible, createSimpleRenderFn());
+			const block = showBlock(container, visible, createSimpleRenderFn());
 
 			expect(container.querySelector("span")).not.toBeNull();
 
@@ -263,7 +263,7 @@ describe("show_block", () => {
 		it("handles render function returning multi-node items", () => {
 			const visible = cell(true);
 
-			const block = show_block(container, visible, (anchor) => {
+			const block = showBlock(container, visible, (anchor) => {
 				const span1 = document.createElement("span");
 				span1.textContent = "1";
 				const span2 = document.createElement("span");
@@ -290,7 +290,7 @@ describe("show_block", () => {
 	describe("isShowing property", () => {
 		it("reflects current visibility state", () => {
 			const visible = cell(false);
-			const block = show_block(container, visible, createSimpleRenderFn());
+			const block = showBlock(container, visible, createSimpleRenderFn());
 
 			expect(block.isShowing).toBe(false);
 
@@ -313,7 +313,7 @@ describe("show_block", () => {
 			const visible = cell(true);
 			let renderCount = 0;
 
-			const block = show_block(container, visible, (anchor) => {
+			const block = showBlock(container, visible, (anchor) => {
 				renderCount++;
 				const span = document.createElement("span");
 				anchor.before(span);
@@ -335,7 +335,7 @@ describe("show_block", () => {
 			const cleanupFn = vi.fn();
 			const visible = cell(false);
 
-			const block = show_block(container, visible, (anchor) => {
+			const block = showBlock(container, visible, (anchor) => {
 				const span = document.createElement("span");
 				anchor.before(span);
 				return { start: span, end: span, cleanup: cleanupFn };
@@ -352,7 +352,7 @@ describe("show_block", () => {
 
 		it("handles rapid show/hide toggles", () => {
 			const visible = cell(false);
-			const block = show_block(container, visible, createSimpleRenderFn());
+			const block = showBlock(container, visible, createSimpleRenderFn());
 
 			for (let i = 0; i < 10; i++) {
 				visible.v = !visible.v;

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { delegate, handle_root_events } from "../../src/runtime/events.js";
+import { delegate, handleRootEvents } from "../../src/runtime/events.js";
 
 /**
  * Tests for the event delegation runtime
@@ -14,7 +14,7 @@ import { delegate, handle_root_events } from "../../src/runtime/events.js";
  *
  * Key functions:
  *   delegate(['click', 'input'])  - Register event types for delegation
- *   handle_root_events(root)      - Set up the root listener
+ *   handleRootEvents(root)      - Set up the root listener
  */
 
 describe("delegate", () => {
@@ -34,14 +34,14 @@ describe("delegate", () => {
 	});
 });
 
-describe("handle_root_events", () => {
+describe("handleRootEvents", () => {
 	let container;
 	let cleanup;
 
 	beforeEach(() => {
 		container = document.createElement("div");
 		document.body.appendChild(container);
-		cleanup = handle_root_events(container);
+		cleanup = handleRootEvents(container);
 		delegate(["click", "input"]);
 	});
 
@@ -234,8 +234,8 @@ describe("event delegation with nested containers", () => {
 		document.body.appendChild(outerContainer);
 
 		delegate(["click"]);
-		outerCleanup = handle_root_events(outerContainer);
-		innerCleanup = handle_root_events(innerContainer);
+		outerCleanup = handleRootEvents(outerContainer);
+		innerCleanup = handleRootEvents(innerContainer);
 	});
 
 	afterEach(() => {

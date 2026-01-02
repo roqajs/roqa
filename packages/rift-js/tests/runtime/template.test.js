@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { template, svg_template } from "../../src/runtime/template.js";
+import { template, svgTemplate } from "../../src/runtime/template.js";
 
 /**
  * Tests for the template runtime functions
@@ -12,7 +12,7 @@ import { template, svg_template } from "../../src/runtime/template.js";
  *
  * Key features:
  * - template() for HTML elements
- * - svg_template() for SVG elements (uses correct namespace)
+ * - svgTemplate() for SVG elements (uses correct namespace)
  * - Returns DocumentFragment for efficient insertion
  * - Cloning is faster than parsing HTML repeatedly
  */
@@ -101,20 +101,20 @@ describe("template", () => {
 	});
 });
 
-describe("svg_template", () => {
+describe("svgTemplate", () => {
 	it("creates a clone function from SVG string", () => {
-		const tmpl = svg_template('<circle cx="50" cy="50" r="40" />');
+		const tmpl = svgTemplate('<circle cx="50" cy="50" r="40" />');
 		expect(typeof tmpl).toBe("function");
 	});
 
 	it("returns a DocumentFragment when called", () => {
-		const tmpl = svg_template('<circle cx="50" cy="50" r="40" />');
+		const tmpl = svgTemplate('<circle cx="50" cy="50" r="40" />');
 		const result = tmpl();
 		expect(result).toBeInstanceOf(DocumentFragment);
 	});
 
 	it("creates SVG elements in correct namespace", () => {
-		const tmpl = svg_template('<circle cx="50" cy="50" r="40" />');
+		const tmpl = svgTemplate('<circle cx="50" cy="50" r="40" />');
 		const clone = tmpl();
 		const circle = clone.firstChild;
 
@@ -122,7 +122,7 @@ describe("svg_template", () => {
 	});
 
 	it("handles multiple SVG elements", () => {
-		const tmpl = svg_template('<circle cx="25" /><rect x="50" />');
+		const tmpl = svgTemplate('<circle cx="25" /><rect x="50" />');
 		const clone = tmpl();
 
 		expect(clone.childNodes.length).toBe(2);
@@ -131,7 +131,7 @@ describe("svg_template", () => {
 	});
 
 	it("handles nested SVG elements", () => {
-		const tmpl = svg_template('<g><circle cx="50" /></g>');
+		const tmpl = svgTemplate('<g><circle cx="50" /></g>');
 		const clone = tmpl();
 		const g = clone.firstChild;
 		const circle = g.firstChild;
@@ -141,7 +141,7 @@ describe("svg_template", () => {
 	});
 
 	it("preserves SVG attributes", () => {
-		const tmpl = svg_template('<rect x="10" y="20" width="100" height="50" fill="red" />');
+		const tmpl = svgTemplate('<rect x="10" y="20" width="100" height="50" fill="red" />');
 		const clone = tmpl();
 		const rect = clone.firstChild;
 
@@ -150,7 +150,7 @@ describe("svg_template", () => {
 	});
 
 	it("each clone is independent", () => {
-		const tmpl = svg_template('<circle cx="50" />');
+		const tmpl = svgTemplate('<circle cx="50" />');
 		const clone1 = tmpl();
 		const clone2 = tmpl();
 
@@ -161,7 +161,7 @@ describe("svg_template", () => {
 	});
 
 	it("handles path elements", () => {
-		const tmpl = svg_template('<path d="M10 10 H 90 V 90 H 10 Z" />');
+		const tmpl = svgTemplate('<path d="M10 10 H 90 V 90 H 10 Z" />');
 		const clone = tmpl();
 		const path = clone.firstChild;
 
@@ -170,7 +170,7 @@ describe("svg_template", () => {
 	});
 
 	it("handles text elements", () => {
-		const tmpl = svg_template('<text x="10" y="50">Hello SVG</text>');
+		const tmpl = svgTemplate('<text x="10" y="50">Hello SVG</text>');
 		const clone = tmpl();
 		const text = clone.firstChild;
 

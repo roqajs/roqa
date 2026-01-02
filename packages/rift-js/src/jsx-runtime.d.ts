@@ -69,7 +69,7 @@ export interface ForProps<T> {
 
 /**
  * For component - renders a list reactively
- * Compiled into for_block() calls
+ * Compiled into forBlock() calls
  *
  * @example
  * ```tsx

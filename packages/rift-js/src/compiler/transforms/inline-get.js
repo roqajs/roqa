@@ -22,7 +22,7 @@ import { CONSTANTS, traverse } from "../utils.js";
 
 /**
  * Pre-compiled regex for property pattern extraction
- * Matches patterns like "row.is_selected" -> prefix="row", pattern="is_selected"
+ * Matches patterns like "row.isSelected" -> prefix="row", pattern="isSelected"
  */
 const PROPERTY_PATTERN_REGEX = /^([a-zA-Z_][a-zA-Z0-9_]*)\.([a-zA-Z_][a-zA-Z0-9_]*)$/;
 
@@ -155,7 +155,7 @@ class InlineContext {
 
 	/**
 	 * Extract the property pattern from a cell code (with caching)
-	 * e.g., "row.is_selected" -> { pattern: "is_selected", prefix: "row" }
+	 * e.g., "row.isSelected" -> { pattern: "isSelected", prefix: "row" }
 	 * e.g., "count" -> null (simple identifier, no pattern)
 	 * @param {string} cellCode
 	 * @returns {{prefix: string, pattern: string} | null}
@@ -354,10 +354,10 @@ function findRefAssignmentsWithoutBind(ast, code) {
 				processStatements(statements);
 			}
 
-			// Find for_block() calls and process their render callbacks
+			// Find forBlock() calls and process their render callbacks
 			if (
 				node.callee?.type === "Identifier" &&
-				node.callee.name === "for_block" &&
+				node.callee.name === "forBlock" &&
 				node.arguments.length >= 3
 			) {
 				const callbackArg = node.arguments[2];
@@ -408,9 +408,9 @@ function findGetCallCells(node, code) {
 }
 
 /**
- * Find all for_block and show_block calls and collect:
- * 1. Cells that are sources for for_block/show_block (need effect loop at set() if no explicit .update())
- * 2. Variable assignments for for_block/show_block calls (for explicit .update() calls)
+ * Find all forBlock and showBlock calls and collect:
+ * 1. Cells that are sources for forBlock/showBlock (need effect loop at set() if no explicit .update())
+ * 2. Variable assignments for forBlock/showBlock calls (for explicit .update() calls)
  *
  * Returns { sourceCells: Set<string>, variableMappings: Map<string, string> }
  */
@@ -423,11 +423,11 @@ function findBlockInfo(ast, code) {
 			const node = path.node;
 			const isForBlock =
 				node.callee?.type === "Identifier" &&
-				node.callee.name === "for_block" &&
+				node.callee.name === "forBlock" &&
 				node.arguments.length >= 2;
 			const isShowBlock =
 				node.callee?.type === "Identifier" &&
-				node.callee.name === "show_block" &&
+				node.callee.name === "showBlock" &&
 				node.arguments.length >= 2;
 
 			if (isForBlock || isShowBlock) {
@@ -436,12 +436,12 @@ function findBlockInfo(ast, code) {
 				const cellCode = code.slice(cellArg.start, cellArg.end);
 				sourceCells.add(cellCode);
 
-				// Check if this is an assignment: xxx_for_block = for_block(...) or xxx_show_block = show_block(...)
+				// Check if this is an assignment: xxx_forBlock = forBlock(...) or xxx_showBlock = showBlock(...)
 				const parent = path.parent;
 				if (
 					parent?.type === "AssignmentExpression" &&
 					parent.left?.type === "Identifier" &&
-					(parent.left.name.endsWith("_for_block") || parent.left.name.endsWith("_show_block"))
+					(parent.left.name.endsWith("_forBlock") || parent.left.name.endsWith("_showBlock"))
 				) {
 					variableMappings.set(cellCode, parent.left.name);
 				}
@@ -612,7 +612,7 @@ export function inlineGetCalls(code, filename) {
 
 	const s = new MagicString(code);
 
-	// Find for_block and show_block info (source cells and variable mappings)
+	// Find forBlock and showBlock info (source cells and variable mappings)
 	const { sourceCells: blockSourceCells, variableMappings: blockMappings } = findBlockInfo(
 		ast,
 		code,
@@ -795,7 +795,7 @@ export function inlineGetCalls(code, filename) {
 				let callbacks = bindCallbacks.get(call.cellCode);
 				let callbackCellCode = call.cellCode;
 
-				// If no exact match, try pattern match (e.g., "prev.is_selected" matches "row.is_selected")
+				// If no exact match, try pattern match (e.g., "prev.isSelected" matches "row.isSelected")
 				if ((!callbacks || callbacks.length === 0) && call.cellCode.includes(".")) {
 					const patternInfo = ctx.extractPropertyPattern(call.cellCode);
 					if (patternInfo) {
@@ -934,7 +934,7 @@ export function inlineGetCalls(code, filename) {
 				hasNonInlinedBinds = cellCallbacks.some((cb) => cb.elementVars.length === 0);
 			}
 
-			// Check if this cell is a source for for_block/show_block
+			// Check if this cell is a source for forBlock/showBlock
 			// First check exact match
 			let isBlockSource = blockSourceCells.has(call.cellCode);
 
@@ -956,7 +956,7 @@ export function inlineGetCalls(code, filename) {
 
 			// Effect loop needed for:
 			// 1. Non-inlined bind() callbacks
-			// 2. Cells that are sources for for_block/show_block WITHOUT an explicit .update() call
+			// 2. Cells that are sources for forBlock/showBlock WITHOUT an explicit .update() call
 			//    (if we have blockVar, we call .update() directly, so no need for effect loop)
 			const needsEffectLoop = hasNonInlinedBinds || (isBlockSource && !call.blockVar);
 			const effectLoop = needsEffectLoop

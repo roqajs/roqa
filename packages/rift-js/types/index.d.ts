@@ -74,7 +74,7 @@ export function delegate(events: string[]): void;
  * Set up event handling on a root element
  * @returns Cleanup function
  */
-export function handle_root_events(target: EventTarget): () => void;
+export function handleRootEvents(target: EventTarget): () => void;
 
 // ============================================
 // Component Definition
@@ -357,7 +357,7 @@ export interface ForBlockController<T> {
 /**
  * Create a reactive for loop block
  */
-export function for_block<T>(
+export function forBlock<T>(
 	container: Element,
 	source: Cell<T[]>,
 	render: (
@@ -383,7 +383,7 @@ export interface ForProps<T> {
 
 /**
  * For component - renders a list reactively.
- * This is a compile-time component that gets transformed into for_block() calls.
+ * This is a compile-time component that gets transformed into forBlock() calls.
  *
  * @example
  * ```tsx
@@ -417,7 +417,7 @@ export interface ShowProps {
 
 /**
  * Show component - conditionally renders content.
- * This is a compile-time component that gets transformed into show_block() calls.
+ * This is a compile-time component that gets transformed into showBlock() calls.
  *
  * @example
  * ```tsx

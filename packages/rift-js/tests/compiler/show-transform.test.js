@@ -6,14 +6,14 @@ import { extractShowInfo } from "../../src/compiler/transforms/show-transform.js
  * Tests for the Show component transformation
  *
  * The show-transform handles the <Show when={condition}> control flow component,
- * converting it to show_block() runtime calls. Key responsibilities:
+ * converting it to showBlock() runtime calls. Key responsibilities:
  * - Extracting the when condition expression
  * - Parsing the body JSX to render when condition is true
  *
  * Example transformation:
  *   <Show when={get(visible)}><p>Hello</p></Show>
  *   ->
- *   show_block(container, visible, (anchor) => { ... })
+ *   showBlock(container, visible, (anchor) => { ... })
  */
 
 describe("extractShowInfo", () => {

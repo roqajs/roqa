@@ -1,13 +1,13 @@
 import { extractJSXAttributes, getJSXChildren, isJSXExpressionContainer } from "../parser.js";
 
 /**
- * Transform <Show> components into show_block() calls
+ * Transform <Show> components into showBlock() calls
  *
  * Input:
  *   <Show when={condition}><div>...</div></Show>
  *
  * Output:
- *   show_block(container, condition, (anchor) => {
+ *   showBlock(container, condition, (anchor) => {
  *     // template creation and bindings
  *     return { start, end };
  *   });

@@ -104,7 +104,7 @@ defineComponent('comp-b', B);
 			expect(result.code).toContain("$tmpl_1()");
 		});
 
-		it("uses svg_template for SVG elements", () => {
+		it("uses svgTemplate for SVG elements", () => {
 			const code = `
 import { defineComponent } from 'rift-js';
 function Icon() {
@@ -115,7 +115,7 @@ defineComponent('my-icon', Icon);
 			const ast = parse(code, "test.jsx");
 			const result = generateOutput(code, ast, "test.jsx");
 
-			expect(result.code).toContain("svg_template(");
+			expect(result.code).toContain("svgTemplate(");
 		});
 	});
 
@@ -217,7 +217,7 @@ defineComponent('my-app', App);
 			expect(result.code).toMatch(/import.*template.*from "rift-js"/);
 		});
 
-		it("adds for_block import when For components are used", () => {
+		it("adds forBlock import when For components are used", () => {
 			const code = `
 import { defineComponent, cell } from 'rift-js';
 function App() {
@@ -229,10 +229,10 @@ defineComponent('my-app', App);
 			const ast = parse(code, "test.jsx");
 			const result = generateOutput(code, ast, "test.jsx");
 
-			expect(result.code).toMatch(/import.*for_block.*from "rift-js"/);
+			expect(result.code).toMatch(/import.*forBlock.*from "rift-js"/);
 		});
 
-		it("adds show_block import when Show components are used", () => {
+		it("adds showBlock import when Show components are used", () => {
 			const code = `
 import { defineComponent, cell, get } from 'rift-js';
 function App() {
@@ -244,7 +244,7 @@ defineComponent('my-app', App);
 			const ast = parse(code, "test.jsx");
 			const result = generateOutput(code, ast, "test.jsx");
 
-			expect(result.code).toMatch(/import.*show_block.*from "rift-js"/);
+			expect(result.code).toMatch(/import.*showBlock.*from "rift-js"/);
 		});
 
 		it("preserves existing non-framework imports", () => {

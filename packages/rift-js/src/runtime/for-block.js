@@ -1,11 +1,14 @@
 import { bind } from "./cell.js";
 
-// LIS algorithm state (reused across calls for performance)
-let lis_result;
-let lis_p;
-let lis_max_len = 0;
+// Reconcile arrays using Longest Increasing Subsequence (LIS) algorithm
+// Heavily based on Ripple's reconciliation algorithms: https://github.com/Ripple-TS/ripple/blob/main/packages/ripple/src/runtime/internal/client/for.js
 
-function lis_algorithm(arr) {
+// LIS algorithm state (reused across calls for performance)
+let lisResult;
+let lisP;
+let lisMaxLen = 0;
+
+function lisAlgorithm(arr) {
 	let arrI = 0,
 		i = 0,
 		j = 0,
@@ -14,18 +17,18 @@ function lis_algorithm(arr) {
 		v = 0,
 		c = 0;
 	const len = arr.length;
-	if (len > lis_max_len) {
-		lis_max_len = len;
-		lis_result = new Int32Array(len);
-		lis_p = new Int32Array(len);
+	if (len > lisMaxLen) {
+		lisMaxLen = len;
+		lisResult = new Int32Array(len);
+		lisP = new Int32Array(len);
 	}
 	while (i < len) {
 		arrI = arr[i];
 		if (arrI !== 0) {
-			j = lis_result[k];
+			j = lisResult[k];
 			if (arr[j] < arrI) {
-				lis_p[i] = j;
-				lis_result[++k] = i;
+				lisP[i] = j;
+				lisResult[++k] = i;
 				i++;
 				continue;
 			}
@@ -33,26 +36,26 @@ function lis_algorithm(arr) {
 			v = k;
 			while (u < v) {
 				c = (u + v) >> 1;
-				if (arr[lis_result[c]] < arrI) {
+				if (arr[lisResult[c]] < arrI) {
 					u = c + 1;
 				} else {
 					v = c;
 				}
 			}
-			if (arrI < arr[lis_result[u]]) {
-				if (u > 0) lis_p[i] = lis_result[u - 1];
-				lis_result[u] = i;
+			if (arrI < arr[lisResult[u]]) {
+				if (u > 0) lisP[i] = lisResult[u - 1];
+				lisResult[u] = i;
 			}
 		}
 		i++;
 	}
 	u = k + 1;
 	const seq = new Int32Array(u);
-	v = lis_result[u - 1];
+	v = lisResult[u - 1];
 	while (u-- > 0) {
 		seq[u] = v;
-		v = lis_p[v];
-		lis_result[u] = 0;
+		v = lisP[v];
+		lisResult[u] = 0;
 	}
 	return seq;
 }
@@ -62,11 +65,11 @@ function lis_algorithm(arr) {
  * @param {Node} anchor - Where to insert
  * @param {*} value - The data item
  * @param {number} index - Array index
- * @param {Function} render_fn - (anchor, value, index) => { start, end } or just appends nodes
+ * @param {Function} renderFn - (anchor, value, index) => { start, end } or just appends nodes
  */
-function create_item(anchor, value, index, render_fn) {
-	// render_fn should return { start, end } nodes for the item
-	const item = render_fn(anchor, value, index);
+function createItem(anchor, value, index, renderFn) {
+	// renderFn should return { start, end } nodes for the item
+	const item = renderFn(anchor, value, index);
 	return {
 		s: item, // state: { start, end } - the DOM range for this item
 		v: value,
@@ -76,7 +79,7 @@ function create_item(anchor, value, index, render_fn) {
 /**
  * Move a block's DOM nodes before an anchor
  */
-function move_item(item, anchor) {
+function moveItem(item, anchor) {
 	const state = item.s;
 	let node = state.start;
 	const end = state.end;
@@ -99,7 +102,7 @@ function move_item(item, anchor) {
 /**
  * Destroy an item's DOM nodes and run cleanup if present
  */
-function destroy_item(item) {
+function destroyItem(item) {
 	const state = item.s;
 	let node = state.start;
 	const end = state.end;
@@ -118,22 +121,22 @@ function destroy_item(item) {
 /**
  * Fast path: clear all items when going from non-empty to empty
  */
-function reconcile_fast_clear(anchor, for_state, array) {
+function reconcileFastClear(anchor, forState, array) {
 	const parent_node = anchor.parentNode;
 	parent_node.textContent = "";
 	parent_node.append(anchor);
-	for_state.array = array;
-	for_state.items = [];
+	forState.array = array;
+	forState.items = [];
 }
 
 /**
  * Reconcile arrays by reference equality
  */
-function reconcile_by_ref(anchor, for_state, b, render_fn) {
-	let a_start = 0,
-		b_start = 0,
-		a_left = 0,
-		b_left = 0,
+function reconcileByRef(anchor, forState, b, renderFn) {
+	let aStart = 0,
+		bStart = 0,
+		aLeft = 0,
+		bLeft = 0,
 		sources = new Int32Array(0),
 		moved = false,
 		pos = 0,
@@ -141,231 +144,231 @@ function reconcile_by_ref(anchor, for_state, b, render_fn) {
 		i = 0,
 		j = 0;
 
-	const a = for_state.array;
-	const a_length = a.length;
-	const b_length = b.length;
+	const a = forState.array;
+	const aLen = a.length;
+	const bLen = b.length;
 
-	if (b_length !== 0) {
-		const b_items = Array(b_length);
+	if (bLen !== 0) {
+		const bItems = Array(bLen);
 
 		// Empty -> non-empty: create all
-		if (a_length === 0) {
-			for (; j < b_length; j++) {
-				b_items[j] = create_item(anchor, b[j], j, render_fn);
+		if (aLen === 0) {
+			for (; j < bLen; j++) {
+				bItems[j] = createItem(anchor, b[j], j, renderFn);
 			}
-			for_state.array = b;
-			for_state.items = b_items;
+			forState.array = b;
+			forState.items = bItems;
 			return;
 		}
 
-		const a_items = for_state.items;
-		let a_val = a[j];
-		let b_val = b[j];
-		let a_end = a_length - 1;
-		let b_end = b_length - 1;
+		const aItems = forState.items;
+		let aVal = a[j];
+		let bVal = b[j];
+		let aEnd = aLen - 1;
+		let bEnd = bLen - 1;
 
 		// Skip common prefix
 		outer: {
-			while (a_val === b_val) {
-				a[j] = b_val;
-				b_items[j] = a_items[j];
-				if (++j > a_end || j > b_end) break outer;
-				a_val = a[j];
-				b_val = b[j];
+			while (aVal === bVal) {
+				a[j] = bVal;
+				bItems[j] = aItems[j];
+				if (++j > aEnd || j > bEnd) break outer;
+				aVal = a[j];
+				bVal = b[j];
 			}
 			// Skip common suffix
-			a_val = a[a_end];
-			b_val = b[b_end];
-			while (a_val === b_val) {
-				a[a_end] = b_val;
-				b_items[b_end] = a_items[a_end];
-				b_end--;
-				if (j > --a_end || j > b_end) break outer;
-				a_val = a[a_end];
-				b_val = b[b_end];
+			aVal = a[aEnd];
+			bVal = b[bEnd];
+			while (aVal === bVal) {
+				a[aEnd] = bVal;
+				bItems[bEnd] = aItems[aEnd];
+				bEnd--;
+				if (j > --aEnd || j > bEnd) break outer;
+				aVal = a[aEnd];
+				bVal = b[bEnd];
 			}
 		}
 
-		let fast_path_removal = false;
+		let fastPathRemoval = false;
 		let target;
 
-		if (j > a_end) {
+		if (j > aEnd) {
 			// Only additions
-			if (j <= b_end) {
-				while (j <= b_end) {
-					b_val = b[j];
-					target = j >= a_length ? anchor : a_items[j].s.start;
-					b_items[j] = create_item(target, b_val, j, render_fn);
+			if (j <= bEnd) {
+				while (j <= bEnd) {
+					bVal = b[j];
+					target = j >= aLen ? anchor : aItems[j].s.start;
+					bItems[j] = createItem(target, bVal, j, renderFn);
 					j++;
 				}
 			}
-		} else if (j > b_end) {
+		} else if (j > bEnd) {
 			// Only removals
-			while (j <= a_end) {
-				destroy_item(a_items[j++]);
+			while (j <= aEnd) {
+				destroyItem(aItems[j++]);
 			}
 		} else {
 			// General case: need full reconciliation
-			a_start = j;
-			b_start = j;
-			a_left = a_end - j + 1;
-			b_left = b_end - j + 1;
-			sources = new Int32Array(b_left);
+			aStart = j;
+			bStart = j;
+			aLeft = aEnd - j + 1;
+			bLeft = bEnd - j + 1;
+			sources = new Int32Array(bLeft);
 			moved = false;
 			pos = 0;
 			patched = 0;
 			i = 0;
-			fast_path_removal = a_left === a_length;
+			fastPathRemoval = aLeft === aLen;
 
-			if (b_length < 4 || (a_left | b_left) < 32) {
+			if (bLen < 4 || (aLeft | bLeft) < 32) {
 				// Small arrays: use O(n*m) search
-				for (i = a_start; i <= a_end; ++i) {
-					a_val = a[i];
-					if (patched < b_left) {
-						for (j = b_start; j <= b_end; j++) {
-							if (a_val === (b_val = b[j])) {
-								sources[j - b_start] = i + 1;
-								if (fast_path_removal) {
-									fast_path_removal = false;
-									while (a_start < i) destroy_item(a_items[a_start++]);
+				for (i = aStart; i <= aEnd; ++i) {
+					aVal = a[i];
+					if (patched < bLeft) {
+						for (j = bStart; j <= bEnd; j++) {
+							if (aVal === (bVal = b[j])) {
+								sources[j - bStart] = i + 1;
+								if (fastPathRemoval) {
+									fastPathRemoval = false;
+									while (aStart < i) destroyItem(aItems[aStart++]);
 								}
 								if (pos > j) moved = true;
 								else pos = j;
-								b_items[j] = a_items[i];
+								bItems[j] = aItems[i];
 								++patched;
 								break;
 							}
 						}
-						if (!fast_path_removal && j > b_end) destroy_item(a_items[i]);
-					} else if (!fast_path_removal) {
-						destroy_item(a_items[i]);
+						if (!fastPathRemoval && j > bEnd) destroyItem(aItems[i]);
+					} else if (!fastPathRemoval) {
+						destroyItem(aItems[i]);
 					}
 				}
 			} else {
 				// Larger arrays: use Map for O(n+m) lookup
 				const map = new Map();
-				for (i = b_start; i <= b_end; ++i) map.set(b[i], i);
-				for (i = a_start; i <= a_end; ++i) {
-					a_val = a[i];
-					if (patched < b_left) {
-						j = map.get(a_val);
+				for (i = bStart; i <= bEnd; ++i) map.set(b[i], i);
+				for (i = aStart; i <= aEnd; ++i) {
+					aVal = a[i];
+					if (patched < bLeft) {
+						j = map.get(aVal);
 						if (j !== undefined) {
-							if (fast_path_removal) {
-								fast_path_removal = false;
-								while (i > a_start) destroy_item(a_items[a_start++]);
+							if (fastPathRemoval) {
+								fastPathRemoval = false;
+								while (i > aStart) destroyItem(aItems[aStart++]);
 							}
-							sources[j - b_start] = i + 1;
+							sources[j - bStart] = i + 1;
 							if (pos > j) moved = true;
 							else pos = j;
-							b_items[j] = a_items[i];
+							bItems[j] = aItems[i];
 							++patched;
-						} else if (!fast_path_removal) {
-							destroy_item(a_items[i]);
+						} else if (!fastPathRemoval) {
+							destroyItem(aItems[i]);
 						}
-					} else if (!fast_path_removal) {
-						destroy_item(a_items[i]);
+					} else if (!fastPathRemoval) {
+						destroyItem(aItems[i]);
 					}
 				}
 			}
 
-			if (fast_path_removal) {
-				reconcile_fast_clear(anchor, for_state, []);
-				reconcile_by_ref(anchor, for_state, b, render_fn);
+			if (fastPathRemoval) {
+				reconcileFastClear(anchor, forState, []);
+				reconcileByRef(anchor, forState, b, renderFn);
 				return;
 			}
 
 			if (moved) {
-				let next_pos = 0;
-				const seq = lis_algorithm(sources);
+				let nextPos = 0;
+				const seq = lisAlgorithm(sources);
 				j = seq.length - 1;
-				for (i = b_left - 1; i >= 0; i--) {
-					pos = i + b_start;
-					next_pos = pos + 1;
-					target = next_pos < b_length ? b_items[next_pos].s.start : anchor;
+				for (i = bLeft - 1; i >= 0; i--) {
+					pos = i + bStart;
+					nextPos = pos + 1;
+					target = nextPos < bLen ? bItems[nextPos].s.start : anchor;
 
 					if (sources[i] === 0) {
-						b_val = b[pos];
-						b_items[pos] = create_item(target, b_val, pos, render_fn);
+						bVal = b[pos];
+						bItems[pos] = createItem(target, bVal, pos, renderFn);
 					} else if (j < 0 || i !== seq[j]) {
-						move_item(b_items[pos], target);
+						moveItem(bItems[pos], target);
 					} else {
 						j--;
 					}
 				}
-			} else if (patched !== b_left) {
-				for (i = b_left - 1; i >= 0; i--) {
+			} else if (patched !== bLeft) {
+				for (i = bLeft - 1; i >= 0; i--) {
 					if (sources[i] === 0) {
-						pos = i + b_start;
-						b_val = b[pos];
-						const next_pos = pos + 1;
-						target = next_pos < b_length ? b_items[next_pos].s.start : anchor;
-						b_items[pos] = create_item(target, b_val, pos, render_fn);
+						pos = i + bStart;
+						bVal = b[pos];
+						const nextPos = pos + 1;
+						target = nextPos < bLen ? bItems[nextPos].s.start : anchor;
+						bItems[pos] = createItem(target, bVal, pos, renderFn);
 					}
 				}
 			}
 		}
 
-		for_state.array = b;
-		for_state.items = b_items;
-	} else if (a_length > 0) {
+		forState.array = b;
+		forState.items = bItems;
+	} else if (aLen > 0) {
 		// Non-empty -> empty: clear all
-		reconcile_fast_clear(anchor, for_state, b);
+		reconcileFastClear(anchor, forState, b);
 	}
 }
 
 /**
- * Create a for_block for efficient list rendering
+ * Create a forBlock for efficient list rendering
  * @param {Element} container - The container element (e.g., tbody)
- * @param {Object} source_cell - A cell containing the array to render
- * @param {Function} render_fn - (anchor, item, index) => { start, end, cleanup? }
+ * @param {Object} sourceCell - A cell containing the array to render
+ * @param {Function} renderFn - (anchor, item, index) => { start, end, cleanup? }
  * @returns {{ update: Function, state: Object, destroy: Function }}
  */
-export function for_block(container, source_cell, render_fn) {
+export function forBlock(container, sourceCell, renderFn) {
 	// Create anchor node at end of container
 	const anchor = document.createTextNode("");
 	container.appendChild(anchor);
 
 	// Initialize state
-	const for_state = {
+	const forState = {
 		array: [],
 		items: [],
 	};
 
-	const do_update = () => {
-		const collection = source_cell.v;
+	const doUpdate = () => {
+		const collection = sourceCell.v;
 		const array = Array.isArray(collection)
 			? collection
 			: collection == null
 				? []
 				: Array.from(collection);
-		reconcile_by_ref(anchor, for_state, array, render_fn);
+		reconcileByRef(anchor, forState, array, renderFn);
 	};
 
 	// Subscribe to cell changes
-	const unsubscribe = bind(source_cell, do_update);
+	const unsubscribe = bind(sourceCell, doUpdate);
 
 	// Initial render
-	do_update();
+	doUpdate();
 
 	// Destroy function for cleanup
 	const destroy = () => {
 		unsubscribe();
 		// Destroy all current items
-		const items = for_state.items;
+		const items = forState.items;
 		for (let i = 0; i < items.length; i++) {
-			destroy_item(items[i]);
+			destroyItem(items[i]);
 		}
-		for_state.array = [];
-		for_state.items = [];
+		forState.array = [];
+		forState.items = [];
 		anchor.remove();
 	};
 
 	// Return controller object
 	return {
-		update: do_update,
+		update: doUpdate,
 		destroy,
 		get state() {
-			return for_state;
+			return forState;
 		},
 	};
 }

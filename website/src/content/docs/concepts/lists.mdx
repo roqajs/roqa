@@ -32,7 +32,7 @@ defineComponent('todo-list', TodoList);
 ```
 
 <Aside>
-`<For>` is a **compile-time** component. It's one of only two PascalCase JSX elements allowed in Rift (along with `<Show>`). It compiles to efficient `for_block()` calls.
+`<For>` is a **compile-time** component. It's one of only two PascalCase JSX elements allowed in Rift (along with `<Show>`). It compiles to efficient `forBlock()` calls.
 </Aside>
 
 ## The `each` Prop
@@ -382,7 +382,7 @@ Understanding the compilation helps with debugging:
 </For>
 
 // Compiles to something like:
-for_block(container, todos, (anchor, todo, index) => {
+forBlock(container, todos, (anchor, todo, index) => {
   const li_1 = $tmpl_1().firstChild;
   const li_1_text = li_1.firstChild;
   li_1_text.nodeValue = todo.text;

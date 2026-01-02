@@ -5,17 +5,17 @@ description: Working with SVG graphics in Rift
 
 import { Aside } from '@astrojs/starlight/components';
 
-Rift provides first-class support for SVG (Scalable Vector Graphics) through the `svg_template()` function. This ensures SVG elements are created in the correct namespace.
+Rift provides first-class support for SVG (Scalable Vector Graphics) through the `svgTemplate()` function. This ensures SVG elements are created in the correct namespace.
 
-## Why `svg_template()`?
+## Why `svgTemplate()`?
 
 SVG elements must be created in the SVG namespace (`http://www.w3.org/2000/svg`), not the HTML namespace. Using regular `template()` for SVG would create broken elements.
 
 ```jsx
-import { svg_template } from 'rift-js';
+import { svgTemplate } from 'rift-js';
 
 // ✅ Correct - uses SVG namespace
-const $svg = svg_template('<rect x="0" y="0" width="100" height="100"/>');
+const $svg = svgTemplate('<rect x="0" y="0" width="100" height="100"/>');
 
 // ❌ Wrong - would create invalid elements
 // const $svg = template('<rect x="0" y="0" width="100" height="100"/>');
@@ -24,7 +24,7 @@ const $svg = svg_template('<rect x="0" y="0" width="100" height="100"/>');
 ## Basic SVG Components
 
 ```jsx
-import { defineComponent, cell, get, set, svg_template } from 'rift-js';
+import { defineComponent, cell, get, set, svgTemplate } from 'rift-js';
 
 function Icon() {
   return (
@@ -386,5 +386,5 @@ defineComponent('animated-loader', AnimatedLoader);
 ## Next Steps
 
 - [How Compilation Works](/advanced/compilation/) - Understand SVG template compilation
-- [Runtime API](/reference/runtime/) - The `svg_template()` function
+- [Runtime API](/reference/runtime/) - The `svgTemplate()` function
 - [Examples](/examples/) - Data visualization examples

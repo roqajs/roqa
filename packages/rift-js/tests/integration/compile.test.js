@@ -121,7 +121,7 @@ defineComponent('item-list', App);
 `;
 			const result = compile(input, "test.jsx");
 
-			expect(result.code).toContain("for_block");
+			expect(result.code).toContain("forBlock");
 			expect(result.code).toContain("anchor");
 		});
 
@@ -143,7 +143,7 @@ defineComponent('indexed-list', App);
 `;
 			const result = compile(input, "test.jsx");
 
-			expect(result.code).toContain("for_block");
+			expect(result.code).toContain("forBlock");
 			expect(result.code).toContain("index");
 		});
 
@@ -171,8 +171,8 @@ defineComponent('matrix-view', App);
 `;
 			const result = compile(input, "test.jsx");
 
-			// Should have two for_block calls
-			const forBlockMatches = result.code.match(/for_block/g);
+			// Should have two forBlock calls
+			const forBlockMatches = result.code.match(/forBlock/g);
 			expect(forBlockMatches.length).toBeGreaterThanOrEqual(2);
 		});
 	});
@@ -196,7 +196,7 @@ defineComponent('toggle-content', App);
 `;
 			const result = compile(input, "test.jsx");
 
-			expect(result.code).toContain("show_block");
+			expect(result.code).toContain("showBlock");
 		});
 
 		it("compiles Show with complex condition", () => {
@@ -217,7 +217,7 @@ defineComponent('conditional-content', App);
 `;
 			const result = compile(input, "test.jsx");
 
-			expect(result.code).toContain("show_block");
+			expect(result.code).toContain("showBlock");
 		});
 	});
 
@@ -270,7 +270,7 @@ defineComponent('void-elements', App);
 	});
 
 	describe("SVG elements", () => {
-		it("compiles SVG elements with svg_template", () => {
+		it("compiles SVG elements with svgTemplate", () => {
 			const input = `
 import { defineComponent, cell, get } from 'rift-js';
 
@@ -286,8 +286,8 @@ defineComponent('svg-circle', App);
 `;
 			const result = compile(input, "test.jsx");
 
-			// SVG should use svg_template
-			expect(result.code).toContain("svg_template");
+			// SVG should use svgTemplate
+			expect(result.code).toContain("svgTemplate");
 		});
 	});
 

@@ -1,13 +1,13 @@
 import { extractJSXAttributes, getJSXChildren, isJSXExpressionContainer } from "../parser.js";
 
 /**
- * Transform <For> components into for_block() calls
+ * Transform <For> components into forBlock() calls
  *
  * Input:
  *   <For each={items}>{(row) => <tr>...</tr>}</For>
  *
  * Output:
- *   for_block(container, items, (anchor, item, index) => {
+ *   forBlock(container, items, (anchor, item, index) => {
  *     // template creation and bindings
  *     return { start, end };
  *   });
@@ -131,7 +131,7 @@ function extractCallbackJSX(callback) {
 
 /**
  * Get any statements before the return in a callback body
- * These need to be preserved in the generated for_block callback
+ * These need to be preserved in the generated forBlock callback
  * @param {import("@babel/types").ArrowFunctionExpression|import("@babel/types").FunctionExpression} callback
  * @returns {import("@babel/types").Statement[]}
  */
