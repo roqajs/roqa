@@ -2,8 +2,5 @@
 
 A library of unstyled, accessible, custom elements for building user interfaces.
 
-## Installation
-
-```bash
-npm install rift-elements
-```
+> [!WARNING]
+> This is a deeply work in progress library, mostly acting as a method of verifying the APIs and stability of Rift. Consider this pre-alpha software not ready for production.

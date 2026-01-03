@@ -1,10 +1,31 @@
 # Rift
 
-Rift is a compile-time reactive UI framework for building web components with JSX syntax.
+Rift is a compile-time reactive UI framework for building web components.
 
-## Project Structure
+## At a glance
 
-- `packages/rift-js/`: Core framework containing the JSX compiler and minimal runtime.
-- `packages/vite-plugin/`: Vite integration for the Rift compiler.
-- `samples/`: Example projects demonstrating various features and use cases.
-- `website/`: Source code for the Rift documentation website.
+```jsx
+import { defineComponent, cell, get, set } from "rift-js";
+
+function App() {
+	const count = cell(0);
+	const doubled = cell(() => get(count) * 2);
+
+	const increment = () => {
+		set(count, get(count) + 1);
+	};
+
+	return (
+		<>
+			<button onclick={increment}>Count is {get(count)}</button>
+			<p>Doubled: {get(doubled)}</p>
+		</>
+	);
+}
+
+defineComponent("counter-button", App);
+```
+
+## License
+
+[MIT](./LICENSE)

@@ -1,7 +1,7 @@
 {
 	"name": "rift-vite-plugin",
 	"version": "0.0.1",
-	"description": "Vite plugin for Rift",
+	"description": "Vite plugin for the Rift UI framework",
 	"homepage": "https://rift.hawkticehurst.com",
 	"bugs": {
 		"url": "https://github.com/hawkticehurst/rift/issues"
