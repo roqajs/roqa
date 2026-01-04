@@ -1,0 +1,51 @@
+/* Custom homepage styles */
+
+/* Remove padding on splash pages to let our hero be full-height */
+[data-has-hero] .content-panel {
+	padding-top: 0 !important;
+	padding-bottom: 0 !important;
+}
+
+[data-has-hero] .main-frame {
+	padding-top: 0;
+}
+
+/* Hide the sidebar on the homepage */
+[data-has-hero] .sidebar-pane {
+	display: none;
+}
+
+/* Make the main content full width on homepage */
+[data-has-hero] .main-pane {
+	--sl-content-width: 100%;
+}
+
+/* Remove the max-width constraint on homepage content */
+[data-has-hero] .sl-container {
+	max-width: none;
+}
+
+/* Clean up the page-frame for homepage */
+[data-has-hero] .page-frame {
+	padding-inline-start: 0;
+}
+
+/* Hide the TOC on homepage */
+[data-has-hero] .right-sidebar {
+	display: none;
+}
+
+/* Remove article padding on homepage */
+[data-has-hero] article {
+	padding: 0;
+}
+
+/* Hide page title on homepage - we have our own */
+[data-has-hero] h1#_top {
+	display: none;
+}
+
+/* Remove markdown prose styles on homepage */
+[data-has-hero] .sl-markdown-content {
+	max-width: none;
+}

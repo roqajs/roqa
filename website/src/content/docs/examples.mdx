@@ -481,8 +481,8 @@ Full application with multiple components and async data:
 ```jsx
 // main.jsx
 import { defineComponent, cell, get, set } from 'rift-js';
-import './header.jsx';
-import './story-list.jsx';
+import './header';
+import './story-list';
 
 function App() {
   const stories = cell([]);
@@ -541,16 +541,15 @@ defineComponent('hacker-news', App);
 All examples are available in the [samples directory](https://github.com/hawkticehurst/rift/tree/main/samples) of the Rift repository. To run any example:
 
 ```bash
-# Clone the repository
-git clone https://github.com/hawkticehurst/rift.git
-cd rift
+# Copy the sample you want
+npx degit hawkticehurst/rift/samples/{insert-name-of-sample} rift-app
+cd rift-app
 
 # Install dependencies
-pnpm install
+npm install
 
 # Run a specific sample
-cd samples/todo-list
-pnpm dev
+npm run dev
 ```
 
 ## What's Next?

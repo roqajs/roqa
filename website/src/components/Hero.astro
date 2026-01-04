@@ -1,0 +1,317 @@
+---
+---
+
+<div class="hero">
+	<div class="hero-content">
+		<div class="logo-container">
+			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" class="logo">
+				<path fill-rule="evenodd" d="M81 36 64 0 47 36l-1 2-9-10a6 6 0 0 0-9 9l10 10h-2L0 64l36 17h2L28 91a6 6 0 1 0 9 9l9-10 1 2 17 36 17-36v-2l9 10a6 6 0 1 0 9-9l-9-9 2-1 36-17-36-17-2-1 9-9a6 6 0 1 0-9-9l-9 10v-2Zm-17 2-2 5c-4 8-11 15-19 19l-5 2 5 2c8 4 15 11 19 19l2 5 2-5c4-8 11-15 19-19l5-2-5-2c-8-4-15-11-19-19l-2-5Z" clip-rule="evenodd"/>
+				<path d="M118 19a6 6 0 0 0-9-9l-3 3a6 6 0 1 0 9 9l3-3Zm-96 4c-2 2-6 2-9 0l-3-3a6 6 0 1 1 9-9l3 3c3 2 3 6 0 9Zm0 82c-2-2-6-2-9 0l-3 3a6 6 0 1 0 9 9l3-3c3-2 3-6 0-9Zm96 4a6 6 0 0 1-9 9l-3-3a6 6 0 1 1 9-9l3 3Z"/>
+			</svg>
+		</div>
+		
+		<h1>Rift</h1>
+		<p class="tagline">JSX that compiles to vanilla JavaScript</p>
+		
+		<div class="cta">
+			<a href="/getting-started/installation/" class="btn primary">Get Started</a>
+			<a href="https://github.com/hawkticehurst/rift" class="btn secondary">GitHub</a>
+		</div>
+	</div>
+
+	<div class="code-preview">
+		<div class="code-block">
+			<div class="code-header">
+				<span class="dot red"></span>
+				<span class="dot yellow"></span>
+				<span class="dot green"></span>
+				<span class="filename">counter.jsx</span>
+			</div>
+			<pre><code><span class="keyword">function</span> <span class="fn">Counter</span>() {'{'}<br/>  <span class="keyword">const</span> count = <span class="fn">cell</span>(<span class="number">0</span>);<br/><br/>  <span class="keyword">return</span> (<br/>    <span class="tag">&lt;button</span> <span class="attr">onclick</span>=<span class="brace">{'{'}</span>() => <span class="fn">set</span>(count, <span class="fn">get</span>(count) + <span class="number">1</span>)<span class="brace">{'}'}</span><span class="tag">&gt;</span><br/>      Count: <span class="brace">{'{'}</span><span class="fn">get</span>(count)<span class="brace">{'}'}</span><br/>    <span class="tag">&lt;/button&gt;</span><br/>  );<br/>{'}'}</code></pre>
+		</div>
+		<div class="arrow">↓</div>
+		<div class="code-block compiled">
+			<div class="code-header">
+				<span class="dot red"></span>
+				<span class="dot yellow"></span>
+				<span class="dot green"></span>
+				<span class="filename">counter.js</span>
+				<span class="badge">compiled</span>
+			</div>
+			<pre><code><span class="keyword">const</span> count = {'{'} v: <span class="number">0</span>, e: [] {'}'};<br/><br/>button.__click = () => {'{'}<br/>  count.v = count.v + <span class="number">1</span>;<br/>  count.ref_1.nodeValue = <span class="string">'Count: '</span> + count.v;<br/>{'}'};</code></pre>
+		</div>
+	</div>
+
+	<div class="features">
+		<div class="feature">
+			<span class="icon">⚡</span>
+			<h3>No Virtual DOM</h3>
+			<p>Direct DOM updates. Zero diffing overhead.</p>
+		</div>
+		<div class="feature">
+			<span class="icon">📦</span>
+			<h3>Tiny Output</h3>
+			<p>Compiles to minimal vanilla JavaScript.</p>
+		</div>
+		<div class="feature">
+			<span class="icon">🧩</span>
+			<h3>Web Components</h3>
+			<p>Native custom elements. Works anywhere.</p>
+		</div>
+	</div>
+</div>
+
+<style>
+	.hero {
+		min-height: calc(100vh - 6rem);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 2rem;
+		text-align: center;
+		gap: 3rem;
+	}
+
+	.hero-content {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.logo-container {
+		width: 72px;
+		height: 72px;
+		animation: pulse 3s ease-in-out infinite;
+	}
+
+	.logo {
+		width: 100%;
+		height: 100%;
+	}
+
+	.logo path {
+		fill: var(--sl-color-white);
+	}
+
+	@keyframes pulse {
+		0%, 100% { transform: scale(1); opacity: 1; }
+		50% { transform: scale(1.05); opacity: 0.9; }
+	}
+
+	h1 {
+		font-size: 4.5rem;
+		font-weight: 800;
+		margin: 0;
+		letter-spacing: -0.03em;
+		background: linear-gradient(135deg, var(--sl-color-white) 0%, var(--sl-color-gray-2) 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
+	}
+
+	.tagline {
+		font-size: 1.35rem;
+		color: var(--sl-color-gray-2);
+		margin: 0;
+		max-width: 400px;
+		font-weight: 400;
+	}
+
+	.cta {
+		display: flex;
+		gap: 1rem;
+		margin-top: 1.5rem;
+	}
+
+	.btn {
+		padding: 0.85rem 1.75rem;
+		border-radius: 10px;
+		font-weight: 600;
+		text-decoration: none;
+		transition: all 0.2s ease;
+		font-size: 0.95rem;
+	}
+
+	.btn.primary {
+		background: var(--sl-color-white);
+		color: var(--sl-color-black);
+	}
+
+	.btn.primary:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 8px 30px rgba(255, 255, 255, 0.2);
+	}
+
+	.btn.secondary {
+		border: 1px solid var(--sl-color-gray-5);
+		color: var(--sl-color-gray-2);
+		background: transparent;
+	}
+
+	.btn.secondary:hover {
+		border-color: var(--sl-color-gray-3);
+		color: var(--sl-color-white);
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.code-preview {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.75rem;
+		max-width: 420px;
+		width: 100%;
+	}
+
+	.arrow {
+		font-size: 1.25rem;
+		color: var(--sl-color-gray-4);
+		animation: bounce 2s ease-in-out infinite;
+	}
+
+	@keyframes bounce {
+		0%, 100% { transform: translateY(0); opacity: 0.6; }
+		50% { transform: translateY(4px); opacity: 1; }
+	}
+
+	.code-block {
+		background: rgba(0, 0, 0, 0.3);
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 12px;
+		overflow: hidden;
+		width: 100%;
+		text-align: left;
+		backdrop-filter: blur(10px);
+	}
+
+	.code-block.compiled {
+		border-color: rgba(40, 200, 64, 0.3);
+	}
+
+	.code-header {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 0.6rem 1rem;
+		background: rgba(0, 0, 0, 0.2);
+		border-bottom: 1px solid var(--sl-color-gray-5);
+	}
+
+	.dot {
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+	}
+
+	.dot.red { background: #ff5f57; }
+	.dot.yellow { background: #ffbd2e; }
+	.dot.green { background: #28c840; }
+
+	.filename {
+		margin-left: 0.5rem;
+		font-size: 0.75rem;
+		color: var(--sl-color-gray-3);
+		font-family: var(--sl-font-mono);
+	}
+
+	.badge {
+		margin-left: auto;
+		font-size: 0.65rem;
+		padding: 0.15rem 0.45rem;
+		background: rgba(40, 200, 64, 0.15);
+		color: #4ade80;
+		border-radius: 4px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.code-block pre {
+		margin: 0;
+		padding: 0.85rem 1rem;
+		overflow-x: auto;
+	}
+
+	.code-block code {
+		font-family: var(--sl-font-mono);
+		font-size: 0.8rem;
+		line-height: 1.65;
+	}
+
+	.keyword { color: #c678dd; }
+	.fn { color: #61afef; }
+	.number { color: #d19a66; }
+	.string { color: #98c379; }
+	.tag { color: #e06c75; }
+	.attr { color: #d19a66; }
+	.brace { color: var(--sl-color-gray-2); }
+
+	.features {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 2.5rem;
+		max-width: 650px;
+		margin-top: 0.5rem;
+	}
+
+	.feature {
+		text-align: center;
+	}
+
+	.feature .icon {
+		font-size: 1.75rem;
+		margin-bottom: 0.5rem;
+		display: block;
+	}
+
+	.feature h3 {
+		font-size: 0.95rem;
+		font-weight: 600;
+		margin: 0 0 0.3rem 0;
+		color: var(--sl-color-white);
+	}
+
+	.feature p {
+		font-size: 0.8rem;
+		color: var(--sl-color-gray-3);
+		margin: 0;
+		line-height: 1.4;
+	}
+
+	@media (max-width: 600px) {
+		.hero {
+			gap: 2rem;
+			padding: 1.5rem;
+		}
+
+		h1 {
+			font-size: 3rem;
+		}
+
+		.tagline {
+			font-size: 1.1rem;
+		}
+
+		.features {
+			grid-template-columns: 1fr;
+			gap: 1.25rem;
+			max-width: 280px;
+		}
+
+		.code-block code {
+			font-size: 0.7rem;
+		}
+
+		.cta {
+			flex-direction: column;
+			width: 100%;
+			max-width: 220px;
+		}
+
+		.btn {
+			text-align: center;
+		}
+	}
+</style>

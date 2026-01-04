@@ -1,0 +1,19 @@
+---
+import Default from '@astrojs/starlight/components/Banner.astro';
+---
+
+<div class="wip-banner">
+	🚧 These docs are a work in progress and may reflect out-of-date APIs or usage examples.
+</div>
+<Default {...Astro.props}><slot /></Default>
+
+<style>
+	.wip-banner {
+		background: var(--sl-color-orange-low);
+		border-bottom: 1px solid var(--sl-color-orange);
+		color: var(--sl-color-white);
+		padding: 0.5rem 1rem;
+		text-align: center;
+		font-size: var(--sl-text-sm);
+	}
+</style>

@@ -8,6 +8,11 @@ export default defineConfig({
 		starlight({
 			title: "Rift",
 			social: [{ icon: "github", label: "GitHub", href: "https://github.com/hawkticehurst/rift" }],
+			components: {
+				Banner: "./src/components/Banner.astro",
+				Hero: "./src/components/HeroOverride.astro",
+			},
+			customCss: ["./src/styles/custom.css"],
 			sidebar: [
 				{
 					label: "Getting Started",
@@ -33,7 +38,6 @@ export default defineConfig({
 					items: [
 						{ label: "How Compilation Works", slug: "advanced/compilation" },
 						{ label: "Component Communication", slug: "advanced/component-communication" },
-						{ label: "Batching Updates", slug: "advanced/batching" },
 						{ label: "SVG Support", slug: "advanced/svg" },
 					],
 				},
@@ -47,10 +51,7 @@ export default defineConfig({
 				},
 				{
 					label: "More",
-					items: [
-						{ label: "Framework Comparison", slug: "comparison" },
-						{ label: "Examples", slug: "examples" },
-					],
+					items: [{ label: "Examples", slug: "examples" }],
 				},
 			],
 		}),
