@@ -19,7 +19,7 @@ Roqa ships a familiar API and syntax for writing component based web UIs, with a
 
 Under the hood every Roqa component is transformed into unbelievably optimized and performant custom elements & vanilla JavaScript. This means a compiled Roqa component is extremely portable and can be used in any other web framework. Additionally, by default Roqa does not use Shadow DOM, so you won't have to have to fight the styling gods to create beautiful web pages and applications –– you can use any of your favorite styling solutions.
 
-The reactive primitive of Roqa is a `cell`. It can roughly be thought of as a signal, but at compile time, this "signal" is compiled to an ultra-lightweight plain JavaScript object. In this way, a `cell` can be thought of as lightweight container for your data. A handful of functions (i.e. `get`, `set`, `put`) are provided to manipulate the data in this object.
+The reactive primitive of Roqa is a `cell`. It can roughly be thought of as a signal, but at compile time, this "signal" is compiled to an ultra-lightweight plain JavaScript object. In this way, a `cell` can be thought of as lightweight container for your data. A handful of functions (i.e. `get`, `set`, `put`) are provided to manipulate the data in this object and reactive updates are automatically applied after a change is made.
 
 Continue to learn more about Roqa at https://roqa.dev.
 
