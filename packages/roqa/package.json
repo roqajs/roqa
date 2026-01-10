@@ -37,7 +37,7 @@
 		},
 		"./package.json": "./package.json",
 		"./compiler": {
-			"types": "./src/compiler/index.d.ts",
+			"types": "./types/compiler.d.ts",
 			"import": "./src/compiler/index.js",
 			"default": "./src/compiler/index.js"
 		},
