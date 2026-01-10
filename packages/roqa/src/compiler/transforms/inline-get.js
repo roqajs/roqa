@@ -458,7 +458,7 @@ function findBlockInfo(ast, code) {
  * Returns a map from cell code -> array of callback info
  */
 function findBindCallbacks(ast, code) {
-	// Map: cellCode -> [{ callbackBody, elementVars, refNum, paramName, statementStart, statementEnd }]
+	// Map: cellCode -> [{ callbackBody, elementVars, refNum, paramName, statementStart, statementEnd, hasClosureVars }]
 	const bindCallbacks = new Map();
 	// Track ref numbers per cell
 	const refCounters = new Map();
@@ -495,7 +495,9 @@ function findBindCallbacks(ast, code) {
 			}
 
 			// Find element variables used in the callback (e.g., p_1_text, tr_1)
-			const elementVars = findElementVariables(body);
+			// Also detect closure variables that would prevent inlining
+			const { elementVars, closureVars } = findElementVariables(body, code, paramName, cellCode);
+			const hasClosureVars = closureVars.size > 0;
 
 			// Get or create ref number for this cell
 			const currentRef = refCounters.get(cellCode) || 0;
@@ -514,6 +516,7 @@ function findBindCallbacks(ast, code) {
 				paramName,
 				statementStart: path.node.start,
 				statementEnd: path.node.end,
+				hasClosureVars,
 			});
 		},
 		noScope: true,
@@ -525,15 +528,44 @@ function findBindCallbacks(ast, code) {
 /**
  * Find element variables used in a callback body
  * Looks for element.property = ... patterns
+ * Also returns closure variables that would prevent inlining
  */
-function findElementVariables(body) {
+function findElementVariables(body, code, paramName, cellCode) {
 	const elementVars = [];
+	const closureVars = new Set();
 	const seen = new Set();
+
+	// Extract the cell's base identifier (e.g., "selected" from "selected" or "row.label" from "row.label")
+	const cellBaseMatch = cellCode.match(/^([a-zA-Z_][a-zA-Z0-9_]*)/);
+	const cellBase = cellBaseMatch ? cellBaseMatch[1] : cellCode;
+
+	// Track identifiers that are used as property names (not variables)
+	const propertyNames = new Set();
+
+	// First pass: identify property names in member expressions
+	function findPropertyNames(node) {
+		if (!node) return;
+		if (node.type === "MemberExpression" && node.property.type === "Identifier" && !node.computed) {
+			// The property is accessed with dot notation, so it's not a variable reference
+			propertyNames.add(node.property);
+		}
+		for (const key of Object.keys(node)) {
+			const child = node[key];
+			if (child && typeof child === "object") {
+				if (Array.isArray(child)) {
+					child.forEach(findPropertyNames);
+				} else if (child.type) {
+					findPropertyNames(child);
+				}
+			}
+		}
+	}
+	findPropertyNames(body);
 
 	function visit(node) {
 		if (!node) return;
 
-		// Look for element.property = ... patterns
+		// Look for element.property = ... patterns (element variable assignments)
 		if (
 			node.type === "AssignmentExpression" &&
 			node.left.type === "MemberExpression" &&
@@ -543,6 +575,57 @@ function findElementVariables(body) {
 			if (!seen.has(varName)) {
 				seen.add(varName);
 				elementVars.push({ varName });
+			}
+		}
+
+		// Look for identifier.property patterns (potential closure variables)
+		// e.g., row.id, item.name - these are closure variables from forBlock
+		if (node.type === "MemberExpression" && node.object.type === "Identifier") {
+			const varName = node.object.name;
+			// Skip if it's the callback parameter, the cell, or an already identified element var
+			if (varName !== paramName && varName !== cellBase && !seen.has(varName)) {
+				// This could be a closure variable - mark it
+				closureVars.add(varName);
+			}
+		}
+
+		// Also check for standalone identifiers that could be closure variables
+		// But skip identifiers that are property names in member expressions
+		if (node.type === "Identifier" && !propertyNames.has(node)) {
+			const varName = node.name;
+			// Skip common globals and the callback parameter
+			const knownGlobals = new Set([
+				"undefined",
+				"null",
+				"true",
+				"false",
+				"NaN",
+				"Infinity",
+				"console",
+				"window",
+				"document",
+				"Math",
+				"JSON",
+				"Array",
+				"Object",
+				"String",
+				"Number",
+				"Boolean",
+				"Date",
+				"RegExp",
+				"Error",
+				"Promise",
+				"Map",
+				"Set",
+			]);
+			if (
+				varName !== paramName &&
+				varName !== cellBase &&
+				!seen.has(varName) &&
+				!knownGlobals.has(varName)
+			) {
+				// Could be a closure variable
+				closureVars.add(varName);
 			}
 		}
 
@@ -560,7 +643,13 @@ function findElementVariables(body) {
 	}
 
 	visit(body);
-	return elementVars;
+
+	// Remove element vars from closure vars (they're defined in the same scope level)
+	for (const { varName } of elementVars) {
+		closureVars.delete(varName);
+	}
+
+	return { elementVars, closureVars };
 }
 
 /**
@@ -811,8 +900,12 @@ export function inlineGetCalls(code, filename) {
 				}
 
 				if (callbacks && callbacks.length > 0) {
-					// Filter to only include callbacks that have element vars (were fully inlined)
-					const inlinableCallbacks = callbacks.filter((cb) => cb.elementVars.length > 0);
+					// Filter to only include callbacks that:
+					// 1. Have element vars (can update DOM elements)
+					// 2. Don't have closure vars (can be inlined at set() call sites)
+					const inlinableCallbacks = callbacks.filter(
+						(cb) => cb.elementVars.length > 0 && !cb.hasClosureVars,
+					);
 					return inlinableCallbacks
 						.map((cb) => {
 							let body = transformCallbackBody(
@@ -927,11 +1020,15 @@ export function inlineGetCalls(code, filename) {
 			const blockUpdate = call.blockVar ? `${call.blockVar}.update();` : "";
 
 			// Check if there are non-inlined bind callbacks for this cell
-			// These are callbacks without element vars that were kept as runtime bind() calls
+			// These are callbacks that:
+			// 1. Have no element vars (can't update DOM), OR
+			// 2. Have closure vars (can't be inlined at set() call sites)
 			let hasNonInlinedBinds = false;
 			const cellCallbacks = bindCallbacks.get(call.cellCode);
 			if (cellCallbacks) {
-				hasNonInlinedBinds = cellCallbacks.some((cb) => cb.elementVars.length === 0);
+				hasNonInlinedBinds = cellCallbacks.some(
+					(cb) => cb.elementVars.length === 0 || cb.hasClosureVars,
+				);
 			}
 
 			// Check if this cell is a source for forBlock/showBlock
@@ -978,6 +1075,13 @@ export function inlineGetCalls(code, filename) {
 	bindStatementsToRemove.sort((a, b) => b.start - a.start);
 
 	for (const { start, end, cellCode, callback } of bindStatementsToRemove) {
+		// Don't inline bind() calls that have closure variables (e.g., from forBlock item parameter)
+		// These callbacks capture variables like `row` that won't be in scope at set() call sites
+		if (callback.hasClosureVars) {
+			// Keep the bind() call - runtime handles execution
+			continue;
+		}
+
 		// Generate ref assignment for each element variable
 		let refAssignment = "";
 		for (const { varName } of callback.elementVars) {
@@ -997,8 +1101,10 @@ export function inlineGetCalls(code, filename) {
 
 	// Remove imports that are no longer needed
 	// Collect all imports to remove first
-	// Only remove bind import if ALL bind calls were fully inlined (had element vars)
-	const allBindsInlined = bindStatementsToRemove.every((b) => b.callback.elementVars.length > 0);
+	// Only remove bind import if ALL bind calls were fully inlined (had element vars and no closure vars)
+	const allBindsInlined = bindStatementsToRemove.every(
+		(b) => b.callback.elementVars.length > 0 && !b.callback.hasClosureVars,
+	);
 	const shouldRemoveBind = bindStatementsToRemove.length > 0 && allBindsInlined;
 	const importsToActuallyRemove = importsToRemove.filter(({ name }) => {
 		return (

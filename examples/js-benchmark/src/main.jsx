@@ -61,7 +61,7 @@ const rand = (dict) => dict[Math.round(Math.random() * 1000) % dict.length];
 function App() {
 	let rowId = 1;
 	const rows = cell([]);
-	const selectedRow = cell(null);
+	const selected = cell(null);
 
 	function buildData(count = 1000) {
 		const data = Array.from({ length: count });
@@ -70,7 +70,6 @@ function App() {
 			data[i] = {
 				id: rowId++,
 				label: cell(text),
-				isSelected: cell(false),
 			};
 		}
 		return data;
@@ -78,10 +77,12 @@ function App() {
 
 	const run = () => {
 		set(rows, buildData(1000));
+		put(selected, null);
 	};
 
 	const runLots = () => {
 		set(rows, buildData(10000));
+		put(selected, null);
 	};
 
 	const add = () => {
@@ -90,7 +91,7 @@ function App() {
 
 	const clear = () => {
 		set(rows, []);
-		put(selectedRow, null);
+		put(selected, null);
 	};
 
 	const updateRows = () => {
@@ -110,10 +111,7 @@ function App() {
 	};
 
 	const select = (row) => {
-		const prev = get(selectedRow);
-		if (prev) set(prev.isSelected, false);
-		set(row.isSelected, true);
-		put(selectedRow, row);
+		set(selected, row.id);
 	};
 
 	const remove = (row) => {
@@ -184,7 +182,7 @@ function App() {
 				<tbody>
 					<For each={rows}>
 						{(row) => (
-							<tr class={get(row.isSelected) ? "danger" : ""}>
+							<tr class={get(selected) === row.id ? "danger" : ""}>
 								<td class="col-md-1">{row.id}</td>
 								<td class="col-md-4">
 									<a onclick={() => select(row)}>{get(row.label)}</a>
@@ -205,4 +203,4 @@ function App() {
 	);
 }
 
-defineComponent("bench-app", App);
+defineComponent("roqa-app", App);
