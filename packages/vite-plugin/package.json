@@ -2,6 +2,16 @@
 	"name": "@roqajs/vite-plugin",
 	"version": "0.0.1",
 	"description": "Vite plugin for the Roqa UI framework",
+	"keywords": [
+		"vite",
+		"vite-plugin",
+		"roqa",
+		"roqajs",
+		"web components",
+		"custom elements",
+		"jsx",
+		"compiler"
+	],
 	"homepage": "https://roqa.dev",
 	"bugs": {
 		"url": "https://github.com/hawkticehurst/roqa/issues"
@@ -21,7 +31,8 @@
 		"src",
 		"types",
 		"README.md",
-		"LICENSE"
+		"LICENSE",
+		"CHANGELOG.md"
 	],
 	"exports": {
 		".": {
@@ -38,5 +49,8 @@
 	},
 	"devDependencies": {
 		"vite": "catalog:default"
+	},
+	"engines": {
+		"node": ">=20.0.0"
 	}
 }
