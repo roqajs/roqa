@@ -9,18 +9,25 @@
 		"roqajs",
 		"roqa-js"
 	],
-	"homepage": "https://roqa.hawkticehurst.com",
+	"homepage": "https://roqa.dev",
 	"bugs": {
 		"url": "https://github.com/hawkticehurst/roqa/issues"
 	},
 	"license": "MIT",
 	"author": "Hawk Ticehurst",
+	"sideEffects": false,
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/hawkticehurst/roqa.git",
 		"directory": "packages/roqa"
 	},
 	"type": "module",
+	"files": [
+		"src",
+		"types",
+		"README.md",
+		"LICENSE"
+	],
 	"exports": {
 		".": {
 			"types": "./types/index.d.ts",
@@ -47,14 +54,16 @@
 		"test:browser": "vitest run --project browser",
 		"test:coverage": "vitest run --coverage"
 	},
-	"devDependencies": {
+	"dependencies": {
 		"@babel/generator": "catalog:default",
 		"@babel/parser": "catalog:default",
 		"@babel/traverse": "catalog:default",
 		"@babel/types": "catalog:default",
+		"magic-string": "catalog:default"
+	},
+	"devDependencies": {
 		"@vitest/browser": "^3.0.0",
 		"@vitest/coverage-v8": "^3.0.0",
-		"magic-string": "catalog:default",
 		"playwright": "^1.49.0",
 		"vitest": "^3.0.0"
 	}

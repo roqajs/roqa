@@ -1,5 +1,5 @@
 {
-	"name": "roqa-vite-plugin",
+	"name": "@roqajs/vite-plugin",
 	"version": "0.0.1",
 	"description": "Vite plugin for the Roqa UI framework",
 	"homepage": "https://roqa.hawkticehurst.com",
@@ -8,6 +8,7 @@
 	},
 	"license": "MIT",
 	"author": "Hawk Ticehurst",
+	"sideEffects": false,
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/hawkticehurst/roqa.git",
@@ -16,6 +17,12 @@
 	"type": "module",
 	"main": "src/index.js",
 	"module": "src/index.js",
+	"files": [
+		"src",
+		"types",
+		"README.md",
+		"LICENSE"
+	],
 	"exports": {
 		".": {
 			"types": "./types/index.d.ts",
@@ -23,8 +30,13 @@
 			"default": "./src/index.js"
 		}
 	},
+	"dependencies": {
+		"roqa": "workspace:*"
+	},
+	"peerDependencies": {
+		"vite": "^6.0.0 || ^7.0.0"
+	},
 	"devDependencies": {
-		"roqa": "workspace:*",
 		"vite": "catalog:default"
 	}
 }

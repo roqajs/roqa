@@ -1,5 +1,5 @@
 import type { Plugin } from "vite";
 
-declare module "roqa-vite-plugin" {
+declare module "@roqajs/vite-plugin" {
 	export function roqa(): Plugin;
 }

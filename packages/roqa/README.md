@@ -30,4 +30,4 @@ defineComponent("counter-button", App);
 
 ## License
 
-MIT
+[MIT](./LICENSE)

@@ -1,4 +1,4 @@
-import roqa from "roqa-vite-plugin";
+import roqa from "@roqajs/vite-plugin";
 import { defineConfig } from "vite";
 
 export default defineConfig({

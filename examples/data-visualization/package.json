@@ -14,7 +14,7 @@
 	},
 	"devDependencies": {
 		"@types/d3": "^7.4.3",
-		"roqa-vite-plugin": "workspace:*",
+		"@roqajs/vite-plugin": "workspace:*",
 		"vite": "npm:rolldown-vite@7.2.5"
 	},
 	"overrides": {

@@ -10,7 +10,7 @@
 	},
 	"devDependencies": {
 		"oxfmt": "^0.20.0",
-		"roqa-vite-plugin": "workspace:*"
+		"@roqajs/vite-plugin": "workspace:*"
 	},
 	"engines": {
 		"node": ">=20.0.0",
