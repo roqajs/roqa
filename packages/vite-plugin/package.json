@@ -14,15 +14,18 @@
 	],
 	"homepage": "https://roqa.dev",
 	"bugs": {
-		"url": "https://github.com/hawkticehurst/roqa/issues"
+		"url": "https://github.com/roqajs/roqa/issues"
 	},
 	"license": "MIT",
 	"author": "Hawk Ticehurst",
 	"sideEffects": false,
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/hawkticehurst/roqa.git",
+		"url": "git+https://github.com/roqajs/roqa.git",
 		"directory": "packages/vite-plugin"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"type": "module",
 	"main": "src/index.js",

@@ -7,7 +7,7 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: "Roqa",
-			social: [{ icon: "github", label: "GitHub", href: "https://github.com/hawkticehurst/roqa" }],
+			social: [{ icon: "github", label: "GitHub", href: "https://github.com/roqajs/roqa" }],
 			components: {
 				Banner: "./src/components/Banner.astro",
 				Hero: "./src/components/HeroOverride.astro",
