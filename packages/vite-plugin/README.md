@@ -1,6 +1,6 @@
 # Roqa Vite Plugin
 
-Vite plugin that powers the Roqa UI framework.
+Vite plugin that powers the [Roqa UI framework](https://roqa.dev).
 
 ## Usage
 
