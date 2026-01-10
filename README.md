@@ -2,7 +2,7 @@
 
 Roqa is a compile-time reactive UI framework for building web components.
 
-A play on the word "baroque" –– a term to describe the ornate and elaborate style of art, architecture, and music from 17th and 18th century Europe –– Roqa is small and fast, so *you* have the space and headroom to build big.
+A play on the word "baroque" –– a term to describe the ornate and elaborate style of art, architecture, and music from 17th and 18th century Europe –– Roqa is built small and fast, so *you* have the space to build big.
 
 ## At a glance
 
