@@ -16,8 +16,8 @@ Continue to learn more about Roqa at https://roqa.dev.
 import { defineComponent, cell, get, set } from "roqa";
 
 function App() {
-	const count = cell(0);
-	const doubled = cell(() => get(count) * 2);
+	const count = cell<number>(0);
+	const doubled = cell<() => number>(() => get(count) * 2);
 
 	const increment = () => {
 		set(count, get(count) + 1);
