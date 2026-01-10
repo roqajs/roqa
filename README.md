@@ -3,7 +3,7 @@
 </a>
 <div align="right">
 
-*Banner design incorporates art from [The Met Open Access Collection](https://www.metmuseum.org/art/collection/search/436782).*
+*Banner design incorporates art from [The Met Open Access Collection](https://www.metmuseum.org/art/collection/search/436782)*
 
 </div>
 
