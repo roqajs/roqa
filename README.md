@@ -1,6 +1,9 @@
-<a href="https://svelte.dev">
+<a href="https://roqa.dev">
 	<img src="assets/banner.png" alt="Roqa – A UI framework that's built small, so you can build big." />
 </a>
+<p style="text-align: right; font-style: italic;">
+	Banner design incorporates art from <a href="https://www.metmuseum.org/art/collection/search/436782">The Met Open Access Collection</a>.
+</p>
 
 ## What is Roqa?
 
