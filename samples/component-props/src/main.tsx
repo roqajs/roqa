@@ -1,8 +1,8 @@
-import { defineComponent, type RiftElement } from "rift-js";
+import { defineComponent, type RoqaElement } from "roqa";
 import "./styles.css";
 
-function App(this: RiftElement) {
-	const name = "Rift";
+function App(this: RoqaElement) {
+	const name = "Roqa";
 	const message = () => alert("Hello! This message is from <" + this.tagName.toLowerCase() + ">");
 
 	return <name-tag name={name} message={message}></name-tag>;
@@ -17,5 +17,5 @@ function NameTag({ name, message }: { name: string; message: () => void }) {
 	);
 }
 
-defineComponent("rift-app", App);
+defineComponent("roqa-app", App);
 defineComponent("name-tag", NameTag);

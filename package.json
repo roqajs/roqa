@@ -1,5 +1,5 @@
 {
-	"name": "rift-monorepo",
+	"name": "roqa-monorepo",
 	"private": true,
 	"license": "MIT",
 	"author": "Hawk Ticehurst",
@@ -10,7 +10,7 @@
 	},
 	"devDependencies": {
 		"oxfmt": "^0.20.0",
-		"rift-vite-plugin": "workspace:*"
+		"roqa-vite-plugin": "workspace:*"
 	},
 	"engines": {
 		"node": ">=20.0.0",

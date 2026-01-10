@@ -1,8 +1,8 @@
-import rift from "rift-vite-plugin";
+import roqa from "roqa-vite-plugin";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-	plugins: [rift()],
+	plugins: [roqa()],
 	build: {
 		minify: false,
 		modulePreload: false,

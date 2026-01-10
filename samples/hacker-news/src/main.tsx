@@ -1,13 +1,13 @@
-import { defineComponent, cell, get, type RiftElement, set, Show } from "rift-js";
-import { HN_API_BASE, ENDPOINTS, FEEDS, type FeedType } from "./feeds";
-import type { StoryListMethods } from "./story-list";
+import { defineComponent, cell, get, type RoqaElement, set, Show } from "roqa";
 import type { CommentPageMethods } from "./comment-page";
+import type { StoryListMethods } from "./story-list";
+import { HN_API_BASE, ENDPOINTS, FEEDS, type FeedType } from "./feeds";
 import "./main.css";
 import "./header";
 import "./story-list";
 import "./comment-page";
 
-function App(this: RiftElement) {
+function App(this: RoqaElement) {
 	const currentFeed = cell<FeedType>(FEEDS.top);
 	const showStoryList = cell(true);
 	const currentStoryId = cell<number | null>(null);
@@ -18,7 +18,7 @@ function App(this: RiftElement) {
 	};
 
 	const fetchFeed = async (feed: FeedType) => {
-		const storyList = this.querySelector<RiftElement<StoryListMethods>>("story-list");
+		const storyList = this.querySelector<RoqaElement<StoryListMethods>>("story-list");
 		if (!storyList) return;
 		storyList.setLoading(true);
 		storyList.setError(false);
@@ -56,7 +56,7 @@ function App(this: RiftElement) {
 
 		// Load the comments page
 		requestAnimationFrame(() => {
-			const commentPage = this.querySelector<RiftElement<CommentPageMethods>>("comment-page");
+			const commentPage = this.querySelector<RoqaElement<CommentPageMethods>>("comment-page");
 			if (commentPage) {
 				commentPage.loadStory(storyId);
 			}

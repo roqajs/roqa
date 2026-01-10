@@ -1,4 +1,4 @@
-# Rift monorepo workspace configuration
+# Roqa monorepo workspace configuration
 packages:
   - packages/*
   - samples/*

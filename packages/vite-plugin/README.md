@@ -1,6 +1,6 @@
-# Rift Vite Plugin
+# Roqa Vite Plugin
 
-Vite plugin that powers the Rift web UI framework.
+Vite plugin that powers the Roqa UI framework.
 
 ## Usage
 
@@ -8,9 +8,9 @@ Add the following to a `vite.config.js` file:
 
 ```js
 import { defineConfig } from "vite";
-import rift from "rift-vite-plugin";
+import roqa from "roqa-vite-plugin";
 
 export default defineConfig({
-	plugins: [rift()]
+	plugins: [roqa()]
 });
 ```

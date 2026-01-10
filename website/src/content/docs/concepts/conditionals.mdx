@@ -10,7 +10,7 @@ The `<Show>` component conditionally renders content based on a boolean conditio
 ## Basic Usage
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function ToggleExample() {
   const visible = cell(true);
@@ -32,7 +32,7 @@ defineComponent('toggle-example', ToggleExample);
 ```
 
 <Aside>
-`<Show>` is a **compile-time** component like `<For>`. It's one of only two PascalCase JSX elements allowed in Rift.
+`<Show>` is a **compile-time** component like `<For>`. It's one of only two PascalCase JSX elements allowed in Roqa.
 </Aside>
 
 ## The `when` Prop
@@ -264,7 +264,7 @@ function NestedConditions() {
 
 ## Show vs Ternary
 
-Both approaches work in Rift:
+Both approaches work in Roqa:
 
 ### Using `<Show>`
 

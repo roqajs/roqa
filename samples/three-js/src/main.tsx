@@ -1,4 +1,4 @@
-import { defineComponent, type RiftElement } from "rift-js";
+import { defineComponent, type RoqaElement } from "roqa";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -6,7 +6,7 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import "./styles.css";
 
-function App(this: RiftElement) {
+function App(this: RoqaElement) {
 	let mixer: THREE.AnimationMixer;
 	let controls: OrbitControls;
 	let renderer: THREE.WebGLRenderer;

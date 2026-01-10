@@ -1,14 +1,14 @@
-import { defineComponent, cell, get, set, type RiftElement } from "rift-js";
+import { defineComponent, cell, get, set, type RoqaElement } from "roqa";
 import type { CounterMethods } from "./counter";
 import "./counter";
 import "./styles.css";
 
-function App(this: RiftElement) {
+function App(this: RoqaElement) {
 	const count = cell(0);
 	const counterCount = cell(0);
 
 	const passDataIntoCounter = () => {
-		const counter = this.querySelector<RiftElement<CounterMethods>>("x-counter");
+		const counter = this.querySelector<RoqaElement<CounterMethods>>("x-counter");
 		counter?.setCount(get(count));
 	};
 

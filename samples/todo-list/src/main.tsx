@@ -1,4 +1,4 @@
-import { defineComponent, cell, For, get, set } from "rift-js";
+import { defineComponent, cell, For, get, set } from "roqa";
 import "./styles.css";
 
 function TodoList() {

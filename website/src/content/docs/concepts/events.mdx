@@ -5,14 +5,14 @@ description: Handle user interactions with delegated events
 
 import { Aside } from '@astrojs/starlight/components';
 
-Rift uses an efficient **event delegation** system. Instead of attaching listeners to every element, events bubble up to a single document-level handler.
+Roqa uses an efficient **event delegation** system. Instead of attaching listeners to every element, events bubble up to a single document-level handler.
 
 ## Basic Event Handling
 
 Add event handlers using lowercase `on*` attributes:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function EventExample() {
   const count = cell(0);
@@ -31,7 +31,7 @@ defineComponent('event-example', EventExample);
 
 ## Supported Events
 
-Rift supports all standard DOM events with lowercase names:
+Roqa supports all standard DOM events with lowercase names:
 
 | Event     | Handler       | Example                            |
 | --------- | ------------- | ---------------------------------- |
@@ -116,7 +116,7 @@ For handlers that need additional data, use arrow functions:
 ```jsx
 function TodoList() {
   const todos = cell([
-    { id: 1, text: 'Learn Rift' },
+    { id: 1, text: 'Learn Roqa' },
     { id: 2, text: 'Build app' },
   ]);
 
@@ -312,13 +312,13 @@ function RadioExample() {
 Understanding how event delegation works helps with debugging and optimization.
 </Aside>
 
-Rift compiles event handlers to a special `__eventname` property:
+Roqa compiles event handlers to a special `__eventname` property:
 
 ```jsx
 // What you write
 <button onclick={handleClick}>Click</button>
 
-// What Rift compiles it to
+// What Roqa compiles it to
 button_1.__click = handleClick;
 ```
 
@@ -328,7 +328,7 @@ Then `delegate()` is called to register a document-level listener:
 delegate(['click']);
 ```
 
-When a click occurs anywhere in the document, Rift:
+When a click occurs anywhere in the document, Roqa:
 
 1. Checks if the clicked element (or its ancestors) has a `__click` property
 2. If found, calls that handler with the event
@@ -337,13 +337,13 @@ This is more efficient than attaching individual listeners to every element.
 
 ### Parameterized Handlers
 
-For handlers that need data, Rift uses an array format:
+For handlers that need data, Roqa uses an array format:
 
 ```jsx
 // What you write
 <button onclick={() => select(item)}>Select</button>
 
-// What Rift compiles it to
+// What Roqa compiles it to
 button_1.__click = [select, item];
 ```
 

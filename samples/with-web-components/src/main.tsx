@@ -1,9 +1,9 @@
-import { defineComponent, type RiftElement } from "rift-js";
+import { defineComponent, type RoqaElement } from "roqa";
 import "./vanilla-counter";
 import "./lit-counter";
 import "./styles.css";
 
-function App(this: RiftElement) {
+function App(this: RoqaElement) {
 	let count: HTMLElement;
 
 	this.connected(() => {
@@ -25,4 +25,4 @@ function App(this: RiftElement) {
 	);
 }
 
-defineComponent("rift-app", App);
+defineComponent("roqa-app", App);

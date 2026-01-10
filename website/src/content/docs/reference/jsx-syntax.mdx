@@ -1,11 +1,11 @@
 ---
 title: JSX Syntax
-description: Supported JSX patterns and limitations in Rift
+description: Supported JSX patterns and limitations in Roqa
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-Rift uses JSX syntax that compiles to optimized DOM manipulation code. This page documents what JSX patterns are supported and their limitations.
+Roqa uses JSX syntax that compiles to optimized DOM manipulation code. This page documents what JSX patterns are supported and their limitations.
 
 ## Elements
 
@@ -95,7 +95,7 @@ The only other PascalCase component for conditional content:
 
 ## ❌ Not Supported: Custom Components
 
-Unlike React or other frameworks, Rift does **not** support PascalCase custom components:
+Unlike React or other frameworks, Roqa does **not** support PascalCase custom components:
 
 ```jsx
 // ❌ NOT SUPPORTED - will throw error
@@ -110,7 +110,7 @@ Unlike React or other frameworks, Rift does **not** support PascalCase custom co
 ```
 
 <Aside>
-This is a fundamental design decision. Rift compiles to vanilla JS and uses the web platform's native component model (custom elements) rather than a framework-specific component abstraction.
+This is a fundamental design decision. Roqa compiles to vanilla JS and uses the web platform's native component model (custom elements) rather than a framework-specific component abstraction.
 </Aside>
 
 ---
@@ -400,7 +400,7 @@ Using `.map()` won't create reactive bindings. The list won't update when items 
 
 ## Migration from React
 
-| React                      | Rift                                  |
+| React                      | Roqa                                  |
 | -------------------------- | ------------------------------------- |
 | `className="foo"`          | `class="foo"`                         |
 | `onClick={fn}`             | `onclick={fn}`                        |

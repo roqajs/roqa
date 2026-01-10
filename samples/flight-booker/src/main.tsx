@@ -1,4 +1,4 @@
-import { defineComponent, cell, get, set } from "rift-js";
+import { defineComponent, cell, get, set } from "roqa";
 import "./styles.css";
 
 function pad(n: number, s = String(n)) {

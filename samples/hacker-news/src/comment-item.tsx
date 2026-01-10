@@ -1,4 +1,4 @@
-import { defineComponent, cell, get, For, type RiftElement, set } from "rift-js";
+import { defineComponent, cell, get, For, type RoqaElement, set } from "roqa";
 import { HN_API_BASE } from "./feeds";
 import { timeAgo } from "./utils/timeAgo";
 import "./comment-item.css";
@@ -8,7 +8,7 @@ type CommentItemProps = {
 	depth?: number;
 };
 
-function CommentItem(this: RiftElement, { comment, depth = 0 }: CommentItemProps) {
+function CommentItem(this: RoqaElement, { comment, depth = 0 }: CommentItemProps) {
 	const collapsed = cell(false);
 	const childComments = cell<any[]>([]);
 	const loadingChildren = cell(false);

@@ -1,7 +1,7 @@
-import { defineComponent, type RiftElement } from "rift-js";
+import { defineComponent, type RoqaElement } from "roqa";
 import "./styles.css";
 
-function Lifecycle(this: RiftElement) {
+function Lifecycle(this: RoqaElement) {
 	this.connected(() => {
 		console.log("Component connected to DOM");
 	});

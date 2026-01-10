@@ -1,16 +1,16 @@
 ---
 title: SVG Support
-description: Working with SVG graphics in Rift
+description: Working with SVG graphics in Roqa
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-Rift provides first-class support for SVG (Scalable Vector Graphics).
+Roqa provides first-class support for SVG (Scalable Vector Graphics).
 
 ## Basic SVG Components
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function Icon() {
   return (
@@ -151,10 +151,10 @@ defineComponent('pulsing-circle', PulsingCircle);
 
 ## Integrating with D3.js
 
-Rift works well with D3.js for complex visualizations:
+Roqa works well with D3.js for complex visualizations:
 
 ```jsx
-import { defineComponent, cell, get, set, bind } from 'rift-js';
+import { defineComponent, cell, get, set, bind } from 'roqa';
 import * as d3 from 'd3';
 
 function D3Chart() {
@@ -205,7 +205,7 @@ defineComponent('d3-chart', D3Chart);
 ```
 
 <Aside type="tip">
-When using D3, let D3 handle the SVG manipulation and use Rift cells to manage the data. Use `bind()` to re-render when data changes.
+When using D3, let D3 handle the SVG manipulation and use Roqa cells to manage the data. Use `bind()` to re-render when data changes.
 </Aside>
 
 ## SVG Icons with Props

@@ -1,18 +1,18 @@
 ---
 title: Reactive Cells
-description: The fundamental building block of Rift's reactivity system
+description: The fundamental building block of Roqa's reactivity system
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-Cells are the core primitive in Rift. A cell is a reactive container that holds a value and automatically tracks where it's used, enabling efficient DOM updates when the value changes.
+Cells are the core primitive in Roqa. A cell is a reactive container that holds a value and automatically tracks where it's used, enabling efficient DOM updates when the value changes.
 
 ## Creating Cells
 
 Use `cell()` to create a reactive value:
 
 ```jsx
-import { cell } from 'rift-js';
+import { cell } from 'roqa';
 
 const count = cell(0);           // number
 const name = cell('Alice');      // string
@@ -30,7 +30,7 @@ At compile time, `cell(value)` is transformed into `{ v: value, e: [] }` where `
 Use `get()` to read a cell's current value:
 
 ```jsx
-import { cell, get } from 'rift-js';
+import { cell, get } from 'roqa';
 
 const count = cell(10);
 console.log(get(count)); // 10
@@ -39,7 +39,7 @@ const name = cell('Alice');
 console.log(get(name)); // 'Alice'
 ```
 
-When `get()` appears inside JSX, Rift automatically creates a reactive binding:
+When `get()` appears inside JSX, Roqa automatically creates a reactive binding:
 
 ```jsx
 function Greeting() {
@@ -58,7 +58,7 @@ At compile time, `get(cell)` is transformed into `cell.v` for direct property ac
 Use `set()` to update a cell and trigger reactive updates:
 
 ```jsx
-import { cell, get, set } from 'rift-js';
+import { cell, get, set } from 'roqa';
 
 const count = cell(0);
 
@@ -79,13 +79,13 @@ When you call `set()`:
 2. Notifies all subscribers (effects registered with `bind()`)
 3. Updates all DOM nodes that depend on the cell
 
-The magic is that Rift **inlines** DOM updates at compile time:
+The magic is that Roqa **inlines** DOM updates at compile time:
 
 ```jsx
 // What you write
 set(count, get(count) + 1);
 
-// What Rift compiles it to
+// What Roqa compiles it to
 {
   count.v = count.v + 1;
   count.ref_1.nodeValue = 'Count: ' + count.v;
@@ -97,7 +97,7 @@ set(count, get(count) + 1);
 Use `put()` when you need to update a cell's value **without** triggering reactive updates:
 
 ```jsx
-import { cell, get, put } from 'rift-js';
+import { cell, get, put } from 'roqa';
 
 const count = cell(0);
 
@@ -148,7 +148,7 @@ At compile time, `put(cell, value)` is transformed into `cell.v = value`.
 Use `bind()` to run a function whenever a cell changes:
 
 ```jsx
-import { cell, get, set, bind } from 'rift-js';
+import { cell, get, set, bind } from 'roqa';
 
 const count = cell(0);
 
@@ -198,7 +198,7 @@ bind(state, (s) => {
 ```
 
 <Aside type="caution">
-In most cases, Rift's compiler handles bindings automatically when you use `get()` in JSX. You only need manual `bind()` calls for side effects outside the DOM.
+In most cases, Roqa's compiler handles bindings automatically when you use `get()` in JSX. You only need manual `bind()` calls for side effects outside the DOM.
 </Aside>
 
 ## Manual Notifications with `notify()`
@@ -206,7 +206,7 @@ In most cases, Rift's compiler handles bindings automatically when you use `get(
 Use `notify()` to trigger subscribers without changing the value:
 
 ```jsx
-import { cell, get, put, notify } from 'rift-js';
+import { cell, get, put, notify } from 'roqa';
 
 const items = cell([1, 2, 3]);
 

@@ -1,17 +1,17 @@
 ---
 title: Examples
-description: Sample applications demonstrating Rift patterns and concepts
+description: Sample applications demonstrating Roqa patterns and concepts
 ---
 
 import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-Explore these example applications to see Rift in action. Each example demonstrates different concepts and patterns.
+Explore these example applications to see Roqa in action. Each example demonstrates different concepts and patterns.
 
 ## Basic Examples
 
 <CardGrid>
   <Card title="Hello World" icon="star">
-    The simplest Rift example—reactive text binding with an input.
+    The simplest Roqa example—reactive text binding with an input.
     
     **Concepts:** `cell`, `get`, `set`, input binding
   </Card>
@@ -27,7 +27,7 @@ Explore these example applications to see Rift in action. Each example demonstra
 Two-way binding between an input and displayed text:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function HelloWorld() {
   const name = cell('World');
@@ -54,7 +54,7 @@ defineComponent('hello-world', HelloWorld);
 The classic counter example:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function Counter() {
   const count = cell(0);
@@ -78,7 +78,7 @@ defineComponent('counter-button', Counter);
 Demonstrates computed cells that depend on other cells:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function DerivedCount() {
   const count = cell(0);
@@ -117,7 +117,7 @@ defineComponent('derived-count', DerivedCount);
 Bidirectional conversion between Celsius and Fahrenheit:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function TempConverter() {
   const celsius = cell(0);
@@ -157,7 +157,7 @@ defineComponent('temp-converter', TempConverter);
 Form validation with interdependent fields:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function FlightBooker() {
   const tripType = cell('one-way');
@@ -220,11 +220,11 @@ defineComponent('flight-booker', FlightBooker);
 Classic todo app with add, toggle, and clear functionality:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function TodoList() {
   const todos = cell([
-    { text: 'Learn Rift', completed: false },
+    { text: 'Learn Roqa', completed: false },
     { text: 'Build an app', completed: false },
   ]);
 
@@ -292,7 +292,7 @@ defineComponent('todo-list', TodoList);
 Multi-column task management with nested lists:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 let taskId = 0;
 const createTask = (text) => ({ id: taskId++, text: cell(text) });
@@ -357,7 +357,7 @@ defineComponent('kanban-board', KanbanBoard);
 High-frequency updates with setInterval:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function Stopwatch() {
   const isRunning = cell(false);
@@ -413,7 +413,7 @@ defineComponent('stop-watch', Stopwatch);
 Integration with D3.js for reactive visualizations:
 
 ```jsx
-import { defineComponent, cell, get, set, bind } from 'rift-js';
+import { defineComponent, cell, get, set, bind } from 'roqa';
 import * as d3 from 'd3';
 
 function BarChart() {
@@ -480,7 +480,7 @@ Full application with multiple components and async data:
 
 ```jsx
 // main.jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 import './header';
 import './story-list';
 
@@ -538,12 +538,12 @@ defineComponent('hacker-news', App);
 
 ## Running the Examples
 
-All examples are available in the [samples directory](https://github.com/hawkticehurst/rift/tree/main/samples) of the Rift repository. To run any example:
+All examples are available in the [samples directory](https://github.com/hawkticehurst/roqa/tree/main/samples) of the Roqa repository. To run any example:
 
 ```bash
 # Copy the sample you want
-npx degit hawkticehurst/rift/samples/{insert-name-of-sample} rift-app
-cd rift-app
+npx degit hawkticehurst/roqa/samples/{insert-name-of-sample} roqa-app
+cd roqa-app
 
 # Install dependencies
 npm install
@@ -557,7 +557,7 @@ npm run dev
 <CardGrid>
   <LinkCard
     title="Core Concepts"
-    description="Deep dive into Rift's reactive primitives"
+    description="Deep dive into Roqa's reactive primitives"
     href="/concepts/reactive-cells/"
   />
   <LinkCard

@@ -12,7 +12,7 @@ Derived cells let you compute values based on other cells. When any dependency c
 Pass a function to `cell()` to create a derived cell:
 
 ```jsx
-import { cell, get, set } from 'rift-js';
+import { cell, get, set } from 'roqa';
 
 const firstName = cell('John');
 const lastName = cell('Doe');
@@ -34,7 +34,7 @@ Derived cells are **lazy** - they only recompute when you read them after a depe
 
 When you create a derived cell with a function:
 
-1. Rift tracks which cells are read (via `get()`) during computation
+1. Roqa tracks which cells are read (via `get()`) during computation
 2. When any tracked cell changes, the derived value is marked stale
 3. Next time you read it, the function re-runs
 
@@ -63,7 +63,7 @@ console.log(get(average)); // 2
 
 ```jsx
 const todos = cell([
-  { text: 'Learn Rift', done: true },
+  { text: 'Learn Roqa', done: true },
   { text: 'Build app', done: false },
   { text: 'Deploy', done: false },
 ]);
@@ -155,11 +155,11 @@ const aboveAverage = cell(() => {
 Derived cells work just like regular cells in JSX:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function TodoStats() {
   const todos = cell([
-    { text: 'Learn Rift', done: true },
+    { text: 'Learn Roqa', done: true },
     { text: 'Build app', done: false },
   ]);
 

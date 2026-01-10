@@ -1,16 +1,16 @@
 ---
 title: Component API
-description: Reference for the component context (this) in Rift components
+description: Reference for the component context (this) in Roqa components
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-When you define a Rift component, the function receives a special `this` context that provides lifecycle hooks and utility methods. This page documents the complete component API.
+When you define a Roqa component, the function receives a special `this` context that provides lifecycle hooks and utility methods. This page documents the complete component API.
 
 ## Component Structure
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function MyComponent(props) {
   // 'this' is the component context
@@ -437,7 +437,7 @@ function Item(props) {
 For complex data:
 
 ```jsx
-import { setProp } from 'rift-js';
+import { setProp } from 'roqa';
 
 const element = document.querySelector('user-card');
 setProp(element, 'user', { name: 'Alice', age: 30 });
@@ -463,7 +463,7 @@ function UserCard(props) {
 ## Complete Example
 
 ```jsx
-import { defineComponent, cell, get, set, setProp } from 'rift-js';
+import { defineComponent, cell, get, set, setProp } from 'roqa';
 
 function TodoItem(props) {
   const { todo, onToggle, onDelete } = props;
@@ -535,7 +535,7 @@ defineComponent('todo-item', TodoItem);
 ## TypeScript Support
 
 ```tsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 interface UserProps {
   user: {

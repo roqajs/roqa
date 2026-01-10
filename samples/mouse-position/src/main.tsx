@@ -1,7 +1,7 @@
-import { defineComponent, cell, get, type RiftElement, set } from "rift-js";
+import { defineComponent, cell, get, type RoqaElement, set } from "roqa";
 import "./styles.css";
 
-function MousePosition(this: RiftElement) {
+function MousePosition(this: RoqaElement) {
 	const x = cell(0);
 	const y = cell(0);
 	let clientRect: DOMRect;

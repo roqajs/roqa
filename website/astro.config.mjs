@@ -6,8 +6,8 @@ import { defineConfig } from "astro/config";
 export default defineConfig({
 	integrations: [
 		starlight({
-			title: "Rift",
-			social: [{ icon: "github", label: "GitHub", href: "https://github.com/hawkticehurst/rift" }],
+			title: "Roqa",
+			social: [{ icon: "github", label: "GitHub", href: "https://github.com/hawkticehurst/roqa" }],
 			components: {
 				Banner: "./src/components/Banner.astro",
 				Hero: "./src/components/HeroOverride.astro",

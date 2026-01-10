@@ -1,4 +1,4 @@
-import { defineComponent, cell, get, set } from "rift-js";
+import { defineComponent, cell, get, set } from "roqa";
 import { FEEDS } from "./feeds";
 import "./header.css";
 
@@ -9,7 +9,8 @@ type HeaderProps = {
 function Header({ changeFeed }: HeaderProps) {
 	const currentFeed = cell<string>(FEEDS.top);
 
-	const activeClass = (current: string, feed: string) => (current === feed ? "nav-link active" : "nav-link");
+	const activeClass = (current: string, feed: string) =>
+		current === feed ? "nav-link active" : "nav-link";
 
 	const handleFeedClick = (feed: string) => {
 		set(currentFeed, feed);

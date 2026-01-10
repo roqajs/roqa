@@ -10,7 +10,7 @@ body {
 	margin: 0;
 	padding: 0;
 }
-rift-app > button {
+roqa-app > button {
 	font-family: inherit;
 	font-size: inherit;
 	font-weight: inherit;
@@ -20,8 +20,8 @@ rift-app > button {
 	border-radius: 8px;
 	padding: 6px 10px;
 }
-rift-app > button:hover,
-rift-app > button:active {
+roqa-app > button:hover,
+roqa-app > button:active {
 	cursor: pointer;
 	background-color: #e6e6e6;
 }

@@ -1,5 +1,5 @@
 import type { Plugin } from "vite";
 
-declare module "rift-vite-plugin" {
-	export function rift(): Plugin;
+declare module "roqa-vite-plugin" {
+	export function roqa(): Plugin;
 }

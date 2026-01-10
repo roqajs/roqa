@@ -5,14 +5,14 @@ description: Define web components with lifecycle hooks and reactive state
 
 import { Aside } from '@astrojs/starlight/components';
 
-Rift components compile to native **web components** (custom elements). This means they work anywhere—in any framework, or no framework at all.
+Roqa components compile to native **web components** (custom elements). This means they work anywhere—in any framework, or no framework at all.
 
 ## Defining Components
 
 Use `defineComponent()` to register a function as a web component:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function Counter() {
   const count = cell(0);
@@ -252,7 +252,7 @@ defineComponent('greeting-card', GreetingCard);
 For complex data, use `setProp()`:
 
 ```jsx
-import { defineComponent, setProp, cell, get } from 'rift-js';
+import { defineComponent, setProp, cell, get } from 'roqa';
 
 // Child component
 function UserCard(props) {
@@ -296,7 +296,7 @@ See [Component Communication](/advanced/component-communication/) for more patte
 A file can define multiple components:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function Header() {
   return (
@@ -348,7 +348,7 @@ function TodoItem(props) {
 // Container - manages state
 function TodoList() {
   const todos = cell([
-    { text: 'Learn Rift', done: false },
+    { text: 'Learn Roqa', done: false },
     { text: 'Build app', done: false },
   ]);
 
@@ -380,7 +380,7 @@ defineComponent('my-card', Card);
 ```
 
 <Aside type="caution">
-Slots require Shadow DOM. By default, Rift components render to Light DOM. Shadow DOM support is being developed.
+Slots require Shadow DOM. By default, Roqa components render to Light DOM. Shadow DOM support is being developed.
 </Aside>
 
 ## Best Practices

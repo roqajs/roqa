@@ -1,16 +1,16 @@
 {
-	"name": "rift-vite-plugin",
+	"name": "roqa-vite-plugin",
 	"version": "0.0.1",
-	"description": "Vite plugin for the Rift UI framework",
-	"homepage": "https://rift.hawkticehurst.com",
+	"description": "Vite plugin for the Roqa UI framework",
+	"homepage": "https://roqa.hawkticehurst.com",
 	"bugs": {
-		"url": "https://github.com/hawkticehurst/rift/issues"
+		"url": "https://github.com/hawkticehurst/roqa/issues"
 	},
 	"license": "MIT",
 	"author": "Hawk Ticehurst",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/hawkticehurst/rift.git",
+		"url": "git+https://github.com/hawkticehurst/roqa.git",
 		"directory": "packages/vite-plugin"
 	},
 	"type": "module",
@@ -24,7 +24,7 @@
 		}
 	},
 	"devDependencies": {
-		"rift-js": "workspace:*",
+		"roqa": "workspace:*",
 		"vite": "catalog:default"
 	}
 }

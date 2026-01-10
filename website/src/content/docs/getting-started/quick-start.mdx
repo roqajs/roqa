@@ -1,11 +1,11 @@
 ---
 title: Quick Start
-description: Build your first Rift component in 5 minutes
+description: Build your first Roqa component in 5 minutes
 ---
 
 import { Steps } from '@astrojs/starlight/components';
 
-Let's build a simple counter component to understand how Rift works. This tutorial assumes you've already [installed Rift](/getting-started/installation/).
+Let's build a simple counter component to understand how Roqa works. This tutorial assumes you've already [installed Roqa](/getting-started/installation/).
 
 ## Building a Counter
 
@@ -16,7 +16,7 @@ Let's build a simple counter component to understand how Rift works. This tutori
    Create a new file `src/counter.jsx`:
 
    ```jsx
-   import { defineComponent, cell, get, set } from 'rift-js';
+   import { defineComponent, cell, get, set } from 'roqa';
 
    function Counter() {
      // Create a reactive cell with initial value 0
@@ -79,7 +79,7 @@ Let's break down what's happening:
 ### Importing Primitives
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 ```
 
 - `defineComponent` - Registers your function as a web component
@@ -93,7 +93,7 @@ import { defineComponent, cell, get, set } from 'rift-js';
 const count = cell(0);
 ```
 
-This creates a **cell** - a reactive container for state. The initial value is `0`. Under the hood, Rift compiles this to a simple object:
+This creates a **cell** - a reactive container for state. The initial value is `0`. Under the hood, Roqa compiles this to a simple object:
 
 ```js
 const count = { v: 0, e: [] };
@@ -105,7 +105,7 @@ const count = { v: 0, e: [] };
 <p>Count: {get(count)}</p>
 ```
 
-Use `get()` to read the current value. When this appears in JSX, Rift automatically creates a reactive binding—whenever `count` changes, this text updates.
+Use `get()` to read the current value. When this appears in JSX, Roqa automatically creates a reactive binding—whenever `count` changes, this text updates.
 
 ### Updating State
 
@@ -118,13 +118,13 @@ Use `set()` to update a cell's value. This:
 1. Updates the cell's value
 2. Triggers all DOM updates that depend on this cell
 
-The magic is that Rift **inlines** these updates at compile time:
+The magic is that Roqa **inlines** these updates at compile time:
 
 ```js
 // What you write
 set(count, get(count) + 1)
 
-// What Rift compiles it to
+// What Roqa compiles it to
 {
   count.v = count.v + 1;
   count.ref_1.nodeValue = 'Count: ' + count.v;
@@ -173,7 +173,7 @@ Then add CSS in your HTML or a stylesheet:
 
 ```jsx
 import './counter.css';
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 // ...
 ```
 
@@ -182,7 +182,7 @@ import { defineComponent, cell, get, set } from 'rift-js';
 Let's add an input that syncs with the counter:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function Counter() {
   const count = cell(0);

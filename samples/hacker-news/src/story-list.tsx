@@ -1,4 +1,4 @@
-import { defineComponent, cell, get, For, type RiftElement, set, Show } from "rift-js";
+import { defineComponent, cell, get, For, type RoqaElement, set, Show } from "roqa";
 import "./story-list.css";
 import "./story-item";
 
@@ -8,7 +8,7 @@ export interface StoryListMethods {
 	setStories: (stories: unknown[]) => void;
 }
 
-function StoryList(this: RiftElement<StoryListMethods>) {
+function StoryList(this: RoqaElement<StoryListMethods>) {
 	const stories = cell<unknown[]>([]);
 	const loading = cell(true);
 	const error = cell(false);

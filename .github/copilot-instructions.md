@@ -2,9 +2,9 @@
 applyTo: '**'
 ---
 
-# Rift Project Overview
+# Roqa Project Overview
 
-Rift is a **compile-time reactive UI framework** for building web components with JSX syntax. Unlike virtual DOM frameworks, Rift compiles JSX into highly optimized vanilla JavaScript that directly manipulates the DOM.
+Roqa is a **compile-time reactive UI framework** for building web components with JSX syntax. Unlike virtual DOM frameworks, Roqa compiles JSX into highly optimized vanilla JavaScript that directly manipulates the DOM.
 
 ## Core Concepts
 
@@ -15,7 +15,7 @@ Rift is a **compile-time reactive UI framework** for building web components wit
 │                          Build Time                             │
 │   ┌──────────┐    ┌────────────────┐    ┌───────────────────┐   │
 │   │  .jsx    │───▶│  Vite Plugin   │───▶│  Compiled Output  │   │
-│   │  files   │    │  (rift-js)     │    │  (vanilla JS)     │   │
+│   │  files   │    │  (roqa)     │    │  (vanilla JS)     │   │
 │   └──────────┘    └────────────────┘    └───────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -46,7 +46,7 @@ Rift is a **compile-time reactive UI framework** for building web components wit
 
 ```
 packages/
-├── rift-js/          # Core framework
+├── roqa/          # Core framework
 │   └── src/
 │       ├── compiler/ # JSX → JS compiler (build-time)
 │       └── runtime/  # Minimal runtime helpers
@@ -133,7 +133,7 @@ packages/
 
 ### Entry Point
 
-**File**: `packages/rift-js/src/compiler/index.js`
+**File**: `packages/roqa/src/compiler/index.js`
 
 ```js
 export function compile(code, filename) {
@@ -300,7 +300,7 @@ The plugin:
 
 1. Preserves JSX (doesn't let esbuild transform it)
 2. Intercepts `.jsx` files
-3. Calls the Rift compiler
+3. Calls the Roqa compiler
 4. Returns transformed code with source maps
 
 ```js
@@ -312,7 +312,7 @@ transform(code, id) {
 
 ---
 
-## Runtime (`packages/rift-js/src/runtime/`)
+## Runtime (`packages/roqa/src/runtime/`)
 
 Minimal runtime for features that can't be compile-time:
 
@@ -327,7 +327,7 @@ Minimal runtime for features that can't be compile-time:
 
 ### Component API (`component.js`)
 
-The `RiftElement` base class provides these methods on `this`:
+The `RoqaElement` base class provides these methods on `this`:
 
 | Method                          | Purpose                                     |
 | ------------------------------- | ------------------------------------------- |
@@ -354,7 +354,7 @@ defineComponent('my-switch', Switch, {
 ### Input (JSX)
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function Counter() {
   const count = cell(0);
@@ -366,7 +366,7 @@ defineComponent('my-counter', Counter);
 ### Output (Compiled)
 
 ```js
-import { defineComponent, delegate, template } from 'rift-js';
+import { defineComponent, delegate, template } from 'roqa';
 
 const $tmpl_1 = template('<button> </button>');
 
@@ -394,7 +394,7 @@ delegate(['click']);
 
 ## Common Gotchas for AI Models
 
-1. **No component composition**: Rift does NOT support `<MyComponent>` syntax. Use web components via `defineComponent()`.
+1. **No component composition**: Roqa does NOT support `<MyComponent>` syntax. Use web components via `defineComponent()`.
 
 2. **`<For>` and `<Show>` are special**: They're the only PascalCase elements allowed. `<For>` compiles to `forBlock()`, `<Show>` compiles to `showBlock()`.
 

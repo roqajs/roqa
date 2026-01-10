@@ -1,5 +1,5 @@
 {
-	"name": "rift-nested-components",
+	"name": "roqa-nested-components",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -9,10 +9,10 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
-		"rift-js": "workspace:*"
+		"roqa": "workspace:*"
 	},
 	"devDependencies": {
-		"rift-vite-plugin": "workspace:*",
+		"roqa-vite-plugin": "workspace:*",
 		"vite": "npm:rolldown-vite@7.2.5"
 	},
 	"overrides": {

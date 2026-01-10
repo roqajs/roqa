@@ -1,4 +1,4 @@
-import { defineComponent, cell, get, For, type RiftElement, set, Show } from "rift-js";
+import { defineComponent, cell, get, For, type RoqaElement, set, Show } from "roqa";
 import { HN_API_BASE } from "./feeds";
 import { getDomain } from "./utils/getDomain";
 import { timeAgo } from "./utils/timeAgo";
@@ -21,7 +21,7 @@ export interface CommentPageMethods {
 	loadStory: (storyId: number) => void;
 }
 
-function CommentPage(this: RiftElement<CommentPageMethods>) {
+function CommentPage(this: RoqaElement<CommentPageMethods>) {
 	const story = cell<Story | null>(null);
 	const comments = cell<any[]>([]);
 	const loading = cell(false);
@@ -137,7 +137,7 @@ function CommentPage(this: RiftElement<CommentPageMethods>) {
 								{get(story)?.title || ""}
 							</a>
 							<span class="domain">
-							{get(story)?.url ? "(" + getDomain(get(story)!.url!) + ")" : ""}
+								{get(story)?.url ? "(" + getDomain(get(story)!.url!) + ")" : ""}
 							</span>
 						</h1>
 						<div class="story-meta">

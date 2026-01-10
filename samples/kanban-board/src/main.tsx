@@ -1,4 +1,4 @@
-import { defineComponent, cell, For, get, set } from "rift-js";
+import { defineComponent, cell, For, get, set } from "roqa";
 import "./styles.css";
 
 let taskId = 0;
@@ -24,7 +24,7 @@ function KanbanBoard() {
 		{
 			id: "in-progress",
 			name: "In Progress",
-			tasks: cell([createTask("Learn Rift")]),
+			tasks: cell([createTask("Learn Roqa")]),
 		},
 		{
 			id: "done",

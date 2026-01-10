@@ -10,11 +10,11 @@ The `<For>` component efficiently renders lists of items. It uses a sophisticate
 ## Basic Usage
 
 ```jsx
-import { defineComponent, cell, get } from 'rift-js';
+import { defineComponent, cell, get } from 'roqa';
 
 function TodoList() {
   const todos = cell([
-    { id: 1, text: 'Learn Rift' },
+    { id: 1, text: 'Learn Roqa' },
     { id: 2, text: 'Build an app' },
     { id: 3, text: 'Deploy to production' },
   ]);
@@ -32,7 +32,7 @@ defineComponent('todo-list', TodoList);
 ```
 
 <Aside>
-`<For>` is a **compile-time** component. It's one of only two PascalCase JSX elements allowed in Rift (along with `<Show>`). It compiles to efficient `forBlock()` calls.
+`<For>` is a **compile-time** component. It's one of only two PascalCase JSX elements allowed in Roqa (along with `<Show>`). It compiles to efficient `forBlock()` calls.
 </Aside>
 
 ## The `each` Prop
@@ -47,7 +47,7 @@ const items = cell(['Apple', 'Banana', 'Cherry']);
 </For>
 ```
 
-When the array changes, Rift efficiently updates only the affected DOM nodes.
+When the array changes, Roqa efficiently updates only the affected DOM nodes.
 
 ## Accessing the Index
 
@@ -149,13 +149,13 @@ function ReorderExample() {
 
 ## How Reconciliation Works
 
-When you update a list, Rift uses the **Longest Increasing Subsequence (LIS)** algorithm to determine the minimum number of DOM operations needed:
+When you update a list, Roqa uses the **Longest Increasing Subsequence (LIS)** algorithm to determine the minimum number of DOM operations needed:
 
 ```jsx
 // Before: [A, B, C, D]
 // After:  [D, A, B, C]
 
-// Rift figures out that only D needs to move
+// Roqa figures out that only D needs to move
 // A, B, C stay in place
 ```
 
@@ -214,11 +214,11 @@ function NestedListExample() {
 Here's a complete todo list demonstrating common patterns:
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function TodoApp() {
   const todos = cell([
-    { id: 1, text: 'Learn Rift', done: true },
+    { id: 1, text: 'Learn Roqa', done: true },
     { id: 2, text: 'Build something', done: false },
   ]);
   const newTodo = cell('');
@@ -335,7 +335,7 @@ function ListWithEmptyState() {
 ### Prefer Immutable Updates
 
 ```jsx
-// ✅ Create new array - Rift can track changes
+// ✅ Create new array - Roqa can track changes
 set(items, [...get(items), newItem]);
 
 // ❌ Mutating won't trigger updates
@@ -345,7 +345,7 @@ notify(items); // Requires manual notify
 
 ### Stable Keys
 
-While Rift tracks by reference, keeping stable object references helps:
+While Roqa tracks by reference, keeping stable object references helps:
 
 ```jsx
 // ❌ Creates new objects every render
@@ -367,7 +367,7 @@ const filteredItems = cell(() => get(items).filter(i => i.active));
   )}
 </For>
 
-// ✅ This is actually fine in Rift due to event delegation
+// ✅ This is actually fine in Roqa due to event delegation
 // The handler is set once when the item is created
 ```
 

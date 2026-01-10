@@ -1,13 +1,13 @@
 /** @import {Plugin} from 'vite' */
 
-import { compile } from "rift-js/compiler";
+import { compile } from "roqa/compiler";
 
 /**
  * @returns {Plugin}
  */
-export default function rift() {
+export default function roqa() {
 	return {
-		name: "rift-jsx-compiler",
+		name: "roqa-jsx-compiler",
 		enforce: "pre",
 
 		config() {
@@ -38,7 +38,7 @@ export default function rift() {
 }
 
 function formatCompileError(error) {
-	let message = `Rift JSX compilation failed: ${error.message}`;
+	let message = `Roqa JSX compilation failed: ${error.message}`;
 
 	// Add suggestions for common errors
 	if (error.code === "UNSUPPORTED_COMPONENT") {

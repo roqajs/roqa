@@ -1,11 +1,11 @@
 ---
 title: How Compilation Works
-description: Understanding Rift's 4-phase compilation pipeline
+description: Understanding Roqa's 4-phase compilation pipeline
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-Rift's power comes from its compile-time approach. Instead of shipping a runtime that interprets your code, Rift transforms your JSX into highly optimized vanilla JavaScript at build time.
+Roqa's power comes from its compile-time approach. Instead of shipping a runtime that interprets your code, Roqa transforms your JSX into highly optimized vanilla JavaScript at build time.
 
 ## The 4-Phase Pipeline
 
@@ -52,7 +52,7 @@ This becomes an AST representation that subsequent phases can analyze and transf
 Validation ensures your code uses only supported patterns. The main check is for **custom components**.
 
 <Aside type="caution">
-Rift does NOT support custom PascalCase components like `<MyComponent>`. The only allowed PascalCase elements are `<For>` and `<Show>`.
+Roqa does NOT support custom PascalCase components like `<MyComponent>`. The only allowed PascalCase elements are `<For>` and `<Show>`.
 </Aside>
 
 ```jsx
@@ -68,7 +68,7 @@ Rift does NOT support custom PascalCase components like `<MyComponent>`. The onl
 <CustomButton>Click</CustomButton>
 ```
 
-Instead of component composition, Rift uses web components:
+Instead of component composition, Roqa uses web components:
 
 ```jsx
 // ✅ Use web components instead
@@ -237,7 +237,7 @@ Let's trace a simple counter through all phases:
 ### Input
 
 ```jsx
-import { defineComponent, cell, get, set } from 'rift-js';
+import { defineComponent, cell, get, set } from 'roqa';
 
 function Counter() {
   const count = cell(0);
@@ -255,7 +255,7 @@ defineComponent('my-counter', Counter);
 ### After Phase 3 (Generate)
 
 ```js
-import { defineComponent, delegate, template, cell, get, set, bind } from 'rift-js';
+import { defineComponent, delegate, template, cell, get, set, bind } from 'roqa';
 
 const $tmpl_1 = template('<button> </button>');
 
@@ -282,7 +282,7 @@ delegate(['click']);
 ### After Phase 4 (Inline) - Final Output
 
 ```js
-import { defineComponent, delegate, template } from 'rift-js';
+import { defineComponent, delegate, template } from 'roqa';
 
 const $tmpl_1 = template('<button> </button>');
 
@@ -341,7 +341,7 @@ Use your browser's DevTools to view the compiled code:
 
 ### Source Maps
 
-Rift generates source maps so you can debug your original JSX:
+Roqa generates source maps so you can debug your original JSX:
 
 1. Errors point to your source file
 2. DevTools shows original code

@@ -32,11 +32,11 @@ importers:
       oxfmt:
         specifier: ^0.20.0
         version: 0.20.0
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:packages/vite-plugin
 
-  packages/rift-js:
+  packages/roqa:
     devDependencies:
       '@babel/generator':
         specifier: catalog:default
@@ -68,20 +68,20 @@ importers:
 
   packages/vite-plugin:
     devDependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../rift-js
+        version: link:../roqa
       vite:
         specifier: catalog:default
         version: 7.2.7(@types/node@25.0.3)(lightningcss@1.30.2)
 
   samples/add-numbers:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -90,11 +90,11 @@ importers:
 
   samples/bound-values:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -103,11 +103,11 @@ importers:
 
   samples/component-props:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -116,11 +116,11 @@ importers:
 
   samples/counter-button:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -132,14 +132,14 @@ importers:
       d3:
         specifier: ^7.9.0
         version: 7.9.0
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
       '@types/d3':
         specifier: ^7.4.3
         version: 7.4.3
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -148,11 +148,11 @@ importers:
 
   samples/derived-count:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -161,11 +161,11 @@ importers:
 
   samples/flight-booker:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -174,11 +174,11 @@ importers:
 
   samples/hacker-news:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -187,11 +187,11 @@ importers:
 
   samples/hello-world:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -200,11 +200,11 @@ importers:
 
   samples/js-benchmark:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -213,11 +213,11 @@ importers:
 
   samples/kanban-board:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -226,11 +226,11 @@ importers:
 
   samples/life-cycle:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -239,11 +239,11 @@ importers:
 
   samples/message-passing:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -252,11 +252,11 @@ importers:
 
   samples/mouse-position:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -265,11 +265,11 @@ importers:
 
   samples/slider-math:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -278,11 +278,11 @@ importers:
 
   samples/stop-watch:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -291,11 +291,11 @@ importers:
 
   samples/temp-converter:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -304,9 +304,9 @@ importers:
 
   samples/three-js:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
       three:
         specifier: ^0.182.0
         version: 0.182.0
@@ -314,7 +314,7 @@ importers:
       '@types/three':
         specifier: ^0.182.0
         version: 0.182.0
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -323,11 +323,11 @@ importers:
 
   samples/todo-list:
     dependencies:
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:
@@ -339,11 +339,11 @@ importers:
       lit:
         specifier: ^3.3.1
         version: 3.3.1
-      rift-js:
+      roqa:
         specifier: workspace:*
-        version: link:../../packages/rift-js
+        version: link:../../packages/roqa
     devDependencies:
-      rift-vite-plugin:
+      roqa-vite-plugin:
         specifier: workspace:*
         version: link:../../packages/vite-plugin
       vite:

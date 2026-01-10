@@ -1,10 +1,10 @@
-import { defineComponent, cell, get, set, type RiftElement } from "rift-js";
+import { defineComponent, cell, get, set, type RoqaElement } from "roqa";
 
 export interface CounterMethods {
 	setCount: (value: number) => void;
 }
 
-function Counter(this: RiftElement<CounterMethods>) {
+function Counter(this: RoqaElement<CounterMethods>) {
 	const count = cell(0);
 
 	const increment = () => {

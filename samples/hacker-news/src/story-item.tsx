@@ -1,9 +1,9 @@
-import { defineComponent, type RiftElement } from "rift-js";
+import { defineComponent, type RoqaElement } from "roqa";
 import { getDomain } from "./utils/getDomain.js";
 import { timeAgo } from "./utils/timeAgo";
 import "./story-item.css";
 
-function StoryItem(this: RiftElement, { story, index }: { story: any; index: number }) {
+function StoryItem(this: RoqaElement, { story, index }: { story: any; index: number }) {
 	const storyUrl = story.url || `https://news.ycombinator.com/item?id=${story.id}`;
 	const domain = getDomain(story.url);
 	const domainDisplay = domain ? `(${domain})` : "";

@@ -1,8 +1,8 @@
 import * as d3 from "d3";
-import { defineComponent, cell, get, set, bind, For, type RiftElement } from "rift-js";
+import { defineComponent, cell, get, set, bind, For, type RoqaElement } from "roqa";
 import "./styles.css";
 
-function App(this: RiftElement) {
+function App(this: RoqaElement) {
 	const data = cell([
 		{ label: "A", value: 30 },
 		{ label: "B", value: 80 },

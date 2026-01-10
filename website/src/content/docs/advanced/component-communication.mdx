@@ -5,7 +5,7 @@ description: Pass data between parent and child components
 
 import { Aside } from '@astrojs/starlight/components';
 
-Since Rift components are web components, they communicate using standard web platform patterns: props, attributes, and custom events.
+Since Roqa components are web components, they communicate using standard web platform patterns: props, attributes, and custom events.
 
 ## Passing Props to Children
 
@@ -14,7 +14,7 @@ Since Rift components are web components, they communicate using standard web pl
 For complex data (objects, arrays, functions), use `setProp()`:
 
 ```jsx
-import { defineComponent, cell, get, setProp } from 'rift-js';
+import { defineComponent, cell, get, setProp } from 'roqa';
 
 // Child component
 function UserCard(props) {
@@ -237,7 +237,7 @@ For app-wide state, create a shared state module:
 
 ```jsx
 // state.js
-import { cell, get, set, bind } from 'rift-js';
+import { cell, get, set, bind } from 'roqa';
 
 export const user = cell(null);
 export const theme = cell('light');
@@ -251,7 +251,7 @@ export const toggleTheme = () =>
 
 ```jsx
 // header.jsx
-import { defineComponent, get, bind } from 'rift-js';
+import { defineComponent, get, bind } from 'roqa';
 import { user, logout, theme, toggleTheme } from './state.js';
 
 function Header() {
@@ -281,7 +281,7 @@ defineComponent('app-header', Header);
 Use `getProps()` to read all props set on an element:
 
 ```jsx
-import { defineComponent, getProps, setProp } from 'rift-js';
+import { defineComponent, getProps, setProp } from 'roqa';
 
 function DebugComponent() {
   this.connected(() => {
