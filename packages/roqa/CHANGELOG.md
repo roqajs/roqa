@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.3] - 2026-01-10
+
+### Fixed
+
+- Fixed critical memory leak when using `<For>` with reactive bindings to cells outside the loop (e.g., `class={get(selected) === row.id ? "danger" : ""}`)
+  - Subscriptions to external cells are now properly cleaned up when items are removed or the array is cleared
+  - `reconcileFastClear` now calls cleanup functions before clearing DOM
+  - The compiler now generates cleanup functions that capture `bind()` unsubscribe calls inside `<For>` and `<Show>` blocks
+
 ## [0.0.2] - 2026-01-10
 
 ### Fixed

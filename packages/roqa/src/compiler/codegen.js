@@ -701,16 +701,38 @@ function generateForBlock(
 	// Track ref counts per cell for numbered refs (ref_1, ref_2, etc.)
 	const cellRefCounts = new Map();
 
+	// Track cleanup functions needed from bind() calls
+	const cleanupVars = [];
+
 	// Bindings inside for block
 	for (const binding of processedBindings) {
-		const bindCode = generateBinding(code, binding, usedImports, itemParam, true, cellRefCounts);
+		const { bindCode, cleanupVar } = generateBindingWithCleanup(
+			code,
+			binding,
+			usedImports,
+			itemParam,
+			true,
+			cellRefCounts,
+			cleanupVars.length,
+		);
 		lines.push(`      ${bindCode}`);
+		if (cleanupVar) {
+			cleanupVars.push(cleanupVar);
+		}
 	}
 
-	// Insert before anchor and return range
+	// Insert before anchor and return range (with cleanup if needed)
 	lines.push("");
 	lines.push(`      anchor.before(${firstElementVar});`);
-	lines.push(`      return { start: ${firstElementVar}, end: ${firstElementVar} };`);
+
+	if (cleanupVars.length > 0) {
+		const cleanupCalls = cleanupVars.map((v) => `${v}()`).join("; ");
+		lines.push(
+			`      return { start: ${firstElementVar}, end: ${firstElementVar}, cleanup: () => { ${cleanupCalls}; } };`,
+		);
+	} else {
+		lines.push(`      return { start: ${firstElementVar}, end: ${firstElementVar} };`);
+	}
 	lines.push(`    });`);
 
 	return lines.join("\n");
@@ -861,16 +883,38 @@ function generateShowBlock(code, showBlock, nameGen, templateRegistry, usedImpor
 	// Track ref counts per cell for numbered refs (ref_1, ref_2, etc.)
 	const cellRefCounts = new Map();
 
+	// Track cleanup functions needed from bind() calls
+	const cleanupVars = [];
+
 	// Bindings inside show block
 	for (const binding of processedBindings) {
-		const bindCode = generateBinding(code, binding, usedImports, null, true, cellRefCounts);
+		const { bindCode, cleanupVar } = generateBindingWithCleanup(
+			code,
+			binding,
+			usedImports,
+			null,
+			true,
+			cellRefCounts,
+			cleanupVars.length,
+		);
 		lines.push(`      ${bindCode}`);
+		if (cleanupVar) {
+			cleanupVars.push(cleanupVar);
+		}
 	}
 
-	// Insert before anchor and return range
+	// Insert before anchor and return range (with cleanup if needed)
 	lines.push("");
 	lines.push(`      anchor.before(${firstElementVar});`);
-	lines.push(`      return { start: ${firstElementVar}, end: ${firstElementVar} };`);
+
+	if (cleanupVars.length > 0) {
+		const cleanupCalls = cleanupVars.map((v) => `${v}()`).join("; ");
+		lines.push(
+			`      return { start: ${firstElementVar}, end: ${firstElementVar}, cleanup: () => { ${cleanupCalls}; } };`,
+		);
+	} else {
+		lines.push(`      return { start: ${firstElementVar}, end: ${firstElementVar} };`);
+	}
 	lines.push(`    }${depsCode});`);
 
 	return lines.join("\n");
@@ -920,9 +964,82 @@ function generateBinding(
 	insideForBlock = false,
 	cellRefCounts = null,
 ) {
+	// At component level (not inside forBlock), we don't need cleanup tracking
+	// because cleanup is handled by the component's disconnectedCallback
+	const result = generateBindingCore(
+		code,
+		binding,
+		usedImports,
+		itemParam,
+		insideForBlock,
+		cellRefCounts,
+		false, // Don't generate cleanup variables
+		0,
+	);
+	return result.bindCode;
+}
+
+/**
+ * Generate code for a binding, returning both the code and any cleanup variable
+ * Used inside forBlock/showBlock where cleanup is needed on item destruction
+ * @param {string} code - Original source code
+ * @param {object} binding - Binding info
+ * @param {Set} usedImports - Set of imports to track
+ * @param {string} itemParam - Item parameter name (for forBlock context)
+ * @param {boolean} insideForBlock - Whether we're inside a forBlock callback
+ * @param {Map} cellRefCounts - Map to track ref counts per cell (for numbered refs)
+ * @param {number} cleanupIndex - Index for naming cleanup variables
+ * @returns {{ bindCode: string, cleanupVar: string|null }}
+ */
+function generateBindingWithCleanup(
+	code,
+	binding,
+	usedImports,
+	itemParam = null,
+	insideForBlock = false,
+	cellRefCounts = null,
+	cleanupIndex = 0,
+) {
+	return generateBindingCore(
+		code,
+		binding,
+		usedImports,
+		itemParam,
+		insideForBlock,
+		cellRefCounts,
+		true, // Generate cleanup variables
+		cleanupIndex,
+	);
+}
+
+/**
+ * Core binding generation logic
+ * @param {string} code - Original source code
+ * @param {object} binding - Binding info
+ * @param {Set} usedImports - Set of imports to track
+ * @param {string} itemParam - Item parameter name (for forBlock context)
+ * @param {boolean} insideForBlock - Whether we're inside a forBlock callback
+ * @param {Map} cellRefCounts - Map to track ref counts per cell (for numbered refs)
+ * @param {boolean} generateCleanup - Whether to generate cleanup variables for bind() calls
+ * @param {number} cleanupIndex - Index for naming cleanup variables
+ * @returns {{ bindCode: string, cleanupVar: string|null }}
+ */
+function generateBindingCore(
+	code,
+	binding,
+	usedImports,
+	itemParam = null,
+	insideForBlock = false,
+	cellRefCounts = null,
+	generateCleanup = false,
+	cleanupIndex = 0,
+) {
 	// Handle prop bindings (for custom elements)
 	if (binding.type === "prop") {
-		return generatePropBinding(code, binding, usedImports, insideForBlock);
+		return {
+			bindCode: generatePropBinding(code, binding, usedImports, insideForBlock),
+			cleanupVar: null,
+		};
 	}
 
 	const {
@@ -940,7 +1057,16 @@ function generateBinding(
 
 	// Handle new contentParts format (concatenated text content)
 	if (contentParts) {
-		return generateContentPartsBinding(code, binding, usedImports, insideForBlock, cellRefCounts);
+		return {
+			bindCode: generateContentPartsBinding(
+				code,
+				binding,
+				usedImports,
+				insideForBlock,
+				cellRefCounts,
+			),
+			cleanupVar: null,
+		};
 	}
 
 	// Build prefix string if we have static text before the dynamic expression
@@ -957,9 +1083,15 @@ function generateBinding(
 		// Static assignment
 		const exprCode = generateExpr(code, fullExpression);
 		if (needsSetAttribute) {
-			return `${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${exprCode});`;
+			return {
+				bindCode: `${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${exprCode});`,
+				cleanupVar: null,
+			};
 		}
-		return `${targetVar}.${targetProperty} = ${prefixCode}${exprCode};`;
+		return {
+			bindCode: `${targetVar}.${targetProperty} = ${prefixCode}${exprCode};`,
+			cleanupVar: null,
+		};
 	}
 
 	// Generate the cell argument code
@@ -982,8 +1114,11 @@ function generateBinding(
 
 		// Emit: initial value assignment + ref storage on cell
 		// cell.ref_N = element;
-		return `${targetVar}.${targetProperty} = ${initialExprCode};
-${indent}${cellCode}.${CONSTANTS.REF_PREFIX}${refNum} = ${targetVar};`;
+		return {
+			bindCode: `${targetVar}.${targetProperty} = ${initialExprCode};
+${indent}${cellCode}.${CONSTANTS.REF_PREFIX}${refNum} = ${targetVar};`,
+			cleanupVar: null,
+		};
 	}
 
 	// Fall back to bind() for complex bindings (or SVG attributes)
@@ -1000,18 +1135,50 @@ ${indent}${cellCode}.${CONSTANTS.REF_PREFIX}${refNum} = ${targetVar};`;
 		bindExprCode = "v";
 	}
 
-	// Set initial value AND bind for updates
-	if (needsSetAttribute) {
-		return `${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${initialExprCode});
-    bind(${cellCode}, (v) => {
-      ${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${bindExprCode});
-    });`;
+	// Determine indentation based on context
+	const indent = insideForBlock ? "      " : "    ";
+
+	// Generate with or without cleanup variable capture
+	if (generateCleanup) {
+		const cleanupVar = `_cleanup_${cleanupIndex}`;
+
+		if (needsSetAttribute) {
+			return {
+				bindCode: `${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${initialExprCode});
+${indent}const ${cleanupVar} = bind(${cellCode}, (v) => {
+${indent}  ${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${bindExprCode});
+${indent}});`,
+				cleanupVar,
+			};
+		}
+
+		return {
+			bindCode: `${targetVar}.${targetProperty} = ${prefixCode}${initialExprCode};
+${indent}const ${cleanupVar} = bind(${cellCode}, (v) => {
+${indent}  ${targetVar}.${targetProperty} = ${prefixCode}${bindExprCode};
+${indent}});`,
+			cleanupVar,
+		};
 	}
 
-	return `${targetVar}.${targetProperty} = ${prefixCode}${initialExprCode};
-    bind(${cellCode}, (v) => {
-      ${targetVar}.${targetProperty} = ${prefixCode}${bindExprCode};
-    });`;
+	// No cleanup needed - just generate the bind without capturing
+	if (needsSetAttribute) {
+		return {
+			bindCode: `${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${initialExprCode});
+${indent}bind(${cellCode}, (v) => {
+${indent}  ${targetVar}.setAttribute("${targetProperty}", ${prefixCode}${bindExprCode});
+${indent}});`,
+			cleanupVar: null,
+		};
+	}
+
+	return {
+		bindCode: `${targetVar}.${targetProperty} = ${prefixCode}${initialExprCode};
+${indent}bind(${cellCode}, (v) => {
+${indent}  ${targetVar}.${targetProperty} = ${prefixCode}${bindExprCode};
+${indent}});`,
+		cleanupVar: null,
+	};
 }
 
 /**

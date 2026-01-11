@@ -367,4 +367,162 @@ describe("showBlock", () => {
 			block.destroy();
 		});
 	});
+
+	describe("memory management", () => {
+		it("cleans up subscriptions when hiding", () => {
+			const visible = cell(true);
+			const externalCell = cell("initial");
+
+			const block = showBlock(container, visible, (anchor) => {
+				const span = document.createElement("span");
+
+				// Subscribe to external cell
+				const updateFn = () => {
+					span.textContent = externalCell.v;
+				};
+				externalCell.e.push(updateFn);
+				updateFn(); // Set initial value
+
+				const cleanup = () => {
+					const idx = externalCell.e.indexOf(updateFn);
+					if (idx > -1) externalCell.e.splice(idx, 1);
+				};
+
+				anchor.before(span);
+				return { start: span, end: span, cleanup };
+			});
+
+			expect(externalCell.e.length).toBe(1);
+
+			// Hide - should clean up subscription
+			visible.v = false;
+			block.update();
+
+			expect(externalCell.e.length).toBe(0);
+
+			block.destroy();
+		});
+
+		it("does not leak subscriptions on repeated show/hide cycles", () => {
+			const visible = cell(false);
+			const externalCell = cell(null);
+
+			const block = showBlock(container, visible, (anchor) => {
+				const span = document.createElement("span");
+
+				const updateFn = () => {
+					span.className = externalCell.v ? "active" : "";
+				};
+				externalCell.e.push(updateFn);
+
+				const cleanup = () => {
+					const idx = externalCell.e.indexOf(updateFn);
+					if (idx > -1) externalCell.e.splice(idx, 1);
+				};
+
+				anchor.before(span);
+				return { start: span, end: span, cleanup };
+			});
+
+			// Repeat show/hide cycle 10 times
+			for (let i = 0; i < 10; i++) {
+				// Show
+				visible.v = true;
+				block.update();
+				expect(externalCell.e.length).toBe(1);
+
+				// Hide
+				visible.v = false;
+				block.update();
+				expect(externalCell.e.length).toBe(0);
+			}
+
+			// No subscriptions should remain
+			expect(externalCell.e.length).toBe(0);
+
+			block.destroy();
+		});
+
+		it("cleans up all subscriptions on destroy when visible", () => {
+			const visible = cell(true);
+			const externalCell = cell("test");
+
+			const block = showBlock(container, visible, (anchor) => {
+				const span = document.createElement("span");
+
+				const updateFn = () => {
+					span.textContent = externalCell.v;
+				};
+				externalCell.e.push(updateFn);
+
+				const cleanup = () => {
+					const idx = externalCell.e.indexOf(updateFn);
+					if (idx > -1) externalCell.e.splice(idx, 1);
+				};
+
+				anchor.before(span);
+				return { start: span, end: span, cleanup };
+			});
+
+			expect(externalCell.e.length).toBe(1);
+
+			// Destroy while still visible
+			block.destroy();
+
+			// Subscription should be cleaned up
+			expect(externalCell.e.length).toBe(0);
+		});
+
+		it("handles multiple external cell subscriptions in cleanup", () => {
+			const visible = cell(true);
+			const cell1 = cell("a");
+			const cell2 = cell("b");
+			const cell3 = cell("c");
+
+			const block = showBlock(container, visible, (anchor) => {
+				const span = document.createElement("span");
+
+				const fn1 = () => {
+					span.dataset.a = cell1.v;
+				};
+				const fn2 = () => {
+					span.dataset.b = cell2.v;
+				};
+				const fn3 = () => {
+					span.dataset.c = cell3.v;
+				};
+
+				cell1.e.push(fn1);
+				cell2.e.push(fn2);
+				cell3.e.push(fn3);
+
+				const cleanup = () => {
+					const idx1 = cell1.e.indexOf(fn1);
+					if (idx1 > -1) cell1.e.splice(idx1, 1);
+					const idx2 = cell2.e.indexOf(fn2);
+					if (idx2 > -1) cell2.e.splice(idx2, 1);
+					const idx3 = cell3.e.indexOf(fn3);
+					if (idx3 > -1) cell3.e.splice(idx3, 1);
+				};
+
+				anchor.before(span);
+				return { start: span, end: span, cleanup };
+			});
+
+			expect(cell1.e.length).toBe(1);
+			expect(cell2.e.length).toBe(1);
+			expect(cell3.e.length).toBe(1);
+
+			// Hide
+			visible.v = false;
+			block.update();
+
+			// All subscriptions cleaned up
+			expect(cell1.e.length).toBe(0);
+			expect(cell2.e.length).toBe(0);
+			expect(cell3.e.length).toBe(0);
+
+			block.destroy();
+		});
+	});
 });

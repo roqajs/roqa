@@ -300,6 +300,235 @@ describe("forBlock", () => {
 	});
 });
 
+describe("forBlock memory management", () => {
+	let container;
+
+	beforeEach(() => {
+		container = document.createElement("ul");
+		document.body.appendChild(container);
+	});
+
+	afterEach(() => {
+		container.remove();
+	});
+
+	it("cleans up subscriptions when items are removed individually", () => {
+		// External cell that items bind to (simulates `selected` in a list)
+		const externalCell = cell(null);
+		const items = cell(["a", "b", "c"]);
+
+		const block = forBlock(container, items, (anchor, item) => {
+			const li = document.createElement("li");
+			li.textContent = item;
+
+			// Each item subscribes to the external cell
+			const unsubscribe = () => {
+				const idx = externalCell.e.indexOf(updateFn);
+				if (idx > -1) externalCell.e.splice(idx, 1);
+			};
+			const updateFn = () => {
+				li.className = externalCell.v === item ? "selected" : "";
+			};
+			externalCell.e.push(updateFn);
+
+			anchor.before(li);
+			return { start: li, end: li, cleanup: unsubscribe };
+		});
+
+		// Initially 3 subscriptions
+		expect(externalCell.e.length).toBe(3);
+
+		// Remove one item
+		items.v = ["a", "c"];
+		block.update();
+
+		// Should have cleaned up removed item's subscription
+		expect(externalCell.e.length).toBe(2);
+
+		block.destroy();
+	});
+
+	it("cleans up all subscriptions on fast clear (empty array)", () => {
+		const externalCell = cell(null);
+		const items = cell(["a", "b", "c", "d", "e"]);
+
+		const block = forBlock(container, items, (anchor, item) => {
+			const li = document.createElement("li");
+			li.textContent = item;
+
+			const updateFn = () => {
+				li.className = externalCell.v === item ? "selected" : "";
+			};
+			externalCell.e.push(updateFn);
+
+			const cleanup = () => {
+				const idx = externalCell.e.indexOf(updateFn);
+				if (idx > -1) externalCell.e.splice(idx, 1);
+			};
+
+			anchor.before(li);
+			return { start: li, end: li, cleanup };
+		});
+
+		expect(externalCell.e.length).toBe(5);
+
+		// Clear all items - triggers reconcileFastClear
+		items.v = [];
+		block.update();
+
+		// All subscriptions should be cleaned up
+		expect(externalCell.e.length).toBe(0);
+
+		block.destroy();
+	});
+
+	it("does not leak subscriptions on repeated create/clear cycles", () => {
+		const externalCell = cell(null);
+		const items = cell([]);
+
+		const block = forBlock(container, items, (anchor, item) => {
+			const li = document.createElement("li");
+			li.textContent = String(item);
+
+			const updateFn = () => {
+				li.className = externalCell.v === item ? "selected" : "";
+			};
+			externalCell.e.push(updateFn);
+
+			const cleanup = () => {
+				const idx = externalCell.e.indexOf(updateFn);
+				if (idx > -1) externalCell.e.splice(idx, 1);
+			};
+
+			anchor.before(li);
+			return { start: li, end: li, cleanup };
+		});
+
+		// Simulate 5 cycles of creating and clearing 100 items
+		for (let cycle = 0; cycle < 5; cycle++) {
+			// Create items
+			items.v = Array.from({ length: 100 }, (_, i) => i);
+			block.update();
+			expect(externalCell.e.length).toBe(100);
+
+			// Clear items
+			items.v = [];
+			block.update();
+			expect(externalCell.e.length).toBe(0);
+		}
+
+		// No leaked subscriptions
+		expect(externalCell.e.length).toBe(0);
+
+		block.destroy();
+	});
+
+	it("cleans up subscriptions when completely replacing array contents", () => {
+		const externalCell = cell(null);
+		const items = cell(["x", "y", "z"]);
+
+		const block = forBlock(container, items, (anchor, item) => {
+			const li = document.createElement("li");
+			li.textContent = item;
+
+			const updateFn = () => {
+				li.className = externalCell.v === item ? "selected" : "";
+			};
+			externalCell.e.push(updateFn);
+
+			const cleanup = () => {
+				const idx = externalCell.e.indexOf(updateFn);
+				if (idx > -1) externalCell.e.splice(idx, 1);
+			};
+
+			anchor.before(li);
+			return { start: li, end: li, cleanup };
+		});
+
+		expect(externalCell.e.length).toBe(3);
+
+		// Replace with completely different items
+		items.v = ["1", "2", "3", "4"];
+		block.update();
+
+		// Old subscriptions cleaned up, new ones added
+		expect(externalCell.e.length).toBe(4);
+
+		block.destroy();
+	});
+
+	it("cleans up all subscriptions on block destroy", () => {
+		const externalCell = cell(null);
+		const items = cell(["a", "b", "c"]);
+
+		const block = forBlock(container, items, (anchor, item) => {
+			const li = document.createElement("li");
+			li.textContent = item;
+
+			const updateFn = () => {
+				li.className = externalCell.v === item ? "selected" : "";
+			};
+			externalCell.e.push(updateFn);
+
+			const cleanup = () => {
+				const idx = externalCell.e.indexOf(updateFn);
+				if (idx > -1) externalCell.e.splice(idx, 1);
+			};
+
+			anchor.before(li);
+			return { start: li, end: li, cleanup };
+		});
+
+		expect(externalCell.e.length).toBe(3);
+
+		block.destroy();
+
+		// All subscriptions should be cleaned up
+		expect(externalCell.e.length).toBe(0);
+	});
+
+	it("properly cleans up during reconciliation with moves", () => {
+		const externalCell = cell(null);
+		const objA = { id: "a" };
+		const objB = { id: "b" };
+		const objC = { id: "c" };
+		const items = cell([objA, objB, objC]);
+
+		const cleanups = [];
+
+		const block = forBlock(container, items, (anchor, item) => {
+			const li = document.createElement("li");
+			li.textContent = item.id;
+
+			const updateFn = () => {
+				li.className = externalCell.v === item.id ? "selected" : "";
+			};
+			externalCell.e.push(updateFn);
+
+			const cleanup = () => {
+				cleanups.push(item.id);
+				const idx = externalCell.e.indexOf(updateFn);
+				if (idx > -1) externalCell.e.splice(idx, 1);
+			};
+
+			anchor.before(li);
+			return { start: li, end: li, cleanup };
+		});
+
+		expect(externalCell.e.length).toBe(3);
+
+		// Reorder - moves shouldn't call cleanup
+		items.v = [objC, objA, objB];
+		block.update();
+
+		// Same items, just moved - no cleanup should be called
+		expect(cleanups.length).toBe(0);
+		expect(externalCell.e.length).toBe(3);
+
+		block.destroy();
+	});
+});
+
 describe("forBlock reconciliation", () => {
 	let container;
 

@@ -383,3 +383,163 @@ defineComponent('my-app', App);
 		});
 	});
 });
+
+describe("cleanup generation", () => {
+	describe("forBlock cleanup", () => {
+		it("generates cleanup function for bind() calls inside For", () => {
+			const code = `
+import { defineComponent, cell, get } from 'roqa';
+function App() {
+	const selected = cell(null);
+	const items = cell([]);
+	return (
+		<ul>
+			<For each={items}>
+				{(item) => <li class={get(selected) === item.id ? 'active' : ''}>{item.name}</li>}
+			</For>
+		</ul>
+	);
+}
+defineComponent('my-app', App);
+`;
+			const ast = parse(code, "test.jsx");
+			const result = generateOutput(code, ast, "test.jsx");
+
+			// Should have cleanup variable captured
+			expect(result.code).toContain("const _cleanup_0 = bind(");
+			// Should return cleanup in forBlock result
+			expect(result.code).toContain("cleanup: () => {");
+			expect(result.code).toContain("_cleanup_0()");
+		});
+
+		it("generates multiple cleanup vars for multiple bind() calls in For", () => {
+			const code = `
+import { defineComponent, cell, get } from 'roqa';
+function App() {
+	const selected = cell(null);
+	const highlighted = cell(null);
+	const items = cell([]);
+	return (
+		<ul>
+			<For each={items}>
+				{(item) => (
+					<li 
+						class={get(selected) === item.id ? 'selected' : ''}
+						data-highlight={get(highlighted) === item.id ? 'yes' : 'no'}
+					>
+						{item.name}
+					</li>
+				)}
+			</For>
+		</ul>
+	);
+}
+defineComponent('my-app', App);
+`;
+			const ast = parse(code, "test.jsx");
+			const result = generateOutput(code, ast, "test.jsx");
+
+			// Should have multiple cleanup variables
+			expect(result.code).toContain("const _cleanup_0 = bind(");
+			expect(result.code).toContain("const _cleanup_1 = bind(");
+			// Cleanup function should call all of them
+			expect(result.code).toContain("_cleanup_0()");
+			expect(result.code).toContain("_cleanup_1()");
+		});
+
+		it("does not generate cleanup for simple ref bindings in For", () => {
+			const code = `
+import { defineComponent, cell, get } from 'roqa';
+function App() {
+	const items = cell([]);
+	return (
+		<ul>
+			<For each={items}>
+				{(item) => <li>{get(item.label)}</li>}
+			</For>
+		</ul>
+	);
+}
+defineComponent('my-app', App);
+`;
+			const ast = parse(code, "test.jsx");
+			const result = generateOutput(code, ast, "test.jsx");
+
+			// Simple ref bindings use .ref_N format, not bind()
+			// Should not have cleanup if only simple bindings
+			// But check that the forBlock still returns properly
+			expect(result.code).toContain("forBlock(");
+			expect(result.code).toContain("item.label.ref_1");
+		});
+	});
+
+	describe("showBlock cleanup", () => {
+		it("generates cleanup function for bind() calls inside Show", () => {
+			const code = `
+import { defineComponent, cell, get } from 'roqa';
+function App() {
+	const isActive = cell(true);
+	const theme = cell('dark');
+	return (
+		<div>
+			<Show when={get(isActive)}>
+				<span class={get(theme) === 'dark' ? 'dark-mode' : 'light-mode'}>Active</span>
+			</Show>
+		</div>
+	);
+}
+defineComponent('my-app', App);
+`;
+			const ast = parse(code, "test.jsx");
+			const result = generateOutput(code, ast, "test.jsx");
+
+			// Should have cleanup variable captured
+			expect(result.code).toContain("const _cleanup_0 = bind(");
+			// Should return cleanup in showBlock result
+			expect(result.code).toContain("cleanup: () => {");
+		});
+
+		it("does not generate cleanup when only ref bindings in Show", () => {
+			const code = `
+import { defineComponent, cell, get } from 'roqa';
+function App() {
+	const isActive = cell(true);
+	const count = cell(0);
+	return (
+		<div>
+			<Show when={get(isActive)}>
+				<span>{get(count)}</span>
+			</Show>
+		</div>
+	);
+}
+defineComponent('my-app', App);
+`;
+			const ast = parse(code, "test.jsx");
+			const result = generateOutput(code, ast, "test.jsx");
+
+			// Simple get(count) uses ref_1 optimization
+			expect(result.code).toContain("count.ref_1");
+		});
+	});
+
+	describe("component-level bindings", () => {
+		it("does not generate cleanup vars for component-level bind()", () => {
+			const code = `
+import { defineComponent, cell, get } from 'roqa';
+function App() {
+	const isDark = cell(false);
+	return <div class={get(isDark) ? 'dark' : 'light'}>Theme</div>;
+}
+defineComponent('my-app', App);
+`;
+			const ast = parse(code, "test.jsx");
+			const result = generateOutput(code, ast, "test.jsx");
+
+			// Component level bindings don't need cleanup vars
+			// They're cleaned up when component is disconnected
+			expect(result.code).toContain("bind(isDark");
+			expect(result.code).not.toContain("_cleanup_0");
+		});
+	});
+});

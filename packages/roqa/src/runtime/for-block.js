@@ -122,6 +122,13 @@ function destroyItem(item) {
  * Fast path: clear all items when going from non-empty to empty
  */
 function reconcileFastClear(anchor, forState, array) {
+	// Run cleanup for all items before clearing DOM
+	const items = forState.items;
+	for (let i = 0; i < items.length; i++) {
+		const state = items[i].s;
+		if (state.cleanup) state.cleanup();
+	}
+
 	const parent_node = anchor.parentNode;
 	parent_node.textContent = "";
 	parent_node.append(anchor);
