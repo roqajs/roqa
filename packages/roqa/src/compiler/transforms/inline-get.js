@@ -463,61 +463,79 @@ function findBindCallbacks(ast, code) {
 	// Track ref numbers per cell
 	const refCounters = new Map();
 
+	/**
+	 * Process a bind() call expression and add to bindCallbacks
+	 * @param {object} bindExpr - The bind() CallExpression node
+	 * @param {number} stmtStart - Start position of containing statement
+	 * @param {number} stmtEnd - End position of containing statement
+	 */
+	function processBindCall(bindExpr, stmtStart, stmtEnd) {
+		const cellArg = bindExpr.arguments[0];
+		const callbackArg = bindExpr.arguments[1];
+		if (!cellArg || !callbackArg) return;
+
+		// Get callback info
+		if (
+			callbackArg.type !== "ArrowFunctionExpression" &&
+			callbackArg.type !== "FunctionExpression"
+		) {
+			return;
+		}
+
+		const cellCode = code.slice(cellArg.start, cellArg.end);
+		const paramName = callbackArg.params[0]?.name || "v";
+
+		// Get the callback body
+		const body = callbackArg.body;
+		let bodyCode;
+		if (body.type === "BlockStatement") {
+			// Extract statements from block, removing braces
+			bodyCode = code.slice(body.start + 1, body.end - 1).trim();
+		} else {
+			// Expression body
+			bodyCode = code.slice(body.start, body.end);
+		}
+
+		// Find element variables used in the callback (e.g., p_1_text, tr_1)
+		// Also detect closure variables that would prevent inlining
+		const { elementVars, closureVars } = findElementVariables(body, code, paramName, cellCode);
+		const hasClosureVars = closureVars.size > 0;
+
+		// Get or create ref number for this cell
+		const currentRef = refCounters.get(cellCode) || 0;
+		const refNum = currentRef + 1;
+		refCounters.set(cellCode, refNum);
+
+		// Store bind callback info
+		if (!bindCallbacks.has(cellCode)) {
+			bindCallbacks.set(cellCode, []);
+		}
+
+		bindCallbacks.get(cellCode).push({
+			callbackBody: bodyCode,
+			elementVars,
+			refNum,
+			paramName,
+			statementStart: stmtStart,
+			statementEnd: stmtEnd,
+			hasClosureVars,
+		});
+	}
+
 	traverse(ast, {
+		// Handle: bind(cell, callback);
 		ExpressionStatement(path) {
 			const expr = path.node.expression;
 			if (!isBindCall(expr)) return;
-
-			const cellArg = expr.arguments[0];
-			const callbackArg = expr.arguments[1];
-			if (!cellArg || !callbackArg) return;
-
-			// Get callback info
-			if (
-				callbackArg.type !== "ArrowFunctionExpression" &&
-				callbackArg.type !== "FunctionExpression"
-			) {
-				return;
+			processBindCall(expr, path.node.start, path.node.end);
+		},
+		// Handle: const _cleanup_N = bind(cell, callback);
+		VariableDeclaration(path) {
+			for (const decl of path.node.declarations) {
+				if (decl.init && isBindCall(decl.init)) {
+					processBindCall(decl.init, path.node.start, path.node.end);
+				}
 			}
-
-			const cellCode = code.slice(cellArg.start, cellArg.end);
-			const paramName = callbackArg.params[0]?.name || "v";
-
-			// Get the callback body
-			const body = callbackArg.body;
-			let bodyCode;
-			if (body.type === "BlockStatement") {
-				// Extract statements from block, removing braces
-				bodyCode = code.slice(body.start + 1, body.end - 1).trim();
-			} else {
-				// Expression body
-				bodyCode = code.slice(body.start, body.end);
-			}
-
-			// Find element variables used in the callback (e.g., p_1_text, tr_1)
-			// Also detect closure variables that would prevent inlining
-			const { elementVars, closureVars } = findElementVariables(body, code, paramName, cellCode);
-			const hasClosureVars = closureVars.size > 0;
-
-			// Get or create ref number for this cell
-			const currentRef = refCounters.get(cellCode) || 0;
-			const refNum = currentRef + 1;
-			refCounters.set(cellCode, refNum);
-
-			// Store bind callback info
-			if (!bindCallbacks.has(cellCode)) {
-				bindCallbacks.set(cellCode, []);
-			}
-
-			bindCallbacks.get(cellCode).push({
-				callbackBody: bodyCode,
-				elementVars,
-				refNum,
-				paramName,
-				statementStart: path.node.start,
-				statementEnd: path.node.end,
-				hasClosureVars,
-			});
 		},
 		noScope: true,
 	});

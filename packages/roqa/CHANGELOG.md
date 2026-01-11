@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2026-01-10
+
+### Fixed
+
+- Fixed `set()` calls not notifying subscribers when using cleanup-captured `bind()` calls inside `<For>` and `<Show>` blocks
+  - The `findBindCallbacks` function in the inliner now correctly detects `bind()` calls in variable declarations (`const _cleanup_N = bind(...)`) in addition to expression statements
+  - This ensures the effect loop is generated for cells with non-inlined bind callbacks
+
 ## [0.0.3] - 2026-01-10
 
 ### Fixed
