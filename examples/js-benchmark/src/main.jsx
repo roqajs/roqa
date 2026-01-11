@@ -138,7 +138,7 @@ function App() {
 								<button
 									type="button"
 									class="btn btn-primary btn-block"
-									id="runLots"
+									id="runlots"
 									onclick={runLots}
 								>
 									Create 10,000 rows
@@ -168,7 +168,7 @@ function App() {
 								<button
 									type="button"
 									class="btn btn-primary btn-block"
-									id="swapRows"
+									id="swaprows"
 									onclick={swapRows}
 								>
 									Swap Rows
