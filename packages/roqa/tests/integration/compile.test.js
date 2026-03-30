@@ -175,6 +175,33 @@ defineComponent('matrix-view', App);
 			const forBlockMatches = result.code.match(/forBlock/g);
 			expect(forBlockMatches.length).toBeGreaterThanOrEqual(2);
 		});
+
+		it("does not leave dangling cleanup calls for item-local For bindings", () => {
+			const input = `
+import { defineComponent, cell, get } from 'roqa';
+
+function App() {
+	const rows = cell([]);
+	return (
+		<ul>
+			<For each={rows}>
+				{(row) => (
+					<li class={get(row.isSelected) ? 'active' : ''}>
+						{get(row.label)}
+					</li>
+				)}
+			</For>
+		</ul>
+	);
+}
+defineComponent('cleanup-safe-list', App);
+`;
+			const result = compile(input, "test.jsx");
+
+			expect(result.code).toContain("row.isSelected.ref_1 = li_1;");
+			expect(result.code).not.toContain("_cleanup_0");
+			expect(result.code).not.toContain("cleanup:");
+		});
 	});
 
 	describe("Show component", () => {

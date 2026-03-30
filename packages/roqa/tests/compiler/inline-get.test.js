@@ -200,6 +200,27 @@ const y = get(x);`;
 		});
 	});
 
+	describe("cleanup removal", () => {
+		it("removes dangling cleanup when a bind inside For is fully inlined", () => {
+			const code = `import { bind, forBlock, get } from "roqa";
+rows_forBlock = forBlock(tbody_1, rows, (anchor, row) => {
+  const tr_1 = $tmpl_1().firstChild;
+  tr_1.className = get(row.isSelected) ? "danger" : "";
+  const _cleanup_0 = bind(row.isSelected, (v) => {
+    tr_1.className = v ? "danger" : "";
+  });
+  anchor.before(tr_1);
+  return { start: tr_1, end: tr_1, cleanup: () => { _cleanup_0(); } };
+});`;
+			const result = inlineGetCalls(code, "test.js");
+
+			expect(result.code).toContain('tr_1.className = row.isSelected.v ? "danger" : ""');
+			expect(result.code).toContain("row.isSelected.ref_1 = tr_1;");
+			expect(result.code).not.toContain("_cleanup_0");
+			expect(result.code).not.toContain("cleanup:");
+		});
+	});
+
 	describe("source map generation", () => {
 		it("generates source map", () => {
 			const code = "const x = get(count);";

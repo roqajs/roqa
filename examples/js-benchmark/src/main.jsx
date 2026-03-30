@@ -61,15 +61,16 @@ const rand = (dict) => dict[Math.round(Math.random() * 1000) % dict.length];
 function App() {
 	let rowId = 1;
 	const rows = cell([]);
-	const selected = cell(null);
+	const selectedRow = cell(null);
 
 	function buildData(count = 1000) {
-		const data = Array.from({ length: count });
+		const data = new Array(count);
 		for (let i = 0; i < count; i++) {
 			const text = rand(adjectives) + " " + rand(colours) + " " + rand(nouns);
 			data[i] = {
 				id: rowId++,
 				label: cell(text),
+				isSelected: cell(false),
 			};
 		}
 		return data;
@@ -77,12 +78,10 @@ function App() {
 
 	const run = () => {
 		set(rows, buildData(1000));
-		put(selected, null);
 	};
 
 	const runLots = () => {
 		set(rows, buildData(10000));
-		put(selected, null);
 	};
 
 	const add = () => {
@@ -91,7 +90,7 @@ function App() {
 
 	const clear = () => {
 		set(rows, []);
-		put(selected, null);
+		put(selectedRow, null);
 	};
 
 	const updateRows = () => {
@@ -111,7 +110,10 @@ function App() {
 	};
 
 	const select = (row) => {
-		set(selected, row.id);
+		const prev = get(selectedRow);
+		if (prev) set(prev.isSelected, false);
+		set(row.isSelected, true);
+		put(selectedRow, row);
 	};
 
 	const remove = (row) => {
@@ -182,7 +184,7 @@ function App() {
 				<tbody>
 					<For each={rows}>
 						{(row) => (
-							<tr class={get(selected) === row.id ? "danger" : ""}>
+							<tr class={get(row.isSelected) ? "danger" : ""}>
 								<td class="col-md-1">{row.id}</td>
 								<td class="col-md-4">
 									<a onclick={() => select(row)}>{get(row.label)}</a>

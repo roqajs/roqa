@@ -458,7 +458,7 @@ function findBlockInfo(ast, code) {
  * Returns a map from cell code -> array of callback info
  */
 function findBindCallbacks(ast, code) {
-	// Map: cellCode -> [{ callbackBody, elementVars, refNum, paramName, statementStart, statementEnd, hasClosureVars }]
+	// Map: cellCode -> [{ callbackBody, elementVars, refNum, paramName, statementStart, statementEnd, hasClosureVars, cleanupVarName }]
 	const bindCallbacks = new Map();
 	// Track ref numbers per cell
 	const refCounters = new Map();
@@ -469,7 +469,7 @@ function findBindCallbacks(ast, code) {
 	 * @param {number} stmtStart - Start position of containing statement
 	 * @param {number} stmtEnd - End position of containing statement
 	 */
-	function processBindCall(bindExpr, stmtStart, stmtEnd) {
+	function processBindCall(bindExpr, stmtStart, stmtEnd, cleanupVarName = null) {
 		const cellArg = bindExpr.arguments[0];
 		const callbackArg = bindExpr.arguments[1];
 		if (!cellArg || !callbackArg) return;
@@ -519,6 +519,7 @@ function findBindCallbacks(ast, code) {
 			statementStart: stmtStart,
 			statementEnd: stmtEnd,
 			hasClosureVars,
+			cleanupVarName,
 		});
 	}
 
@@ -533,7 +534,12 @@ function findBindCallbacks(ast, code) {
 		VariableDeclaration(path) {
 			for (const decl of path.node.declarations) {
 				if (decl.init && isBindCall(decl.init)) {
-					processBindCall(decl.init, path.node.start, path.node.end);
+					processBindCall(
+						decl.init,
+						path.node.start,
+						path.node.end,
+						decl.id.type === "Identifier" ? decl.id.name : null,
+					);
 				}
 			}
 		},
@@ -541,6 +547,35 @@ function findBindCallbacks(ast, code) {
 	});
 
 	return bindCallbacks;
+}
+
+function isCleanupCallStatement(node, cleanupVarNames) {
+	return (
+		node?.type === "ExpressionStatement" &&
+		node.expression?.type === "CallExpression" &&
+		node.expression.callee?.type === "Identifier" &&
+		cleanupVarNames.has(node.expression.callee.name) &&
+		node.expression.arguments.length === 0
+	);
+}
+
+function removeObjectProperty(s, code, propertyNode) {
+	let start = propertyNode.start;
+	let end = propertyNode.end;
+
+	let left = start - 1;
+	while (left >= 0 && /\s/.test(code[left])) left--;
+	if (left >= 0 && code[left] === ",") {
+		start = left;
+	} else {
+		let right = end;
+		while (right < code.length && /\s/.test(code[right])) right++;
+		if (right < code.length && code[right] === ",") {
+			end = right + 1;
+		}
+	}
+
+	s.remove(start, end);
 }
 
 /**
@@ -740,6 +775,7 @@ export function inlineGetCalls(code, filename) {
 
 	// Track bind statements to remove
 	const bindStatementsToRemove = [];
+	const inlinedCleanupVars = new Set();
 
 	// Track roqa imports for removal
 	const importsToRemove = [];
@@ -1108,12 +1144,69 @@ export function inlineGetCalls(code, filename) {
 
 		// Replace bind() call with ref assignment(s)
 		if (refAssignment) {
+			if (callback.cleanupVarName) {
+				inlinedCleanupVars.add(callback.cleanupVarName);
+			}
 			s.overwrite(start, end, refAssignment);
 		} else {
 			// No element vars found - bind() can't be fully inlined
 			// Keep the bind() call but wrap it to run immediately AND register for updates
 			// This handles complex callbacks like d3.select().call() patterns
 			// Don't remove - leave bind() in place (runtime handles immediate execution)
+		}
+	}
+
+	// Remove cleanup calls for bind() subscriptions that were fully inlined away.
+	// If a cleanup block only contains now-removed cleanup calls, drop the cleanup
+	// property entirely so runtime list items don't carry no-op cleanup functions.
+	if (inlinedCleanupVars.size > 0) {
+		const cleanupStatementsToRemove = [];
+		const cleanupPropertiesToRemove = [];
+
+		traverse(ast, {
+			ObjectProperty(path) {
+				const node = path.node;
+				const key = node.key;
+				const isCleanupProperty =
+					(key?.type === "Identifier" && key.name === "cleanup") ||
+					(key?.type === "StringLiteral" && key.value === "cleanup");
+				if (!isCleanupProperty) return;
+
+				const fn = node.value;
+				if (
+					!fn ||
+					(fn.type !== "ArrowFunctionExpression" && fn.type !== "FunctionExpression") ||
+					fn.body?.type !== "BlockStatement"
+				) {
+					return;
+				}
+
+				const statements = fn.body.body;
+				if (statements.length === 0) return;
+
+				const removableStatements = statements.filter((stmt) =>
+					isCleanupCallStatement(stmt, inlinedCleanupVars),
+				);
+				if (removableStatements.length === 0) return;
+
+				if (removableStatements.length === statements.length) {
+					cleanupPropertiesToRemove.push(node);
+					return;
+				}
+
+				cleanupStatementsToRemove.push(...removableStatements);
+			},
+			noScope: true,
+		});
+
+		cleanupStatementsToRemove.sort((a, b) => b.start - a.start);
+		for (const stmt of cleanupStatementsToRemove) {
+			s.remove(stmt.start, stmt.end);
+		}
+
+		cleanupPropertiesToRemove.sort((a, b) => b.start - a.start);
+		for (const property of cleanupPropertiesToRemove) {
+			removeObjectProperty(s, code, property);
 		}
 	}
 

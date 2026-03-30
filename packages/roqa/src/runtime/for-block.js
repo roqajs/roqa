@@ -66,10 +66,13 @@ function lisAlgorithm(arr) {
  * @param {*} value - The data item
  * @param {number} index - Array index
  * @param {Function} renderFn - (anchor, value, index) => { start, end } or just appends nodes
+ * @param {Object} forState - The for loop state (to track cleanup count)
  */
-function createItem(anchor, value, index, renderFn) {
+function createItem(anchor, value, index, renderFn, forState) {
 	// renderFn should return { start, end } nodes for the item
 	const item = renderFn(anchor, value, index);
+	// Track if this item has cleanup for fast-path optimization
+	if (item.cleanup) forState.cleanupCount++;
 	return {
 		s: item, // state: { start, end } - the DOM range for this item
 		v: value,
@@ -101,14 +104,18 @@ function moveItem(item, anchor) {
 
 /**
  * Destroy an item's DOM nodes and run cleanup if present
+ * @param {Object} forState - The for loop state (to track cleanup count)
  */
-function destroyItem(item) {
+function destroyItem(item, forState) {
 	const state = item.s;
 	let node = state.start;
 	const end = state.end;
 
 	// Run cleanup function if the render provided one
-	if (state.cleanup) state.cleanup();
+	if (state.cleanup) {
+		state.cleanup();
+		forState.cleanupCount--;
+	}
 
 	while (node !== null) {
 		const next = node.nextSibling;
@@ -122,11 +129,14 @@ function destroyItem(item) {
  * Fast path: clear all items when going from non-empty to empty
  */
 function reconcileFastClear(anchor, forState, array) {
-	// Run cleanup for all items before clearing DOM
-	const items = forState.items;
-	for (let i = 0; i < items.length; i++) {
-		const state = items[i].s;
-		if (state.cleanup) state.cleanup();
+	// Only run cleanup loop if there are items with cleanup functions
+	if (forState.cleanupCount > 0) {
+		const items = forState.items;
+		for (let i = 0; i < items.length; i++) {
+			const state = items[i].s;
+			if (state.cleanup) state.cleanup();
+		}
+		forState.cleanupCount = 0;
 	}
 
 	const parent_node = anchor.parentNode;
@@ -161,7 +171,7 @@ function reconcileByRef(anchor, forState, b, renderFn) {
 		// Empty -> non-empty: create all
 		if (aLen === 0) {
 			for (; j < bLen; j++) {
-				bItems[j] = createItem(anchor, b[j], j, renderFn);
+				bItems[j] = createItem(anchor, b[j], j, renderFn, forState);
 			}
 			forState.array = b;
 			forState.items = bItems;
@@ -205,14 +215,14 @@ function reconcileByRef(anchor, forState, b, renderFn) {
 				while (j <= bEnd) {
 					bVal = b[j];
 					target = j >= aLen ? anchor : aItems[j].s.start;
-					bItems[j] = createItem(target, bVal, j, renderFn);
+					bItems[j] = createItem(target, bVal, j, renderFn, forState);
 					j++;
 				}
 			}
 		} else if (j > bEnd) {
 			// Only removals
 			while (j <= aEnd) {
-				destroyItem(aItems[j++]);
+				destroyItem(aItems[j++], forState);
 			}
 		} else {
 			// General case: need full reconciliation
@@ -237,7 +247,7 @@ function reconcileByRef(anchor, forState, b, renderFn) {
 								sources[j - bStart] = i + 1;
 								if (fastPathRemoval) {
 									fastPathRemoval = false;
-									while (aStart < i) destroyItem(aItems[aStart++]);
+									while (aStart < i) destroyItem(aItems[aStart++], forState);
 								}
 								if (pos > j) moved = true;
 								else pos = j;
@@ -246,9 +256,9 @@ function reconcileByRef(anchor, forState, b, renderFn) {
 								break;
 							}
 						}
-						if (!fastPathRemoval && j > bEnd) destroyItem(aItems[i]);
+						if (!fastPathRemoval && j > bEnd) destroyItem(aItems[i], forState);
 					} else if (!fastPathRemoval) {
-						destroyItem(aItems[i]);
+						destroyItem(aItems[i], forState);
 					}
 				}
 			} else {
@@ -262,7 +272,7 @@ function reconcileByRef(anchor, forState, b, renderFn) {
 						if (j !== undefined) {
 							if (fastPathRemoval) {
 								fastPathRemoval = false;
-								while (i > aStart) destroyItem(aItems[aStart++]);
+								while (i > aStart) destroyItem(aItems[aStart++], forState);
 							}
 							sources[j - bStart] = i + 1;
 							if (pos > j) moved = true;
@@ -270,10 +280,10 @@ function reconcileByRef(anchor, forState, b, renderFn) {
 							bItems[j] = aItems[i];
 							++patched;
 						} else if (!fastPathRemoval) {
-							destroyItem(aItems[i]);
+							destroyItem(aItems[i], forState);
 						}
 					} else if (!fastPathRemoval) {
-						destroyItem(aItems[i]);
+						destroyItem(aItems[i], forState);
 					}
 				}
 			}
@@ -295,7 +305,7 @@ function reconcileByRef(anchor, forState, b, renderFn) {
 
 					if (sources[i] === 0) {
 						bVal = b[pos];
-						bItems[pos] = createItem(target, bVal, pos, renderFn);
+						bItems[pos] = createItem(target, bVal, pos, renderFn, forState);
 					} else if (j < 0 || i !== seq[j]) {
 						moveItem(bItems[pos], target);
 					} else {
@@ -309,7 +319,7 @@ function reconcileByRef(anchor, forState, b, renderFn) {
 						bVal = b[pos];
 						const nextPos = pos + 1;
 						target = nextPos < bLen ? bItems[nextPos].s.start : anchor;
-						bItems[pos] = createItem(target, bVal, pos, renderFn);
+						bItems[pos] = createItem(target, bVal, pos, renderFn, forState);
 					}
 				}
 			}
@@ -339,6 +349,7 @@ export function forBlock(container, sourceCell, renderFn) {
 	const forState = {
 		array: [],
 		items: [],
+		cleanupCount: 0, // Track items with cleanup for fast-path optimization
 	};
 
 	const doUpdate = () => {
@@ -363,7 +374,7 @@ export function forBlock(container, sourceCell, renderFn) {
 		// Destroy all current items
 		const items = forState.items;
 		for (let i = 0; i < items.length; i++) {
-			destroyItem(items[i]);
+			destroyItem(items[i], forState);
 		}
 		forState.array = [];
 		forState.items = [];
