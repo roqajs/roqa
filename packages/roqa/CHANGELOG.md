@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2026-03-31
+
+### Fixed
+
+- Fixed a compiler bug where cleanup-captured `bind()` calls inside `<For>` and `<Show>` blocks could be fully inlined to ref assignments while leaving dangling `_cleanup_N()` calls in generated cleanup functions
+  - The inliner now tracks cleanup variable names for removable `bind()` subscriptions and removes stale cleanup calls when their underlying subscription has been optimized away
+  - Cleanup properties are omitted entirely when all generated cleanup calls were eliminated during inlining
+
+### Changed
+
+- Restored the js benchmark example to the faster per-row selection strategy so compiled output uses direct row refs instead of per-row subscriptions to a shared selection cell
+
 ## [0.0.4] - 2026-01-10
 
 ### Fixed
