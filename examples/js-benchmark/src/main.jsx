@@ -70,7 +70,6 @@ function App() {
 			data[i] = {
 				id: rowId++,
 				label: cell(text),
-				isSelected: cell(false),
 			};
 		}
 		return data;
@@ -110,10 +109,7 @@ function App() {
 	};
 
 	const select = (row) => {
-		const prev = get(selectedRow);
-		if (prev) set(prev.isSelected, false);
-		set(row.isSelected, true);
-		put(selectedRow, row);
+		set(selectedRow, row);
 	};
 
 	const remove = (row) => {
@@ -184,7 +180,7 @@ function App() {
 				<tbody>
 					<For each={rows}>
 						{(row) => (
-							<tr class={get(row.isSelected) ? "danger" : ""}>
+							<tr class={get(selectedRow) === row ? "danger" : ""}>
 								<td class="col-md-1">{row.id}</td>
 								<td class="col-md-4">
 									<a onclick={() => select(row)}>{get(row.label)}</a>

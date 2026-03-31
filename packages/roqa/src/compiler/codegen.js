@@ -595,6 +595,44 @@ function generateForBlock(
 
 	// Process inner bindings (these need to reference the item parameter)
 	const processedBindings = processBindings(bindings, code);
+
+	// === SELECTOR DETECTION ===
+	// Scan for the pattern: get(outerCell) === itemParam in attribute expressions.
+	// When found, replace N individual bind() subscriptions with one shared dispatch
+	// function + a keyed Map, reducing selection change cost from O(n) to O(1).
+	const selectorMap = new Map(); // cellCode -> { subsVar, prevVar }
+	let selectorCounter = 0;
+	for (const binding of processedBindings) {
+		if (binding.isStatic || !binding.cellArg || !binding.fullExpression) continue;
+		const cellCode = generateExpr(code, binding.cellArg);
+		if (selectorMap.has(cellCode)) continue;
+		if (detectSelectorPattern(binding, itemParam)) {
+			selectorCounter++;
+			selectorMap.set(cellCode, {
+				subsVar: `_sel_${selectorCounter}_subs`,
+				prevVar: `_sel_${selectorCounter}_prev`,
+			});
+		}
+	}
+
+	// Generate selector setup lines (emitted BEFORE the forBlock call)
+	const selectorSetupLines = [];
+	for (const [cellCode, sel] of selectorMap) {
+		selectorSetupLines.push(`    const ${sel.subsVar} = new Map();`);
+		selectorSetupLines.push(`    let ${sel.prevVar} = get(${cellCode});`);
+		selectorSetupLines.push(`    bind(${cellCode}, (next) => {`);
+		selectorSetupLines.push(`      if (${sel.prevVar} === next) return;`);
+		selectorSetupLines.push(`      ${sel.subsVar}.get(${sel.prevVar})?.(false);`);
+		selectorSetupLines.push(`      ${sel.subsVar}.get(next)?.(true);`);
+		selectorSetupLines.push(`      ${sel.prevVar} = next;`);
+		selectorSetupLines.push(`    });`);
+		selectorSetupLines.push("");
+		usedImports.add("bind");
+		usedImports.add("get");
+	}
+	const selectorSetupCode =
+		selectorSetupLines.length > 0 ? selectorSetupLines.join("\n") + "\n" : "";
+
 	for (const b of processedBindings) {
 		if (!b.isStatic) {
 			usedImports.add("bind");
@@ -703,9 +741,38 @@ function generateForBlock(
 
 	// Track cleanup functions needed from bind() calls
 	const cleanupVars = [];
+	// Track inline cleanup expressions from selector subscriptions
+	const selectorCleanups = [];
 
 	// Bindings inside for block
 	for (const binding of processedBindings) {
+		// Check for selector pattern before falling back to standard binding generation
+		if (!binding.isStatic && binding.cellArg && binding.fullExpression) {
+			const cellCode = generateExpr(code, binding.cellArg);
+			const sel = selectorMap.get(cellCode);
+			if (sel) {
+				const match = detectSelectorPattern(binding, itemParam);
+				if (match) {
+					const { targetVar, targetProperty } = binding;
+					// Initial value: evaluates with get(cell), Phase 4 inlines to cell.v
+					const initialExprCode = generateExpr(code, binding.fullExpression);
+					// Callback: replace the entire `get(cell) === itemParam` comparison with `active`
+					const callbackExprCode = generateExprWithReplacement(
+						code,
+						binding.fullExpression,
+						match.comparisonNode,
+						"active",
+					);
+					lines.push(`      ${targetVar}.${targetProperty} = ${initialExprCode};`);
+					lines.push(`      ${sel.subsVar}.set(${itemParam}, (active) => {`);
+					lines.push(`        ${targetVar}.${targetProperty} = ${callbackExprCode};`);
+					lines.push(`      });`);
+					selectorCleanups.push(`${sel.subsVar}.delete(${itemParam})`);
+					continue;
+				}
+			}
+		}
+
 		const { bindCode, cleanupVar } = generateBindingWithCleanup(
 			code,
 			binding,
@@ -725,17 +792,23 @@ function generateForBlock(
 	lines.push("");
 	lines.push(`      anchor.before(${firstElementVar});`);
 
-	if (cleanupVars.length > 0) {
-		const cleanupCalls = cleanupVars.map((v) => `${v}()`).join("; ");
+	const allCleanupCalls = [
+		...cleanupVars.map((v) => `${v}()`),
+		...selectorCleanups,
+	]
+		.filter(Boolean)
+		.join("; ");
+
+	if (allCleanupCalls) {
 		lines.push(
-			`      return { start: ${firstElementVar}, end: ${firstElementVar}, cleanup: () => { ${cleanupCalls}; } };`,
+			`      return { start: ${firstElementVar}, end: ${firstElementVar}, cleanup: () => { ${allCleanupCalls}; } };`,
 		);
 	} else {
 		lines.push(`      return { start: ${firstElementVar}, end: ${firstElementVar} };`);
 	}
 	lines.push(`    });`);
 
-	return lines.join("\n");
+	return selectorSetupCode + lines.join("\n");
 }
 
 /**
@@ -1299,6 +1372,67 @@ function generatePropBinding(code, binding, usedImports) {
 	// Note: Props are passed at connection time, so we just need the initial value
 	const exprCode = generateExpr(code, expr);
 	return `setProp(${targetVar}, "${propName}", ${exprCode});`;
+}
+
+/**
+ * Detect the selector pattern in a binding: get(outerCell) === itemParam
+ *
+ * This pattern is common for list selection (e.g. class={get(selected) === row ? "danger" : ""}).
+ * When detected, the compiler replaces N individual bind() subscriptions with a single shared
+ * dispatch function (O(1) per selection change) backed by a keyed Map.
+ *
+ * @param {object} binding - ProcessedBinding from bind-detector
+ * @param {string} itemParam - The loop item parameter name (e.g., "row")
+ * @returns {{ comparisonNode: object } | null}
+ */
+function detectSelectorPattern(binding, itemParam) {
+	const { fullExpression, getCallNode, needsTransform } = binding;
+	// Must be a complex expression (needsTransform) so there's something beyond just get(cell)
+	if (!fullExpression || !getCallNode || !needsTransform) return null;
+
+	function find(node) {
+		if (!node || typeof node !== "object" || !node.type) return null;
+
+		if (node.type === "BinaryExpression" && node.operator === "===") {
+			// get(cell) === itemParam
+			if (
+				node.left === getCallNode &&
+				node.right.type === "Identifier" &&
+				node.right.name === itemParam
+			) {
+				return { comparisonNode: node };
+			}
+			// itemParam === get(cell)
+			if (
+				node.right === getCallNode &&
+				node.left.type === "Identifier" &&
+				node.left.name === itemParam
+			) {
+				return { comparisonNode: node };
+			}
+		}
+
+		// Recurse into child nodes
+		for (const key of Object.keys(node)) {
+			if (key === "start" || key === "end" || key === "type" || key === "loc" || key === "extra")
+				continue;
+			const child = node[key];
+			if (child && typeof child === "object") {
+				if (Array.isArray(child)) {
+					for (const c of child) {
+						const result = find(c);
+						if (result) return result;
+					}
+				} else if (child.type) {
+					const result = find(child);
+					if (result) return result;
+				}
+			}
+		}
+		return null;
+	}
+
+	return find(fullExpression);
 }
 
 /**
