@@ -1,6 +1,6 @@
 {
 	"name": "@roqajs/vite-plugin",
-	"version": "0.0.6",
+	"version": "0.0.7",
 	"description": "Vite plugin for the Roqa UI framework",
 	"keywords": [
 		"vite",
