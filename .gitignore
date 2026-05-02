@@ -32,3 +32,4 @@ debug
 # Temporary folders
 tmp/
 temp/
+_temp/
