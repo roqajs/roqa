@@ -78,7 +78,7 @@ Roqa should have three conceptual layers.
 
 | Layer | Purpose | Examples |
 | --- | --- | --- |
-| Core compiler API | Components, state, rendering, events, async data | `component`, `state`, `prop`, `attr`, `computed`, `action`, `resource`, `view`, `show`, `each` |
+| Core compiler API | Components, state, rendering, events | `component`, `state`, `prop`, `attr`, `computed`, `command`, `view`, `show`, `each` |
 | Agent safety diagnostics | Accessibility, static recognizability, invalid patterns, repair hints | compiler and CLI warnings |
 | Application kits | Higher-level app features | `roqa/forms`, `roqa/router`, `roqa/kit` |
 
@@ -91,8 +91,7 @@ import {
 	prop,
 	attr,
 	computed,
-	action,
-	resource,
+	command,
 	event,
 	view,
 	show,
@@ -100,24 +99,22 @@ import {
 } from "roqa";
 ```
 
-Low-level primitives should continue to exist for advanced users and compiler
-output.
+Low-level backend targets may still exist, but they should be scoped away from
+the main authoring surface.
 
 ```ts
 import {
-	cell,
-	get,
-	set,
-	put,
-	bind,
-	notify,
+	defineComponent,
 	template,
 	forBlock,
 	showBlock,
-	defineComponent,
 	delegate,
-} from "roqa";
+} from "roqa/compiler";
 ```
+
+If the builder API lowers directly to final inlined output, lower-level cell
+helpers such as `cell`, `get`, `set`, `put`, `bind`, and `notify` can remain
+backend internals rather than stable public APIs.
 
 Optional application layers should not be part of the default mental model.
 
@@ -135,7 +132,7 @@ typed component definition value.
 const CounterButton = component("counter-button", {
 	state: {},
 	actions: {},
-	view: ({ state, actions }) => {},
+	render: ({ state, actions }) => {},
 });
 ```
 
@@ -152,31 +149,31 @@ Guidelines:
 - Omit unused sections rather than filling components with empty objects.
 - Prefer named exported declarations.
 - Avoid positional overloads when an options object would be clearer.
-- Keep `view` as a static, compiler-recognizable declaration.
+- Keep `render` as a static, compiler-recognizable declaration.
 - Use escape hatches for dynamic markup or imperative integrations.
 
 Example:
 
 ```ts
-import { action, component, computed, state, view } from "roqa";
+import { command, component, computed, state, view } from "roqa";
 
 export const CounterButton = component("counter-button", {
 	state: {
-		count: state.number({ initial: 0 }),
+		count: state.value<number>({ initial: 0 }),
 		doubled: computed(({ state }) => state.count.get() * 2),
 	},
 
 	actions: {
-		increment: action(({ state }) => {
+		increment: command(({ state }) => {
 			state.count.set(state.count.get() + 1);
 		}),
 	},
 
-	view: ({ state, actions }) =>
+	render: ({ state, actions }) =>
 		view.button({
 			id: "increment-button",
 			onClick: actions.increment,
-			children: ["Count is ", state.count, " / doubled is ", state.doubled],
+			children: ["Count is ", state.count.get(), " / doubled is ", state.doubled.get()],
 		}),
 });
 ```
@@ -197,6 +194,37 @@ defineComponent("counter-button", function Counter() {
 });
 ```
 
+Full post-compiler output (after all phases):
+
+```ts
+import { defineComponent, delegate, template } from "roqa";
+
+const $tmpl_1 = template('<button id="increment-button"> </button>');
+
+defineComponent("counter-button", function Counter() {
+	const count = { v: 0, e: [] };
+	const doubled = { v: count.v * 2, e: [] };
+
+	this.connected(() => {
+		const button_1 = $tmpl_1().firstChild;
+		const button_1_text = button_1.firstChild;
+
+		button_1.__click = () => {
+			count.v = count.v + 1;
+			doubled.v = count.v * 2;
+			count.ref_1.nodeValue = "Count is " + count.v + " / doubled is " + doubled.v;
+		};
+
+		button_1_text.nodeValue = "Count is " + count.v + " / doubled is " + doubled.v;
+		count.ref_1 = button_1_text;
+
+		this.appendChild(button_1);
+	});
+});
+
+delegate(["click"]);
+```
+
 ## State
 
 State should be authored with higher-level helpers but lower to Roqa cells.
@@ -204,14 +232,8 @@ Prefer options objects for consistency. Writable state and derived state should
 live in the same `state` object.
 
 ```ts
-state.value<T>({ initial: value })
-state.string({ initial?: string })
-state.number({ initial?: number })
-state.boolean({ initial?: boolean })
-state.array<T>({ initial?: T[] })
-state.object<T>({ initial: T })
-state.enum<T extends string>(values: T[], { initial: T })
-computed(({ state, props, attrs, resources }) => expression)
+state.value<T>({ initial: T })
+computed(({ state, props, attrs }) => expression)
 ```
 
 Example:
@@ -219,11 +241,11 @@ Example:
 ```ts
 component("status-panel", {
 	state: {
-		name: state.string({ initial: "" }),
-		count: state.number({ initial: 0 }),
-		loading: state.boolean({ initial: false }),
-		todos: state.array<Todo>({ initial: [] }),
-		status: state.enum(["idle", "loading", "error", "ready"], {
+		name: state.value<string>({ initial: "" }),
+		count: state.value<number>({ initial: 0 }),
+		loading: state.value<boolean>({ initial: false }),
+		todos: state.value<Todo[]>({ initial: [] }),
+		status: state.value<"idle" | "loading" | "error" | "ready">({
 			initial: "idle",
 		}),
 		hasTodos: computed(({ state }) => state.todos.get().length > 0),
@@ -234,13 +256,7 @@ component("status-panel", {
 Lowering:
 
 ```ts
-const count = cell(0);
-const loading = cell(false);
-```
-
-Lowering after compiler optimizations:
-
-```ts
+// state.value<number>({ initial: 0 }) lowers directly to:
 const count = { v: 0, e: [] };
 const loading = { v: false, e: [] };
 ```
@@ -249,7 +265,12 @@ const loading = { v: false, e: [] };
 
 Collections should exist because agents frequently make mistakes with object and
 array mutation. A collection is still state, but with compiler-known update
-helpers.
+helpers that express mutation intent directly.
+
+Inspired by Ripple's reactive collection primitives, Roqa provides a typed
+collection variant for ordered lists.
+
+### `state.collection<T>` — ordered list
 
 ```ts
 state.collection<T>({
@@ -258,7 +279,7 @@ state.collection<T>({
 })
 ```
 
-Authoring API:
+Mutation API:
 
 ```ts
 state.todos.get()
@@ -267,37 +288,23 @@ state.todos.insert(todo)
 state.todos.update(id, patchOrUpdater)
 state.todos.remove(id)
 state.todos.removeWhere(predicate)
+state.todos.move(fromId, toId)
 state.todos.clear()
-state.todos.notify()
 ```
 
-Example:
+Derived views should use `computed()` rather than collection helpers:
 
 ```ts
-component("todo-list", {
-	state: {
-		todos: state.collection<Todo>({
-			key: "id",
-			initial: [],
-		}),
-	},
-
-	actions: {
-		toggleTodo: action(({ state }, id: string) => {
-			state.todos.update(id, (todo) => ({
-				...todo,
-				completed: !todo.completed,
-			}));
-		}),
-	},
-});
+state: {
+	todos: state.collection<Todo>({ key: "id", initial: [] }),
+	remaining: computed(({ state }) =>
+		state.todos.get().filter((t) => !t.completed),
+	),
+}
 ```
 
-This can lower to a cell containing an array plus compiler-known update
-patterns.
-
-Derived state should be read-only. It should lower to a derived `cell(() => ...)`
-or another compiler-known derived binding.
+The collection type lowers to a cell containing the underlying data structure
+plus compiler-known update patterns.
 
 ## Props and attributes
 
@@ -312,13 +319,25 @@ attributes.
 
 ### Props
 
-Props are JavaScript values passed to custom elements. They should lower to
-property access mechanisms rather than serialized attributes. Props are the fast
-path and should support arbitrary JS values. Prefer props unless semantic
-custom-element attributes are specifically needed.
+Props are JavaScript values passed to custom elements. They lower to `getProp`
+and `setProp` method calls on the `RoqaElement` base class — not JavaScript
+getter/setter properties. This method-call path is measurably faster for custom
+elements and should be preferred over serialized attributes for rich data.
 
 ```ts
 prop.value<T>({ required?: boolean, default?: T })
+```
+
+Lowering:
+
+```ts
+// Reading a prop inside the component
+props.story.url
+// lowers to:
+this.getProp("story").url
+
+// Setting a prop from outside the component
+element.setProp("story", newStory)
 ```
 
 Example:
@@ -330,7 +349,7 @@ component("story-item", {
 		index: prop.value<number>({ default: 0 }),
 	},
 
-	view: ({ props }) =>
+	render: ({ props }) =>
 		view.article({
 			id: "story-item",
 			children: [
@@ -348,12 +367,15 @@ component("story-item", {
 Attributes are serialized DOM attributes observed by the custom element.
 
 ```ts
-attr.string({ default?: string, reflect?: boolean })
-attr.boolean({ default?: boolean, reflect?: boolean })
-attr.number({ default?: number, reflect?: boolean })
-attr.enum(["small", "medium", "large"], {
-	default?: "small" | "medium" | "large",
-	reflect?: boolean,
+attr.value<T extends string | number | boolean>({ default?: T, reflect?: boolean })
+```
+
+String unions should be expressed directly in the type:
+
+```ts
+attr.value<"small" | "medium" | "large">({
+	default: "medium",
+	reflect: true,
 })
 ```
 
@@ -362,23 +384,24 @@ Example:
 ```ts
 component("app-button", {
 	attrs: {
-		disabled: attr.boolean({ default: false, reflect: true }),
-		variant: attr.enum(["primary", "secondary"], {
+		disabled: attr.value<boolean>({ default: false, reflect: true }),
+		variant: attr.value<"primary" | "secondary">({
 			default: "primary",
 			reflect: true,
 		}),
 	},
 
-	view: ({ attrs }) =>
+	render: ({ attrs }) =>
 		view.button({
-			disabled: attrs.disabled,
-			class: ["btn", `btn-${attrs.variant}`],
+			disabled: attrs.disabled.get(),
+			class: ["btn", `btn-${attrs.variant.get()}`],
 		}),
 });
 ```
 
-Lowering should use `observedAttributes`, `attributeChangedCallback`, and
-internal cells when reactive attribute bindings are needed.
+Lowering should target `RoqaElement` attribute helpers and internal attribute
+accessors rather than exposing raw `observedAttributes` and
+`attributeChangedCallback` as the authored abstraction.
 
 ## Actions
 
@@ -388,54 +411,47 @@ handling, state mutation, imperative work, and async mutations.
 Actions should be exposed as typed named object members, not dynamically looked
 up by string.
 
-The core API should not include a separate top-level `tasks` concept. Agents
-should not need to decide whether something is an action or a task. The simpler
-rule is:
+The basic mental model is:
 
 - actions do things
-- resources hold async data
 - derived state lives in `state`
 
-TypeScript should infer payload types from the action function signature.
+The primitive should be named `command()` to avoid the same naming overlap that
+`render` solved for `view`.
+
+TypeScript should infer payload types from the command function signature.
 
 ```ts
-action(fn)
-action.async(fn)
+command(fn)
 ```
 
 Examples:
 
 ```ts
 actions: {
-	clearCompleted: action(({ state }) => {
+	clearCompleted: command(({ state }) => {
 		state.todos.removeWhere((todo) => todo.completed);
 	}),
 
-	setDraft: action(({ state }, value: string) => {
+	setDraft: command(({ state }, value: string) => {
 		state.draft.set(value);
 	}),
 
-	handleKeydown: action(({ actions }, event: KeyboardEvent) => {
+	handleKeydown: command(({ actions }, event: KeyboardEvent) => {
 		if (event.key === "Enter") actions.addTodo();
-	}),
-
-	saveTodo: action.async(async ({ state }, text: string) => {
-		const saved = await saveTodo(text);
-		state.todos.insert(saved);
 	}),
 }
 ```
 
-Actions receive a structured context:
+Commands receive a structured context:
 
 ```ts
-type ActionContext = {
+type CommandContext = {
 	host: RoqaElement;
 	props: Props;
 	attrs: Attrs;
 	state: State;
 	actions: Actions;
-	resources: Resources;
 	emit: Emit;
 };
 ```
@@ -458,32 +474,21 @@ view.input({
 });
 ```
 
-### Normalized input events
+### Custom events
 
-Typed form-control helpers may expose normalized event props for the common
-cases agents otherwise get wrong.
+Custom element events should follow the same `onName` convention:
 
 ```ts
-view.input({
-	type: "text",
-	value: state.draft,
-	onValue: actions.setDraft,
+view.element("todo-list", {
+	onTodoAdded: actions.handleTodoAdded,
 });
 
-view.input({
-	type: "checkbox",
-	checked: todo.completed,
-	onChecked: actions.toggleTodo(todo.id),
-});
+actions: {
+	handleTodoAdded: command(({}, event: CustomEvent<Todo>) => {
+		trackTodoAdded(event.detail.id);
+	}),
+}
 ```
-
-Recommended normalized props:
-
-| Prop | Payload |
-| --- | --- |
-| `onValue` | `string` for text-like controls |
-| `onChecked` | `boolean` for checkboxes and switches |
-| `onSubmit` | `SubmitEvent` for low-level forms, or validated payload in `roqa/forms` |
 
 ### Bound actions
 
@@ -492,71 +497,8 @@ handler. Calling an action with arguments returns a bound handler.
 
 ```ts
 onClick: actions.clearCompleted
-onChecked: actions.toggleTodo(todo.id)
+onChange: actions.toggleTodo(todo.id)
 ```
-
-## Resources
-
-Resources are declarative async values with lifecycle state. They should cover
-the common loading/error/data/reload pattern so agents do not hand-roll it in
-every component.
-
-```ts
-resource<T, Input = void>({
-	initial: T,
-	load: (ctx: ResourceContext, input: Input) => Promise<T>,
-	refresh?: {
-		onConnect?: true,
-	},
-})
-```
-
-Resource context should include cancellation support.
-
-```ts
-type ResourceContext = {
-	host: RoqaElement;
-	props: Props;
-	attrs: Attrs;
-	state: State;
-	signal: AbortSignal;
-};
-```
-
-Generated resource shape:
-
-```ts
-resources.stories.data
-resources.stories.status.isIdle
-resources.stories.status.isLoading
-resources.stories.status.isReady
-resources.stories.status.isError
-resources.stories.error
-resources.stories.reload(input?)
-```
-
-Example:
-
-```ts
-resources: {
-	stories: resource<Story[]>({
-		initial: [],
-		refresh: { onConnect: true },
-		load: async ({ signal }) => {
-			const response = await fetch("/api/stories", { signal });
-			if (!response.ok) throw new Error("Failed to load stories");
-			return response.json();
-		},
-	}),
-}
-```
-
-Required semantics:
-
-- reloads must be race-safe
-- stale responses must not overwrite newer responses
-- `AbortSignal` should cancel obsolete requests
-- resources should clean up on disconnect
 
 ## Lifecycle
 
@@ -564,17 +506,27 @@ Lifecycle hooks should map to the existing `RoqaElement` methods.
 
 ```ts
 lifecycle: {
-	onConnect?: ActionName | ((ctx) => void | (() => void));
-	onDisconnect?: ActionName | ((ctx) => void);
+	onConnect?: (ctx: LifecycleContext) => void | (() => void);
+	onDisconnect?: (ctx: LifecycleContext) => void;
 }
+```
+
+```ts
+type LifecycleContext = CommandContext & {
+	refs: Refs;
+};
 ```
 
 Example:
 
 ```ts
 lifecycle: {
-	onConnect: "start",
-	onDisconnect: "stop",
+	onConnect({ actions }) {
+		actions.start();
+	},
+	onDisconnect({ actions }) {
+		actions.stop();
+	},
 }
 ```
 
@@ -585,8 +537,7 @@ this.connected(...);
 this.disconnected(...);
 ```
 
-Async lifecycle work should usually be represented by an async action or a
-resource with `refresh: { onConnect: true }`.
+Async lifecycle work should usually be represented by a command.
 
 ## Emitted custom events
 
@@ -609,7 +560,7 @@ Usage:
 
 ```ts
 actions: {
-	addTodo: action(({ state, emit }) => {
+	addTodo: command(({ state, emit }) => {
 		const todo = { id: crypto.randomUUID(), text: state.draft.get() };
 		state.todos.insert(todo);
 		emit.todoAdded(todo);
@@ -623,14 +574,23 @@ names.
 
 ## View API
 
-The view API is the core builder layer. It should describe static markup,
-dynamic bindings, events, list blocks, and conditionals in a compiler-friendly
-way.
+The view API is the core builder layer. It is named `view` rather than `h`
+(hyperscript) or `dom` because `view.button(...)` reads as a declarative
+statement — aligned with the goal of code that reads like a sentence — and does
+not imply imperative DOM manipulation. The shorter alternatives (`h`, `el`) are
+too terse for agent-authored code.
+
+The component property that returns the view is called `render` to align with
+the universal convention and to avoid naming overlap with the `view` primitive
+in scope.
 
 ### Elements
 
+`view.element()` is for statically known tag names and stays on the analyzable
+path.
+
 ```ts
-view.element(tagName, props)
+view.element("progress", props)
 ```
 
 Agents should usually use typed helpers instead:
@@ -669,12 +629,9 @@ Canonical props shape:
 ```ts
 view.button({
 	id: "clear-completed-button",
-	class: {
-		button: true,
-		"is-active": state.hasCompleted,
-	},
+	class: ["button", { "is-active": state.hasCompleted.get() }],
 	text: "Clear completed",
-	disabled: state.noCompleted,
+	disabled: state.noCompleted.get(),
 	onClick: actions.clearCompleted,
 });
 ```
@@ -690,12 +647,12 @@ view.button({ text: "Save" })
 ```
 
 Use `children` for mixed content. Children may directly contain text-like
-values, state refs, derived state refs, and view nodes.
+values, state refs, computed refs, and view nodes.
 
 ```ts
 view.p({
 	id: "remaining-count",
-	children: [state.remaining, " remaining"],
+	children: [state.remaining.get(), " remaining"],
 });
 ```
 
@@ -710,11 +667,32 @@ Supported canonical shapes:
 ```ts
 class: "button"
 class: ["button", "primary"]
+class: ["button", { completed: todo.completed }]
 class: {
-	button: true,
 	completed: todo.completed,
 }
 ```
+
+Prefer array form when combining fixed and conditional classes. It reads more
+naturally and avoids `static-class: true` noise.
+
+### Arbitrary element attributes
+
+Common HTML props should stay first-class, but custom attributes and
+`data-*` attributes need an explicit escape hatch:
+
+```ts
+view.div({
+	attributes: {
+		"data-testid": "todo-list",
+		"x-state": "ready",
+	},
+})
+```
+
+Use `attributes` for uncommon, vendor-specific, or `data-*` cases. Keep common
+attributes such as `id`, `role`, `href`, `disabled`, and typed ARIA props as
+top-level fields.
 
 Avoid a conditional helper such as `when(condition, "class")`; it overloads the
 meaning of conditional rendering.
@@ -783,15 +761,12 @@ each(state.todos, {
 	render: (todo) =>
 		view.label({
 			id: `todo-${todo.id}`,
-			class: {
-				todo: true,
-				completed: todo.completed,
-			},
+			class: ["todo", { completed: todo.completed }],
 			children: [
 				view.input({
 					type: "checkbox",
 					checked: todo.completed,
-					onChecked: actions.toggleTodo(todo.id),
+					onChange: actions.toggleTodo(todo.id),
 				}),
 				view.span({ text: todo.text }),
 			],
@@ -800,36 +775,6 @@ each(state.todos, {
 ```
 
 This should lower to `forBlock()`.
-
-## Accessibility
-
-Accessibility should be enforced through typed element props and compiler
-diagnostics.
-
-Prefer discoverable props on controls:
-
-```ts
-view.input({
-	id: "new-todo-input",
-	type: "text",
-	label: "New todo",
-	value: state.draft,
-	onValue: actions.setDraft,
-	placeholder: "Add todo item",
-});
-```
-
-The compiler and CLI should warn about:
-
-- missing labels on form controls
-- inaccessible custom controls
-- unsafe ARIA combinations
-- missing error associations
-- click handlers on non-interactive elements
-- keyboard traps and missing keyboard affordances when detectable
-
-High-level accessible form generation should live in `roqa/forms`, not the core
-API.
 
 ## Escape hatches
 
@@ -845,6 +790,10 @@ view.rawHtml({
 ```ts
 view.dynamicElement(tag, props, children);
 ```
+
+Use `view.element()` when the tag is statically known. Use
+`view.dynamicElement()` only when the tag itself is a runtime value and you are
+intentionally leaving the fully analyzable path.
 
 ```ts
 view.canvas({
@@ -866,35 +815,73 @@ Agents should treat these as exceptional, not the default path.
 
 ## Internal IR
 
-The `roqa` API should lower into a component IR before code generation.
+The `roqa` API should lower into a component IR before code generation. See
+[ir.md](./ir.md) for the full IR schema and [compiler.md](./compiler.md) for
+the compilation pipeline.
 
-Possible IR concepts:
+Summary IR shape:
 
-- `ComponentDefinition`
-- `StateCell`
-- `CollectionCell`
-- `DerivedCell`
-- `PropDefinition`
-- `AttributeDefinition`
-- `ActionDefinition`
-- `ResourceDefinition`
-- `LifecycleHook`
-- `ElementNode`
-- `TextNode`
-- `DynamicTextBinding`
-- `DynamicAttributeBinding`
-- `EventBinding`
-- `ListBlock`
-- `ShowBlock`
-- `PropBinding`
-- `CustomEventDefinition`
+```ts
+type ComponentIR = {
+	name: string;
+	tagName: string;
+	props: PropIR[];
+	attrs: AttrIR[];
+	state: StateIR[];
+	emits: EventIR[];
+	lifecycle: LifecycleIR;
+	render: NodeIR;
+};
+
+type StateIR =
+	| { kind: "value"; name: string; initial: ExpressionIR }
+	| { kind: "collection"; name: string; key: KeyIR; initial: ExpressionIR }
+	| { kind: "computed"; name: string; expr: ExpressionIR };
+
+type NodeIR =
+	| ElementIR
+	| TextIR
+	| ShowIR
+	| EachIR
+	| RawHtmlIR;
+
+type ElementIR = {
+	kind: "element";
+	tag: string;
+	ref?: string;
+	props: ElementPropIR[];
+	attributes: AttributeBindingIR[];
+	classes?: ClassListIR;
+	styles?: StyleIR[];
+	events: EventBindingIR[];
+	children: NodeIR[];
+};
+
+type ShowIR = {
+	kind: "show";
+	condition: ExpressionIR;
+	render: NodeIR;
+	fallback?: NodeIR;
+};
+
+type EachIR = {
+	kind: "each";
+	source: ExpressionIR;
+	key?: KeyIR;
+	blockId: string;
+	renderItem: ExpressionIR;
+};
+```
+
+This keeps the IR centered on compiler-relevant structure rather than mirroring
+every authoring helper one-for-one.
 
 This would allow multiple frontends and backends:
 
 ```txt
 JSX frontend       \
-Builder frontend   -> Roqa IR -> Backend codegen
-JSON frontend      /
+                    -> Roqa IR -> Backend codegen
+Builder frontend   /
 ```
 
 ## Backend preservation requirements
@@ -923,7 +910,7 @@ view.div({
 	id: "card",
 	class: "card",
 	children: [
-		view.span({ text: state.title }),
+		view.span({ text: state.title.get() }),
 	],
 });
 ```
@@ -932,7 +919,7 @@ Harder:
 
 ```ts
 const tag = Math.random() > 0.5 ? "div" : "section";
-view.element(tag, props);
+view.element(tag, props); // should fail static analysis
 ```
 
 Dynamic cases should be explicit escape hatches:
@@ -958,7 +945,7 @@ The core API should optimize for reliable authoring.
 ## North-star example
 
 ```ts
-import { action, component, computed, each, event, show, state, view } from "roqa";
+import { command, component, computed, each, event, show, state, view } from "roqa";
 
 type Todo = {
 	id: string;
@@ -972,7 +959,7 @@ export const TodoList = component("todo-list", {
 			key: "id",
 			initial: [],
 		}),
-		draft: state.string({ initial: "" }),
+		draft: state.value<string>({ initial: "" }),
 		remaining: computed(({ state }) =>
 			state.todos.get().filter((todo) => !todo.completed).length,
 		),
@@ -986,11 +973,11 @@ export const TodoList = component("todo-list", {
 	},
 
 	actions: {
-		setDraft: action(({ state }, value: string) => {
+		setDraft: command(({ state }, value: string) => {
 			state.draft.set(value);
 		}),
 
-		addTodo: action(({ state, emit }) => {
+		addTodo: command(({ state, emit }) => {
 			const text = state.draft.get().trim();
 			if (!text) return;
 
@@ -1006,19 +993,19 @@ export const TodoList = component("todo-list", {
 			state.draft.set("");
 		}),
 
-		toggleTodo: action(({ state }, id: string) => {
+		toggleTodo: command(({ state }, id: string) => {
 			state.todos.update(id, (todo) => ({
 				...todo,
 				completed: !todo.completed,
 			}));
 		}),
 
-		clearCompleted: action(({ state }) => {
+		clearCompleted: command(({ state }) => {
 			state.todos.removeWhere((todo) => todo.completed);
 		}),
 	},
 
-	view: ({ state, actions }) =>
+	render: ({ state, actions }) =>
 		view.section({
 			id: "todo-list-root",
 			children: [
@@ -1026,9 +1013,8 @@ export const TodoList = component("todo-list", {
 					id: "new-todo-input",
 					type: "text",
 					label: "New todo",
-					value: state.draft,
-					onValue: actions.setDraft,
-					onEnter: actions.addTodo,
+					value: state.draft.get(),
+					onInput: actions.setDraft,
 					placeholder: "Add todo item",
 				}),
 
@@ -1038,15 +1024,12 @@ export const TodoList = component("todo-list", {
 					render: (todo) =>
 						view.label({
 							id: `todo-${todo.id}`,
-							class: {
-								todo: true,
-								completed: todo.completed,
-							},
+							class: ["todo", { completed: todo.completed }],
 							children: [
 								view.input({
 									type: "checkbox",
 									checked: todo.completed,
-									onChecked: actions.toggleTodo(todo.id),
+									onChange: actions.toggleTodo(todo.id),
 								}),
 								todo.text,
 							],
@@ -1055,7 +1038,7 @@ export const TodoList = component("todo-list", {
 
 				view.p({
 					id: "remaining-count",
-					children: [state.remaining, " remaining"],
+					children: [state.remaining.get(), " remaining"],
 				}),
 
 				show(state.hasCompleted, {
@@ -1087,7 +1070,7 @@ export const UserChip = component("user-chip", {
 		name: prop.value<string>({ required: true }),
 	},
 
-	view: ({ props }) =>
+	render: ({ props }) =>
 		view.span({
 			class: "user-chip",
 			text: props.name,
@@ -1112,24 +1095,26 @@ export const UserCard = component("user-card", {
 	},
 
 	attrs: {
-		size: attr.enum(["compact", "full"], {
+		size: attr.value<"compact" | "full">({
 			default: "full",
 			reflect: true,
 		}),
-		disabled: attr.boolean({ default: false, reflect: true }),
+		disabled: attr.value<boolean>({ default: false, reflect: true }),
 	},
 
 	state: {
 		isCompact: computed(({ attrs }) => attrs.size === "compact"),
 	},
 
-	view: ({ props, attrs, state }) =>
+	render: ({ props, attrs, state }) =>
 		view.article({
-			class: {
-				"user-card": true,
-				"is-compact": state.isCompact,
-				"is-disabled": attrs.disabled,
-			},
+			class: [
+				"user-card",
+				{
+					"is-compact": state.isCompact.get(),
+					"is-disabled": attrs.disabled.get(),
+				},
+			],
 			children: [
 				view.h2({ text: props.user.name }),
 				show(state.isCompact, {
@@ -1147,66 +1132,6 @@ export const UserCard = component("user-card", {
 });
 ```
 
-### Resource-driven view states
-
-This stresses loading, error, empty, and ready states without introducing extra
-framework concepts.
-
-```ts
-type Story = {
-	id: string;
-	title: string;
-	url: string;
-};
-
-export const StoryFeed = component("story-feed", {
-	resources: {
-		stories: resource<Story[]>({
-			initial: [],
-			refresh: { onConnect: true },
-			load: async ({ signal }) => {
-				const response = await fetch("/api/stories", { signal });
-				if (!response.ok) throw new Error("Failed to load stories");
-				return response.json();
-			},
-		}),
-	},
-
-	state: {
-		isEmpty: computed(({ resources }) => resources.stories.data.length === 0),
-	},
-
-	view: ({ resources, state }) =>
-		view.section({
-			id: "story-feed",
-			children: [
-				show(resources.stories.status.isLoading, {
-					render: () => view.p({ text: "Loading..." }),
-				}),
-				show(resources.stories.status.isError, {
-					render: () =>
-						view.p({
-							role: "alert",
-							text: resources.stories.error.message,
-						}),
-				}),
-				show(resources.stories.status.isReady && state.isEmpty.get(), {
-					render: () => view.p({ text: "No stories yet." }),
-				}),
-				each(resources.stories.data, {
-					id: "story-items",
-					key: "id",
-					render: (story) =>
-						view.article({
-							id: `story-${story.id}`,
-							children: [view.a({ href: story.url, text: story.title })],
-						}),
-				}),
-			],
-		}),
-});
-```
-
 ### Typed emits plus bound actions
 
 This stresses typed event handles, per-item actions, and normalized input.
@@ -1216,7 +1141,7 @@ type Filter = "all" | "active" | "completed";
 
 export const TodoFilters = component("todo-filters", {
 	state: {
-		selected: state.enum(["all", "active", "completed"], {
+		selected: state.value<Filter>({
 			initial: "all",
 		}),
 	},
@@ -1226,13 +1151,13 @@ export const TodoFilters = component("todo-filters", {
 	},
 
 	actions: {
-		selectFilter: action(({ state, emit }, filter: Filter) => {
+		selectFilter: command(({ state, emit }, filter: Filter) => {
 			state.selected.set(filter);
 			emit.filterChanged({ filter });
 		}),
 	},
 
-	view: ({ state, actions }) =>
+	render: ({ state, actions }) =>
 		view.div({
 			role: "tablist",
 			children: each(["all", "active", "completed"], {
@@ -1241,10 +1166,7 @@ export const TodoFilters = component("todo-filters", {
 				render: (filter) =>
 					view.button({
 						role: "tab",
-						class: {
-							tab: true,
-							"is-selected": state.selected.get() === filter,
-						},
+						class: ["tab", { "is-selected": state.selected.get() === filter }],
 						ariaSelected: state.selected.get() === filter,
 						text: filter,
 						onClick: actions.selectFilter(filter),
@@ -1273,7 +1195,7 @@ export const UploadQueue = component("upload-queue", {
 			key: "id",
 			initial: [],
 		}),
-		dragging: state.boolean({ initial: false }),
+		dragging: state.value<boolean>({ initial: false }),
 		activeCount: computed(({ state }) =>
 			state.items.get().filter((item) => item.status === "uploading").length,
 		),
@@ -1283,11 +1205,11 @@ export const UploadQueue = component("upload-queue", {
 	},
 
 	actions: {
-		setDragging: action(({ state }, dragging: boolean) => {
+		setDragging: command(({ state }, dragging: boolean) => {
 			state.dragging.set(dragging);
 		}),
 
-		retryItem: action(({ state }, id: string) => {
+		retryItem: command(({ state }, id: string) => {
 			state.items.update(id, (item) => ({
 				...item,
 				status: "queued",
@@ -1295,23 +1217,20 @@ export const UploadQueue = component("upload-queue", {
 			}));
 		}),
 
-		clearFinished: action(({ state }) => {
+		clearFinished: command(({ state }) => {
 			state.items.removeWhere((item) => item.status === "done");
 		}),
 	},
 
-	view: ({ state, actions }) =>
+	render: ({ state, actions }) =>
 		view.section({
-			class: {
-				"upload-queue": true,
-				"is-dragging": state.dragging,
-			},
+			class: ["upload-queue", { "is-dragging": state.dragging.get() }],
 			children: [
 				view.header({
 					children: [
 						view.h2({ text: "Uploads" }),
 						view.p({
-							children: [state.activeCount, " active"],
+							children: [state.activeCount.get(), " active"],
 						}),
 					],
 				}),
@@ -1328,10 +1247,7 @@ export const UploadQueue = component("upload-queue", {
 					render: (item) =>
 						view.article({
 							id: `upload-${item.id}`,
-							class: {
-								upload: true,
-								[`is-${item.status}`]: true,
-							},
+							class: ["upload", `is-${item.status}`],
 							children: [
 								view.p({ text: item.name }),
 								view.element("progress", {
@@ -1374,7 +1290,7 @@ export const FocusTrap = component("focus-trap", {
 		},
 	},
 
-	view: () =>
+	render: () =>
 		view.div({
 			children: [
 				view.button({
@@ -1400,7 +1316,7 @@ export const PolymorphicText = component("polymorphic-text", {
 		text: prop.value<string>({ required: true }),
 	},
 
-	view: ({ props }) =>
+	render: ({ props }) =>
 		view.dynamicElement(props.tag, {}, [props.text]),
 });
 ```
