@@ -809,6 +809,25 @@ type ReactiveTextIR = {
 A space placeholder `' '` goes into the template (creating a text node), and a
 binding updates `textNode.nodeValue` when the source changes.
 
+When multiple `ReactiveTextIR` nodes and `TextIR` nodes appear as adjacent
+siblings in the same element, they share a **single text node** in the
+template (one space placeholder). The binding concatenates all parts into one
+`nodeValue` update. This matches the existing Roqa compiler behavior and
+avoids creating unnecessary DOM text nodes:
+
+```
+// MIR children:
+[
+    { "kind": "text", "value": "Count: " },
+    { "kind": "reactive-text", "source": { ... "name": "count" } },
+    { "kind": "text", "value": " / Doubled: " },
+    { "kind": "reactive-text", "source": { ... "name": "doubled" } }
+]
+
+// Template: '<p> </p>'  (single space = single text node)
+// Binding: p_1_text.nodeValue = "Count: " + count.v + " / Doubled: " + doubled.v;
+```
+
 Note: this has its own `kind: "reactive-text"` distinct from the `ReactiveRead`
 ref type (`kind: "reactive-read"`) — they serve different roles. A
 `ReactiveTextIR` is a node in the view tree. A `ReactiveRead` is a value
@@ -1051,10 +1070,17 @@ how the frontend expressed them (camelCase `fontSize` or kebab-case
 type ActionIR = {
     kind: "action";
     name: string;                 // The action name
-    params: string[];             // Parameter names
+    params: string[];             // Parameter names (always simple strings)
     body: ExprIR;                 // Action logic as a structured expression
 };
 ```
+
+Action parameters are always simple `string[]` names — they don't support
+destructuring patterns. Actions receive arguments from event handlers (e.g.,
+an item id, a form value), which are simple values. When an action's body
+needs destructuring internally (e.g., in a `.filter()` callback), that's
+expressed via `ClosureExpr` with `DestructuredParam` in the body expression
+tree.
 
 Action bodies are structured expressions. The backend walks the expression tree
 to determine which state cells are read and written, then generates the
@@ -1227,7 +1253,7 @@ increments the count.
 3. **Walks `render`** → sees `kind: "element"`, `tag: "button"`:
    - Extracts static HTML: `<button id="increment-button"> </button>`
      (spaces are placeholders for reactive text nodes)
-   - Generates traversal: `const button_1 = $tmpl_1().firstChild`
+   - Generates traversal: `const button_1 = this.firstChild`
    - Generates text node ref: `const button_1_text = button_1.firstChild`
 
 4. **Processes `events`** → sees `click` with `action-ref` "increment":
@@ -1255,7 +1281,10 @@ defineComponent("counter-button", function CounterButton() {
     const doubled = { v: () => count.v * 2, e: [] };
 
     this.connected(() => {
-        const button_1 = $tmpl_1().firstChild;
+        const $root_1 = $tmpl_1();
+        this.appendChild($root_1);
+
+        const button_1 = this.firstChild;
         const button_1_text = button_1.firstChild;
 
         button_1.__click = () => {
@@ -1265,8 +1294,6 @@ defineComponent("counter-button", function CounterButton() {
 
         button_1_text.nodeValue = "Count is " + count.v + " / doubled is " + doubled.v;
         count.ref_1 = button_1_text;
-
-        this.appendChild(button_1);
     });
 });
 

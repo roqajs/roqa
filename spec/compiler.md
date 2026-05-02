@@ -229,7 +229,11 @@ type TemplateOp = {
 Generated from the `ElementIR` / `TextIR` nodes in the MIR render tree.
 Dynamic content becomes placeholder nodes:
 - Reactive text → space `' '` (creates a text node)
-- Show/Each → comment node `<!---->` (placeholder for block insertion)
+
+Note: `ShowIR` and `EachIR` do **not** generate comment placeholder nodes in
+the template. The `showBlock()` and `forBlock()` runtime functions create their
+own internal anchor nodes inside the container element. The template only
+contains the static content of the parent element.
 
 ### `TraversalOp` — DOM node reference
 
@@ -337,7 +341,7 @@ type EventOp = {
 type BlockOp = {
     kind: "block";
     blockType: "show" | "each";
-    container: string;            // DOM node variable name
+    container: string;            // Parent DOM element variable name (e.g., "div_1")
     source: string;               // Cell variable name
     templateId?: string;          // Template used inside the block
     renderBody: ConnectedBlock;   // Nested operations for the block's content
@@ -448,6 +452,49 @@ Event detection:
 All the ops are assembled into a `ComponentLIR` that the optimizer and emitter
 consume.
 
+### Lowering rules
+
+#### Reactive class bindings
+
+When an element has a `ClassListIR` that contains any conditional (reactive)
+class items, the **entire** `className` is set via a JavaScript binding — not
+partially in the template. The template element has no `class` attribute; the
+initial `className` value and all subsequent updates are computed as a single
+concatenated expression.
+
+For example, given `ClassListIR { items: ["content", { name: "active", condition: ... }] }`:
+- Template: `<main>...</main>` (no class attribute)
+- Binding: `main_1.className = "content" + (active.v ? " active" : "");`
+
+This avoids split-brain state where some classes come from the template and
+others from bindings. If all classes are static (`StaticClassIR`), they go
+directly in the template's `class` attribute.
+
+#### Inline handler event parameter
+
+When an `InlineHandlerIR` generates a closure, the event parameter is always
+named `e`. This is a fixed convention — the backend always uses `e` regardless
+of what the frontend's original source used:
+
+```js
+// InlineHandlerIR { body: { kind: "state-write", name: "draft", value: <opaque "e.target.value"> } }
+// Generates:
+input_1.__input = (e) => {
+    draft.v = e.target.value;
+};
+```
+
+The `e` parameter is the DOM event object. Opaque expressions inside inline
+handlers can reference `e` to access event properties.
+
+#### Unused-write state cells
+
+State cells that are declared but have no actions that write to them are
+**valid**. The compiler still generates the cell declaration and any bindings
+that read the cell. This supports cells that are initialized with a value and
+displayed but never updated (e.g., a label or configuration value), as well
+as cells that may be written to by external code or future extensions.
+
 ---
 
 ## Phase 3: Optimize
@@ -492,6 +539,43 @@ count.ref_1 = button_1_text;
 This is the most impactful optimization — it eliminates function call overhead
 for every reactive update and allows the JavaScript engine to optimize the
 update path as a straight-line code block.
+
+#### Transitive computed inlining
+
+When a `set()` writes to a state cell that other computed cells depend on,
+the inlined updates must include updates for the entire dependency chain.
+The algorithm:
+
+1. **Build the dependency graph.** When lowering computed cells, record which
+   state cells each computed reads (its direct dependencies).
+
+2. **Find transitive dependents.** When inlining a `set(cellA, value)`, find
+   all computed cells that transitively depend on `cellA`. For example, if
+   `doubled` depends on `count` and `quadrupled` depends on `doubled`, then
+   setting `count` must update both `doubled` and `quadrupled`.
+
+3. **Expand expressions recursively.** For each dependent computed cell's
+   binding update expression, replace references to other computed cells
+   with their expanded body expressions. This produces self-contained
+   update expressions that reference only the root state cell.
+
+   For example, given:
+   - `doubled.v = () => count.v * 2`
+   - `quadrupled.v = () => doubled.v * 2`
+
+   The inlined updates for `set(count, ...)` become:
+   ```js
+   count.v = count.v + 1;
+   count.ref_1.nodeValue = "Count: " + count.v;
+   doubled.ref_1.nodeValue = "Doubled: " + count.v * 2;
+   quadrupled.ref_1.nodeValue = "Quadrupled: " + count.v * 2 * 2;
+   ```
+
+   Note: `doubled.v` in the quadrupled expression is replaced with
+   `count.v * 2` (the expanded body of `doubled`), producing `count.v * 2 * 2`.
+
+4. **Prevent circular dependencies.** Track visited cells during expansion
+   to avoid infinite loops from circular dependency chains.
 
 ### Pass: Dead binding elimination
 
@@ -550,14 +634,52 @@ made by the lowering and optimization phases.
 3. **Component definition** — `defineComponent("tag-name", function Name() { ... })`:
    - Cell declarations (from `CellOp` array)
    - Function declarations (from `FunctionOp` array)
-   - `this.connected(() => { ... })` block containing:
-     - Traversal code (from `TraversalOp` array)
-     - Event assignments (from `EventOp` array)
-     - Initial values + ref storage (from `BindingOp` array)
-     - Block setup — show/each (from `BlockOp` array)
-     - Mount operations (from `MountOp` array)
+   - `this.connected(() => { ... })` block containing (in this exact order):
+     1. Template instantiation and mount — clones the template via
+        `$tmpl_N()` and immediately appends to the component with
+        `this.appendChild($root_1)`. Must happen first because traversal
+        starts from `this.firstChild`.
+     2. DOM traversal — `firstChild`/`nextSibling` chains starting from
+        `this.firstChild` to obtain references to dynamic nodes.
+     3. Event assignments — `element.__click = handler` delegated event setup.
+        Must happen after traversal (needs node references).
+     4. For blocks — `forBlock()` calls. Must happen after traversal (needs
+        container references).
+     5. Show blocks — `showBlock()` calls. Must happen after traversal (needs
+        container references).
+     6. Initial values + ref storage — sets initial `nodeValue`,
+        `className`, attribute values, and stores `cell.ref_N = element`
+        references. Must be last because bindings reference traversal
+        variables and must follow block setup.
+
+   **Exception:** When a component renders custom child elements with props,
+   `setProp()` calls must happen **before** `appendChild`. Prop target
+   elements are traversed from the detached fragment root (`$root_1.firstChild`)
+   before mount, then remaining traversal proceeds from `this.firstChild`
+   after mount. See §Prop passing to custom elements.
+
+   **This ordering is required, not conventional.** Reordering steps will
+   cause runtime errors (e.g., traversing before mount, or binding before
+   traversal).
 
 4. **Delegate call** — `delegate(["click", "input", ...])` at file end
+
+### Import deduplication
+
+When emitting import statements, the emitter must deduplicate:
+
+- **Runtime imports** — collect the union of all runtime imports needed across
+  all components in the file (`template`, `defineComponent`, `delegate`,
+  `forBlock`, `showBlock`, `svgTemplate`, `setProp`, etc.) and emit a single
+  import statement.
+
+- **`ImportedRefExpr` imports** — if multiple actions or computed values
+  reference the same imported module (e.g., `import { formatDate } from
+  "./utils"`), emit one import statement with all bindings merged.
+
+- **`delegate()` calls** — collect the union of all delegated event types
+  across all components and emit a single `delegate()` call at the end of
+  the file.
 
 ### Expression IR compilation
 
@@ -613,19 +735,33 @@ in the output. There's no text-rewriting step.
 
 ### Collection operation compilation
 
-Collection operations compile to efficient cell mutations:
+Collection operations (`CollectionOpExpr`) are **compile-time sugar** for
+common array mutations. They compile to immutable array operations that
+replace the cell's value, followed by a `forBlock.update()` call to trigger
+list re-reconciliation.
+
+Collection operations are distinct from `forBlock` — they are complementary:
+- `collection-op` = **write** operations on the collection data (used in
+  action bodies)
+- `forBlock` = **rendering** the collection as DOM elements (used in the
+  render tree)
+
+The `forBlock.update()` call is the notification mechanism — it tells the
+list renderer to re-diff the array and reconcile the DOM. Any action that
+mutates a collection cell must call `update()` after setting the new value.
 
 | Operation | Compiled output |
 | --- | --- |
-| `insert(item)` | `{ todos.v = [...todos.v, item]; /* notify */ }` |
-| `remove(id)` | `{ todos.v = todos.v.filter(t => t.id !== id); /* notify */ }` |
-| `update(id, fn)` | `{ todos.v = todos.v.map(t => t.id === id ? fn(t) : t); /* notify */ }` |
-| `remove-where(fn)` | `{ todos.v = todos.v.filter(t => !fn(t)); /* notify */ }` |
-| `move(from, to)` | Array splice operations + notify |
-| `clear()` | `{ todos.v = []; /* notify */ }` |
+| `insert(item)` | `{ todos.v = [...todos.v, item]; todos_forBlock.update(); }` |
+| `remove(id)` | `{ todos.v = todos.v.filter(t => t.id !== id); todos_forBlock.update(); }` |
+| `update(id, fn)` | `{ todos.v = todos.v.map(t => t.id === id ? fn(t) : t); todos_forBlock.update(); }` |
+| `remove-where(fn)` | `{ todos.v = todos.v.filter(t => !fn(t)); todos_forBlock.update(); }` |
+| `move(from, to)` | Array splice operations + `todos_forBlock.update()` |
+| `clear()` | `{ todos.v = []; todos_forBlock.update(); }` |
 
-The `/* notify */` comment represents the inlined binding updates that are
-injected by the inline bindings optimization pass.
+If the collection cell also has non-forBlock bindings (e.g., a count display),
+those inlined binding updates are also appended after the `forBlock.update()`
+call — same as any other inlined set.
 
 ### Full output example
 
@@ -641,7 +777,10 @@ defineComponent("counter-button", function CounterButton() {
     const doubled = { v: () => count.v * 2, e: [] };
 
     this.connected(() => {
-        const button_1 = $tmpl_1().firstChild;
+        const $root_1 = $tmpl_1();
+        this.appendChild($root_1);
+
+        const button_1 = this.firstChild;
         const button_1_text = button_1.firstChild;
 
         button_1.__click = () => {
@@ -651,8 +790,6 @@ defineComponent("counter-button", function CounterButton() {
 
         button_1_text.nodeValue = "Count is " + count.v + " / doubled is " + doubled.v;
         count.ref_1 = button_1_text;
-
-        this.appendChild(button_1);
     });
 });
 
@@ -830,16 +967,15 @@ for the full threat model):
 
 ### Collection mutation strategy
 
-Collection operations (`insert`, `remove`, etc.) currently compile to
-immutable array operations (create new array, set cell). This is simple and
-aligns with how `forBlock`'s LIS-based reconciliation works (it diffs the full
-array). But it means every mutation creates a new array.
+**Resolved:** Collection operations (`insert`, `remove`, etc.) compile to
+immutable array operations (create new array, assign to cell value). After the
+mutation, the compiled code calls `forBlock.update()` to trigger list
+re-reconciliation. This aligns with how `forBlock`'s LIS-based reconciliation
+works — it diffs the full array by reference equality.
 
-An alternative is runtime collection helpers that mutate in place and provide
-reconciliation hints. This could enable partial DOM updates for large lists.
-
-Recommendation: start with immutable operations (simpler, proven). Add runtime
-helpers as an optimization when profiling shows large-list performance issues.
+For v1, this is the only supported strategy. Runtime collection helpers that
+mutate in place and provide reconciliation hints may be added later as an
+optimization when profiling shows large-list performance issues.
 
 ### Nested item field access
 

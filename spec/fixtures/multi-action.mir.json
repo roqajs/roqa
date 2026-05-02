@@ -1,0 +1,150 @@
+{
+    "version": 1,
+    "tagName": "multi-action",
+    "name": "MultiAction",
+
+    "state": [
+        {
+            "kind": "value",
+            "name": "count",
+            "initial": 0
+        },
+        {
+            "kind": "value",
+            "name": "label",
+            "initial": "Counter"
+        }
+    ],
+    "actions": [
+        {
+            "kind": "action",
+            "name": "increment",
+            "params": [],
+            "body": {
+                "kind": "state-write",
+                "name": "count",
+                "value": {
+                    "kind": "binary",
+                    "op": "+",
+                    "left": { "kind": "state-read", "name": "count" },
+                    "right": { "kind": "literal", "value": 1 }
+                }
+            }
+        },
+        {
+            "kind": "action",
+            "name": "decrement",
+            "params": [],
+            "body": {
+                "kind": "state-write",
+                "name": "count",
+                "value": {
+                    "kind": "binary",
+                    "op": "-",
+                    "left": { "kind": "state-read", "name": "count" },
+                    "right": { "kind": "literal", "value": 1 }
+                }
+            }
+        },
+        {
+            "kind": "action",
+            "name": "reset",
+            "params": [],
+            "body": {
+                "kind": "block",
+                "body": [
+                    {
+                        "kind": "state-write",
+                        "name": "count",
+                        "value": { "kind": "literal", "value": 0 }
+                    },
+                    {
+                        "kind": "state-write",
+                        "name": "label",
+                        "value": { "kind": "literal", "value": "Counter (reset)" }
+                    }
+                ]
+            }
+        }
+    ],
+    "props": [],
+    "attrs": [],
+    "emits": [
+        {
+            "kind": "emit-decl",
+            "name": "countChanged",
+            "eventName": "count-changed"
+        }
+    ],
+    "lifecycle": {
+        "onConnect": {
+            "kind": "opaque",
+            "source": "console.log('MultiAction connected')",
+            "reads": [],
+            "writes": []
+        }
+    },
+
+    "render": [
+        {
+            "kind": "element",
+            "tag": "div",
+            "attributes": {},
+            "events": [],
+            "children": [
+                {
+                    "kind": "element",
+                    "tag": "h2",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "reactive-text",
+                            "source": { "kind": "reactive-read", "source": "state", "name": "label" }
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "p",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        { "kind": "text", "value": "Value: " },
+                        {
+                            "kind": "reactive-text",
+                            "source": { "kind": "reactive-read", "source": "state", "name": "count" }
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "button",
+                    "attributes": {},
+                    "events": [
+                        { "event": "click", "handler": { "kind": "action-ref", "name": "decrement" } }
+                    ],
+                    "children": [{ "kind": "text", "value": "-" }]
+                },
+                {
+                    "kind": "element",
+                    "tag": "button",
+                    "attributes": {},
+                    "events": [
+                        { "event": "click", "handler": { "kind": "action-ref", "name": "increment" } }
+                    ],
+                    "children": [{ "kind": "text", "value": "+" }]
+                },
+                {
+                    "kind": "element",
+                    "tag": "button",
+                    "attributes": {},
+                    "events": [
+                        { "event": "click", "handler": { "kind": "action-ref", "name": "reset" } }
+                    ],
+                    "children": [{ "kind": "text", "value": "Reset" }]
+                }
+            ]
+        }
+    ]
+}

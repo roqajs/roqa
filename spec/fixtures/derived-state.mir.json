@@ -1,0 +1,118 @@
+{
+    "version": 1,
+    "tagName": "derived-counter",
+    "name": "DerivedCounter",
+
+    "state": [
+        {
+            "kind": "value",
+            "name": "count",
+            "initial": 0
+        },
+        {
+            "kind": "computed",
+            "name": "doubled",
+            "body": {
+                "kind": "binary",
+                "op": "*",
+                "left": { "kind": "state-read", "name": "count" },
+                "right": { "kind": "literal", "value": 2 }
+            }
+        },
+        {
+            "kind": "computed",
+            "name": "quadrupled",
+            "body": {
+                "kind": "binary",
+                "op": "*",
+                "left": { "kind": "computed-read", "name": "doubled" },
+                "right": { "kind": "literal", "value": 2 }
+            }
+        }
+    ],
+    "actions": [
+        {
+            "kind": "action",
+            "name": "increment",
+            "params": [],
+            "body": {
+                "kind": "state-write",
+                "name": "count",
+                "value": {
+                    "kind": "binary",
+                    "op": "+",
+                    "left": { "kind": "state-read", "name": "count" },
+                    "right": { "kind": "literal", "value": 1 }
+                }
+            }
+        }
+    ],
+    "props": [],
+    "attrs": [],
+    "emits": [],
+    "lifecycle": {},
+
+    "render": [
+        {
+            "kind": "element",
+            "tag": "div",
+            "attributes": {},
+            "events": [],
+            "children": [
+                {
+                    "kind": "element",
+                    "tag": "button",
+                    "attributes": {},
+                    "events": [
+                        {
+                            "event": "click",
+                            "handler": { "kind": "action-ref", "name": "increment" }
+                        }
+                    ],
+                    "children": [
+                        { "kind": "text", "value": "Increment" }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "p",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        { "kind": "text", "value": "Count: " },
+                        {
+                            "kind": "reactive-text",
+                            "source": { "kind": "reactive-read", "source": "state", "name": "count" }
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "p",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        { "kind": "text", "value": "Doubled: " },
+                        {
+                            "kind": "reactive-text",
+                            "source": { "kind": "reactive-read", "source": "computed", "name": "doubled" }
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "p",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        { "kind": "text", "value": "Quadrupled: " },
+                        {
+                            "kind": "reactive-text",
+                            "source": { "kind": "reactive-read", "source": "computed", "name": "quadrupled" }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,73 @@
+{
+    "version": 1,
+    "tagName": "show-toggle",
+    "name": "ShowToggle",
+
+    "state": [
+        {
+            "kind": "value",
+            "name": "visible",
+            "initial": false
+        }
+    ],
+    "actions": [
+        {
+            "kind": "action",
+            "name": "toggle",
+            "params": [],
+            "body": {
+                "kind": "state-write",
+                "name": "visible",
+                "value": {
+                    "kind": "unary",
+                    "op": "!",
+                    "operand": { "kind": "state-read", "name": "visible" }
+                }
+            }
+        }
+    ],
+    "props": [],
+    "attrs": [],
+    "emits": [],
+    "lifecycle": {},
+
+    "render": [
+        {
+            "kind": "element",
+            "tag": "div",
+            "attributes": {},
+            "events": [],
+            "children": [
+                {
+                    "kind": "element",
+                    "tag": "button",
+                    "attributes": {},
+                    "events": [
+                        {
+                            "event": "click",
+                            "handler": { "kind": "action-ref", "name": "toggle" }
+                        }
+                    ],
+                    "children": [
+                        { "kind": "text", "value": "Toggle" }
+                    ]
+                },
+                {
+                    "kind": "show",
+                    "condition": { "kind": "state-ref", "name": "visible" },
+                    "render": [
+                        {
+                            "kind": "element",
+                            "tag": "p",
+                            "attributes": {},
+                            "events": [],
+                            "children": [
+                                { "kind": "text", "value": "Now you see me!" }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

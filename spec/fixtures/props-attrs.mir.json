@@ -1,0 +1,59 @@
+{
+    "version": 1,
+    "tagName": "prop-display",
+    "name": "PropDisplay",
+
+    "state": [],
+    "actions": [],
+    "props": [
+        {
+            "kind": "prop",
+            "name": "label",
+            "required": true
+        },
+        {
+            "kind": "prop",
+            "name": "value",
+            "required": false,
+            "default": 0
+        }
+    ],
+    "attrs": [
+        {
+            "kind": "attr",
+            "name": "variant",
+            "default": "default",
+            "reflect": true
+        }
+    ],
+    "emits": [],
+    "lifecycle": {},
+
+    "render": [
+        {
+            "kind": "element",
+            "tag": "div",
+            "attributes": {},
+            "events": [],
+            "children": [
+                {
+                    "kind": "element",
+                    "tag": "span",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "reactive-text",
+                            "source": { "kind": "reactive-read", "source": "prop", "name": "label" }
+                        }
+                    ]
+                },
+                { "kind": "text", "value": ": " },
+                {
+                    "kind": "reactive-text",
+                    "source": { "kind": "reactive-read", "source": "prop", "name": "value" }
+                }
+            ]
+        }
+    ]
+}

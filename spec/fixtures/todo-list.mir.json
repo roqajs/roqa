@@ -1,0 +1,182 @@
+{
+    "version": 1,
+    "tagName": "todo-list",
+    "name": "TodoList",
+
+    "state": [
+        {
+            "kind": "collection",
+            "name": "todos",
+            "key": "id",
+            "initial": []
+        },
+        {
+            "kind": "value",
+            "name": "draft",
+            "initial": ""
+        }
+    ],
+    "actions": [
+        {
+            "kind": "action",
+            "name": "addTodo",
+            "params": [],
+            "body": {
+                "kind": "block",
+                "body": [
+                    {
+                        "kind": "collection-op",
+                        "op": "insert",
+                        "collection": "todos",
+                        "args": [
+                            {
+                                "kind": "opaque",
+                                "source": "{ id: Date.now(), text: draft.v, completed: false }",
+                                "reads": ["draft"],
+                                "writes": []
+                            }
+                        ]
+                    },
+                    {
+                        "kind": "state-write",
+                        "name": "draft",
+                        "value": { "kind": "literal", "value": "" }
+                    }
+                ]
+            }
+        },
+        {
+            "kind": "action",
+            "name": "toggleTodo",
+            "params": ["id"],
+            "body": {
+                "kind": "collection-op",
+                "op": "update",
+                "collection": "todos",
+                "args": [
+                    {
+                        "kind": "opaque",
+                        "source": "id",
+                        "reads": [],
+                        "writes": []
+                    },
+                    {
+                        "kind": "closure",
+                        "params": ["t"],
+                        "body": {
+                            "kind": "opaque",
+                            "source": "({ ...t, completed: !t.completed })",
+                            "reads": [],
+                            "writes": []
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "props": [],
+    "attrs": [],
+    "emits": [],
+    "lifecycle": {},
+
+    "render": [
+        {
+            "kind": "element",
+            "tag": "div",
+            "attributes": {},
+            "events": [],
+            "children": [
+                {
+                    "kind": "element",
+                    "tag": "input",
+                    "attributes": {
+                        "value": { "kind": "reactive-read", "source": "state", "name": "draft" }
+                    },
+                    "events": [
+                        {
+                            "event": "input",
+                            "handler": {
+                                "kind": "inline-handler",
+                                "body": {
+                                    "kind": "state-write",
+                                    "name": "draft",
+                                    "value": {
+                                        "kind": "opaque",
+                                        "source": "e.target.value",
+                                        "reads": [],
+                                        "writes": []
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "children": []
+                },
+                {
+                    "kind": "element",
+                    "tag": "button",
+                    "attributes": {},
+                    "events": [
+                        {
+                            "event": "click",
+                            "handler": { "kind": "action-ref", "name": "addTodo" }
+                        }
+                    ],
+                    "children": [
+                        { "kind": "text", "value": "Add" }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "ul",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "each",
+                            "source": { "kind": "state-ref", "name": "todos" },
+                            "key": "id",
+                            "blockId": "todo-items",
+                            "itemAlias": "todo",
+                            "render": [
+                                {
+                                    "kind": "element",
+                                    "tag": "li",
+                                    "attributes": {},
+                                    "events": [
+                                        {
+                                            "event": "click",
+                                            "handler": {
+                                                "kind": "bound-action",
+                                                "name": "toggleTodo",
+                                                "args": [
+                                                    { "kind": "item-field-ref", "field": "id" }
+                                                ]
+                                            }
+                                        }
+                                    ],
+                                    "classes": {
+                                        "kind": "class-list",
+                                        "items": [
+                                            "todo",
+                                            {
+                                                "name": "completed",
+                                                "condition": { "kind": "item-field-ref", "field": "completed" }
+                                            }
+                                        ]
+                                    },
+                                    "children": [
+                                        {
+                                            "kind": "reactive-text",
+                                            "source": { "kind": "item-field-ref", "field": "text" }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

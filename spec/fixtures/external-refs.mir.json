@@ -1,0 +1,104 @@
+{
+    "version": 1,
+    "tagName": "external-refs",
+    "name": "ExternalRefs",
+
+    "state": [
+        {
+            "kind": "value",
+            "name": "rawValue",
+            "initial": 3.14159
+        },
+        {
+            "kind": "value",
+            "name": "timestamp",
+            "initial": 0
+        },
+        {
+            "kind": "computed",
+            "name": "rounded",
+            "body": {
+                "kind": "call",
+                "callee": {
+                    "kind": "external-ref",
+                    "name": "Math",
+                    "path": ["floor"]
+                },
+                "args": [
+                    {
+                        "kind": "binary",
+                        "op": "*",
+                        "left": { "kind": "state-read", "name": "rawValue" },
+                        "right": { "kind": "literal", "value": 100 }
+                    }
+                ]
+            }
+        },
+        {
+            "kind": "computed",
+            "name": "formatted",
+            "body": {
+                "kind": "call",
+                "callee": {
+                    "kind": "imported-ref",
+                    "source": "./utils.js",
+                    "name": "formatDate"
+                },
+                "args": [
+                    { "kind": "state-read", "name": "timestamp" }
+                ]
+            }
+        }
+    ],
+    "actions": [],
+    "props": [],
+    "attrs": [],
+    "emits": [],
+    "lifecycle": {},
+    "metadata": {
+        "imports": [
+            {
+                "kind": "import",
+                "source": "./utils.js",
+                "bindings": ["formatDate"]
+            }
+        ]
+    },
+
+    "render": [
+        {
+            "kind": "element",
+            "tag": "div",
+            "attributes": {},
+            "events": [],
+            "children": [
+                {
+                    "kind": "element",
+                    "tag": "p",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        { "kind": "text", "value": "Rounded: " },
+                        {
+                            "kind": "reactive-text",
+                            "source": { "kind": "reactive-read", "source": "computed", "name": "rounded" }
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "p",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        { "kind": "text", "value": "Date: " },
+                        {
+                            "kind": "reactive-text",
+                            "source": { "kind": "reactive-read", "source": "computed", "name": "formatted" }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
