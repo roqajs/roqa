@@ -34,10 +34,9 @@ how it was created.
 ### What stays the same
 
 The **runtime** (`packages/roqa/src/runtime/`) is mostly unchanged. The new
-compiler targets the same runtime primitives, with one addition: `subscribe()`
-for the hybrid reactive model. See [runtime.md](./runtime.md) for the full
-runtime specification, including which modules need updates and which are
-unchanged.
+compiler targets the same runtime primitives. The `subscribe()` function for
+the hybrid reactive model has already been added. See [runtime.md](./runtime.md)
+for the full runtime specification.
 
 | Runtime export | Purpose |
 | --- | --- |
@@ -122,6 +121,130 @@ Key algorithms documented there:
 - Cleanup tracking for forBlock/showBlock bindings
 - Show block condition complexity detection
 - Naming conventions and constants
+
+---
+
+## Agent progress log
+
+The file [AGENT-LOG.md](./AGENT-LOG.md) is a persistent implementation log
+designed to maintain continuity across multiple coding agent sessions where
+chat context may be reset. **Read it at the start of every session.** It
+contains:
+
+- Current implementation status (which phases are done/in-progress)
+- A chronological session log with goals, decisions, and issues found
+- Architecture decisions made during implementation
+- Test result history
+
+The goal is to ensure no work is duplicated and no context is lost between
+agent runs. Treat it as the central source of truth for "what has happened
+so far and why."
+
+---
+
+## Fixture accuracy
+
+The test fixtures in `spec/fixtures/` (`.mir.json` + `.expected.js` pairs)
+were hand-authored alongside the spec documents. They **should** be correct,
+but small mistakes may have made their way in — typos in traversal paths,
+wrong variable names, incorrect template strings, mismatched binding
+expressions, etc.
+
+**If you think you've identified a mistake or inconsistency in a fixture,
+flag it for human review** rather than silently adjusting your implementation
+to match. Specifically:
+
+- Note the fixture name and the line(s) you believe are wrong
+- Explain what you expected vs. what the fixture shows
+- Log it in [AGENT-LOG.md](./AGENT-LOG.md) under "Known Issues & Spec
+  Clarifications"
+- Continue implementation based on what you believe is correct, but add a
+  `// FIXTURE-MISMATCH: ...` comment in your code so it's easy to find
+
+The fixtures are the **authoritative ground truth** for compiler output, but
+"authoritative" means "what we're targeting" not "guaranteed correct." When
+the spec prose and a fixture disagree, the fixture wins — but if the fixture
+looks wrong, say so.
+
+---
+
+## Spec audit findings
+
+The following inconsistencies and potential pitfalls were identified during a
+pre-implementation audit of the spec documents and fixtures. Review these
+before starting work.
+
+### 1. `attr-read` in bindings → `attrChanged` pattern is underspecified
+
+The `props-attrs` fixture generates `attrChanged()` callbacks for reactive
+bindings that reference attribute values (via `attr-read`), but compiler.md
+doesn't have an explicit section explaining when/how `attrChanged` is
+generated. The expression compilation table shows `attr-read` → 
+`this.getAttribute("x")` but doesn't cover the reactive subscription side.
+
+**Guidance:** When an `attr-read` expression appears inside a reactive binding
+(e.g., a class condition), the compiler should:
+1. Use `this.getAttribute("name")` for the value read
+2. Generate `this.attrChanged("name", () => { /* re-evaluate binding */ })`
+3. Add the attribute name to `observedAttributes` in the `defineComponent`
+   options
+4. Derive the set of observed attributes from all `attr-read` nodes in the
+   render tree
+
+### 2. Computed cell `.v` stores a function that is never invoked
+
+Computed cells are declared as `{ v: () => expr, e: [] }` in the optimized
+output, but all binding expressions and inlined set updates use the expanded
+body directly (e.g., `count.v * 2` instead of `doubled.v`). The function in
+`.v` is effectively dead code. This is **correct behavior** — the compiler
+expands computed bodies at every use site. Don't try to invoke `.v` as a
+function at runtime.
+
+### 3. IR spec's counter-button example differs from the fixture
+
+The ir.md inline example shows a counter-button with `id="increment-button"`
+and text `"Count is "`, while `counter-button.mir.json` has no id attribute
+and text `"Count: "`. The fixture README states fixtures are authoritative.
+The inline examples in spec documents are illustrative only — when in doubt,
+follow the fixtures.
+
+### 4. Inline handler state-writes are "silent"
+
+This is documented in compiler.md §Inline handler vs named action state
+writes, but it's subtle and critical. Inline event handlers (`ClosureExpr`)
+write to `cell.v` directly **without** inlined binding updates. Named actions
+produce full inlined sets with DOM updates. See the `todo-list` fixture's
+`input_1.__input` handler vs its `addTodo` action for the contrast.
+
+### 5. Cross-component cell passing (hybrid model)
+
+The hybrid reactive model describes passing cells to child components for
+subscription, but `CellRef` is not part of `ExprIR` and can't appear in
+`ElementIR.attributes`. The `child-props` fixture passes `total.v` (the
+current value), not the cell itself. Whether to pass the value or the cell
+is a compiler decision based on escape analysis — this is an advanced feature
+that may not be needed for v1.
+
+### 6. `SpreadExpr` and `ObjectPropertyIR` spread share `kind: "spread"`
+
+Both `SpreadExpr` (top-level expression) and the spread variant of
+`ObjectPropertyIR` use `kind: "spread"`. They're disambiguated by context
+(inside `ObjectExpr.properties` vs. elsewhere). Handle them appropriately
+based on where they appear.
+
+### 7. Lifecycle `onConnect` placement
+
+The `multi-action` fixture places lifecycle `onConnect` code at the
+**beginning** of `this.connected()`, before template instantiation. This
+means lifecycle code runs before the DOM is set up. Follow this ordering.
+
+### 8. Collection operation compilation
+
+The compiler.md table shows simplified patterns for collection ops (e.g.,
+`update(id, fn)` → `map(...)`). The actual compilation is more complex —
+the second arg is a `ClosureExpr` whose body must be expanded inline in the
+map callback. See the `todo-list` fixture's `toggleTodo` action for the full
+pattern.
 
 ---
 
@@ -324,8 +447,8 @@ The existing tests in `tests/compiler/` and `tests/integration/` test the
   - Read `.mir.json` fixture files
   - Pass them through `compile()`
   - Verify output against `.expected.js` files or snapshots
-- **Keep** all tests in `tests/runtime/` — most runtime modules are unchanged.
-  Add tests for the new `subscribe()` function (see [runtime.md](./runtime.md)).
+- **Keep** all tests in `tests/runtime/` — runtime modules are unchanged.
+  Add tests for `subscribe()` (already implemented, see [runtime.md](./runtime.md)).
 
 ### New test structure
 

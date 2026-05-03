@@ -2,7 +2,7 @@
 export { template, svgTemplate } from "./template.js";
 
 // Reactive primitives
-export { cell, get, put, bind, notify, set } from "./cell.js";
+export { cell, get, put, bind, notify, set, subscribe } from "./cell.js";
 
 // Event delegation
 export { delegate, handleRootEvents } from "./events.js";

@@ -128,13 +128,13 @@ packages/roqa/src/runtime/
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| `cell.js` | **Update** | Add `subscribe()` function |
+| `cell.js` | ✅ Done | `subscribe()` function added |
 | `component.js` | Unchanged | `RoqaElement`, `defineComponent`, `setProp`, `getProps` are stable |
 | `events.js` | Unchanged | Event delegation system is stable |
 | `for-block.js` | Unchanged | LIS reconciliation is stable |
 | `show-block.js` | Unchanged | Conditional rendering is stable |
 | `template.js` | Unchanged | Template cloning is stable |
-| `index.js` | **Update** | Add `subscribe` to exports |
+| `index.js` | ✅ Done | `subscribe` added to exports |
 
 ---
 
@@ -193,7 +193,11 @@ is "subscriber list" (not "events" or "effects"). Developers never interact
 with `e` directly — they use `subscribe()`, `bind()`, and the MIR. The raw
 cell shape `{ v, e }` only appears in compiled output.
 
-### New: `subscribe()` (to be added)
+### `subscribe()`
+
+> **Already implemented** — `subscribe()` has been added to `cell.js` and
+> exported from `index.js`. No action needed. Tests should still be written
+> (see §Implementation order below).
 
 ```js
 // Runtime subscription — for dynamic bindings the compiler can't inline.
@@ -498,7 +502,7 @@ export { showBlock } from "./show-block.js";
 
 ### Required update
 
-Add `subscribe` to the reactive primitives export:
+> **Already done** — `subscribe` has been added to the exports.
 
 ```js
 export { cell, get, put, bind, notify, set, subscribe } from "./cell.js";
@@ -513,10 +517,12 @@ Here's when to make each change relative to the compiler rewrite:
 
 ### Before starting the compiler
 
-1. **Add `subscribe()` to `cell.js`** — the function is 6 lines. Add it now
-   so the compiler can emit `subscribe()` calls from day one.
+> **Steps 1 and 2 are already done** — `subscribe()` has been added to
+> `cell.js` and exported from `index.js`.
 
-2. **Add `subscribe` to `index.js` exports** — one line change.
+1. ~~**Add `subscribe()` to `cell.js`**~~ — ✅ Done.
+
+2. ~~**Add `subscribe` to `index.js` exports**~~ — ✅ Done.
 
 3. **Write tests for `subscribe()`** — verify:
    - Returns an unsubscribe function

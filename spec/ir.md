@@ -201,20 +201,22 @@ all compile to LLVM IR, which is then lowered to machine-specific instructions).
 
 ### Why three levels? (plain-speak)
 
-Think of it like language translation.
+Think of it like building construction (extending the blueprint analogy from
+above).
 
-The **HIR** is like the original text in French — it uses French idioms and
-grammar. A Spanish frontend would produce Spanish text with Spanish idioms.
-Each language (frontend) has its own way of saying things.
+The **HIR** is like different architects' sketches — one draws in Art Deco
+style, another in Modernist, another in Japanese traditional. Each has its own
+conventions and idioms, but they're all describing buildings.
 
-The **MIR** is like a language-neutral "meaning representation" — it captures
-*what* is being said, not *how* any particular language says it. This is the
-universal format that all frontends must produce and the backend consumes.
+The **MIR** is like standardized engineering blueprints — precise structural
+drawings that any construction team can read, regardless of which architect
+drew them. This is the universal format that all frontends must produce and the
+backend consumes.
 
-The **LIR** is like detailed typesetting instructions for a printing press —
-it tells the machine exactly what to do: place this character here, start a new
-line there, set this margin. Humans don't write typesetting instructions, but
-the press needs them.
+The **LIR** is like individual work orders for the construction crew — "cut
+2×4 to 96 inches, nail at stud positions 16″ on center, run 12/2 wire from
+panel to junction box at coordinates (x,y)." The crew needs them to build 
+exactly what the blueprints specify.
 
 The MIR is the most important because it's the **contract**. Frontend authors
 need to know: "if I produce this data structure, Roqa will generate correct,

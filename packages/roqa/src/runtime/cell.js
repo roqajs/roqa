@@ -35,3 +35,14 @@ export const bind = (cell, fn) => {
 export const notify = (cell) => {
 	for (let i = 0; i < cell.e.length; i++) cell.e[i](cell.v);
 };
+
+// Runtime subscription — for dynamic bindings the compiler can't inline.
+// Does NOT call the callback immediately (unlike bind()).
+// Returns an unsubscribe function for cleanup.
+export const subscribe = (cell, callback) => {
+	cell.e.push(callback);
+	return () => {
+		const idx = cell.e.indexOf(callback);
+		if (idx !== -1) cell.e.splice(idx, 1);
+	};
+};
