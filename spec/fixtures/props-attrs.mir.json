@@ -34,6 +34,21 @@
             "kind": "element",
             "tag": "div",
             "attributes": {},
+            "classes": {
+                "kind": "class-list",
+                "items": [
+                    "prop-display",
+                    {
+                        "name": "highlight",
+                        "condition": {
+                            "kind": "binary",
+                            "op": "===",
+                            "left": { "kind": "attr-read", "name": "variant" },
+                            "right": { "kind": "literal", "value": "highlight" }
+                        }
+                    }
+                ]
+            },
             "events": [],
             "children": [
                 {

@@ -14,6 +14,32 @@
             "kind": "value",
             "name": "draft",
             "initial": ""
+        },
+        {
+            "kind": "computed",
+            "name": "remaining",
+            "body": {
+                "kind": "member",
+                "object": {
+                    "kind": "method-call",
+                    "object": { "kind": "state-read", "name": "todos" },
+                    "method": "filter",
+                    "args": [{
+                        "kind": "closure",
+                        "params": ["t"],
+                        "body": {
+                            "kind": "unary",
+                            "op": "!",
+                            "operand": {
+                                "kind": "member",
+                                "object": { "kind": "param-read", "name": "t" },
+                                "property": "completed"
+                            }
+                        }
+                    }]
+                },
+                "property": "length"
+            }
         }
     ],
     "actions": [
@@ -209,6 +235,24 @@
                                     ]
                                 }
                             ]
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "p",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "reactive-text",
+                            "source": {
+                                "kind": "template-literal",
+                                "parts": [
+                                    "Remaining: ",
+                                    { "kind": "computed-read", "name": "remaining" }
+                                ]
+                            }
                         }
                     ]
                 }

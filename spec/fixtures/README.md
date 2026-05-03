@@ -16,12 +16,12 @@ Golden test files for the Roqa backend compiler. Each fixture is a pair:
 
 | Fixture | Covers |
 | --- | --- |
-| `static-component` | Simplest case: no state, no events, static HTML only |
+| `static-component` | Simplest case: no state, no events, `StaticClassIR`, static HTML only |
 | `counter-button` | Basic state + event + reactive text binding |
 | `show-conditional` | `ShowIR` conditional rendering with state toggle |
 | `derived-state` | Computed state chains (count → doubled → quadrupled) |
-| `todo-list` | Collections, `EachIR`, action-calls with args, class bindings, inline handlers |
-| `props-attrs` | Props and attributes with defaults and reflection |
+| `todo-list` | Collections, `EachIR`, `method-call` computed, `template-literal` in reactive text, action-calls with args, class bindings, inline handlers |
+| `props-attrs` | Props and attributes with defaults, reflection, `attr-read`, `ConditionalExpr`, reactive `ClassListIR` with `attrChanged` |
 | `deep-nesting` | Deep DOM tree with reactive class bindings, traversal verification |
 | `external-refs` | `ImportedRefExpr` and `ExternalRefExpr` in computed values |
 | `child-props` | Custom element child composition, `setProp()`, two-phase traversal |

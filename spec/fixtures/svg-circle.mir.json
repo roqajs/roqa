@@ -37,8 +37,8 @@
 			"kind": "element",
 			"tag": "svg",
 			"attributes": {
-				"width": { "kind": "literal", "value": "100" },
-				"height": { "kind": "literal", "value": "100" }
+				"width": { "kind": "literal", "value": 100 },
+				"height": { "kind": "literal", "value": 100 }
 			},
 			"events": [
 				{
@@ -51,8 +51,8 @@
 					"kind": "element",
 					"tag": "circle",
 					"attributes": {
-						"cx": { "kind": "literal", "value": "50" },
-						"cy": { "kind": "literal", "value": "50" },
+						"cx": { "kind": "literal", "value": 50 },
+						"cy": { "kind": "literal", "value": 50 },
 						"r": { "kind": "state-read", "name": "radius" }
 					},
 					"events": [],

@@ -12,6 +12,11 @@ defineComponent("prop-display", function PropDisplay({ label, value = 0 }) {
 		const span_1_text = span_1.firstChild;
 		const div_1_text = span_1.nextSibling;
 
+		div_1.className = "prop-display" + (this.getAttribute("variant") === "highlight" ? " highlight" : "");
+		this.attrChanged("variant", () => {
+			div_1.className = "prop-display" + (this.getAttribute("variant") === "highlight" ? " highlight" : "");
+		});
+
 		span_1_text.nodeValue = label;
 		div_1_text.nodeValue = ": " + value;
 	});
