@@ -226,7 +226,8 @@ types in these configurations."
 This document specifies the **MIR** (canonical IR) in full detail — it's the
 contract that matters most. The HIR is intentionally unspecified (each frontend
 defines its own). The LIR is specified in [compiler.md](./compiler.md) as part
-of the code generation pipeline.
+of the code generation pipeline. The runtime primitives the compiler targets
+are specified in [runtime.md](./runtime.md).
 
 ---
 
@@ -760,6 +761,10 @@ type OptimizationHints = {
                                   // Backend should optimize update path aggressively
     immutable?: boolean;          // Value is never mutated (only replaced)
                                   // Backend can use reference equality checks
+    escapesComponent?: boolean;   // Cell is observed outside this component
+                                  // (e.g., passed to children, read by external code)
+                                  // Backend should emit runtime subscriber notification
+                                  // See compiler.md §Hybrid reactive model
 };
 ```
 

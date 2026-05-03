@@ -283,6 +283,8 @@ type InlinedSet = {
     valueExpr: string;            // JS expression for the new value
     updates: InlinedUpdate[];     // DOM updates to inline after the set
     blockUpdates: InlinedBlockUpdate[];  // Block controller .update() calls
+    notify: boolean;              // Whether to emit subscriber notification loop
+                                  // (see §Hybrid reactive model)
 };
 
 type InlinedUpdate = {
@@ -684,6 +686,196 @@ established by previous passes:
 
 ---
 
+## Hybrid reactive model
+
+Roqa uses a hybrid approach to reactive updates. The compiler performs two
+kinds of update propagation — **compile-time inlining** (the fast path) and
+**runtime notification** (the dynamic path) — and decides per-cell which
+one(s) to use.
+
+### The two paths
+
+**Compile-time inlining (the fast path):**
+When the compiler can statically determine every binding that reads a cell,
+it inlines the DOM updates directly at the `set()` call site. No subscription
+management, no graph walk, no function call overhead. This is the existing
+optimization and remains the default for most cells.
+
+```js
+// Pure compile-time — compiler knows all readers of `count`
+count.v = count.v + 1;
+count.ref_1.nodeValue = "Count: " + count.v;
+```
+
+**Runtime notification (the dynamic path):**
+When a cell's value may be observed by code that the compiler can't see at
+build time, the compiler emits a subscriber notification loop after the
+inlined updates. The cell's `e` array — which is already present on every
+cell as `{ v, e: [] }` — becomes an active subscriber list.
+
+```js
+// Hybrid — inlined updates + runtime notification
+count.v = count.v + 1;
+count.ref_1.nodeValue = "Count: " + count.v;
+for (let i = 0; i < count.e.length; i++) count.e[i](count.v);
+```
+
+When no runtime subscribers exist, the loop body never executes — the cost
+is one integer comparison (`0 < 0`), which is negligible.
+
+### When the compiler emits runtime notification
+
+The compiler performs **escape analysis** on each cell during lowering
+(Phase 2). A cell "escapes" the component's compile-time scope when:
+
+1. **Passed as a prop to a child custom element.** The child component is
+   compiled separately — the parent's compiler can't inline into it.
+
+   ```json
+   {
+       "kind": "element",
+       "tag": "status-bar",
+       "attributes": {
+           "count": { "kind": "state-read", "name": "count" }
+       }
+   }
+   ```
+
+   The compiler detects that `status-bar` is a custom element (contains a
+   hyphen) and that `count` is passed as an attribute. The cell escapes →
+   mark it for runtime notification.
+
+2. **Used as an `EmitExpr` detail.** The cell's value is dispatched as a
+   custom event — external listeners may observe it.
+
+3. **Read inside a `forBlock` or `showBlock` callback.** Bindings created
+   inside block callbacks are dynamic — they're created and destroyed as
+   list items or conditions change. The compiler already handles this via
+   block controller `.update()` calls, but individual item bindings within
+   blocks may subscribe via `e[]` for fine-grained updates.
+
+4. **Explicitly marked.** A frontend can set `escapesComponent: true` in the
+   cell's `OptimizationHints` to force runtime notification (e.g., for cells
+   that are read by external code the frontend knows about but the MIR
+   doesn't capture).
+
+If none of these conditions apply, the cell uses pure inlined updates with
+no subscriber loop.
+
+### How this affects the LIR
+
+The `InlinedSet` type has a `notify` field. When `true`, the emitter appends
+the subscriber notification loop after the inlined DOM updates:
+
+```ts
+// InlinedSet with notify: true
+{
+    cellName: "count",
+    valueExpr: "count.v + 1",
+    updates: [
+        { target: "count.ref_1.nodeValue", expression: '"Count: " + count.v' }
+    ],
+    blockUpdates: [],
+    notify: true   // ← emit subscriber loop
+}
+```
+
+**Emitted output:**
+```js
+{
+    count.v = count.v + 1;
+    count.ref_1.nodeValue = "Count: " + count.v;
+    for (let i = 0; i < count.e.length; i++) count.e[i](count.v);
+}
+```
+
+### How child components subscribe
+
+When a child component receives a cell via props, it subscribes at
+`connected()` time and unsubscribes at `disconnected()` time:
+
+```js
+defineComponent("status-bar", function StatusBar() {
+    this.connected(() => {
+        const $root = $tmpl_2();
+        this.appendChild($root);
+        const span_1 = this.firstChild;
+
+        // Cell received at runtime via props
+        const countCell = getProps(this).count;
+
+        // Initial render
+        span_1.nodeValue = "Items: " + countCell.v;
+
+        // Runtime subscription — pushed onto the cell's e[] array
+        const update = (v) => { span_1.nodeValue = "Items: " + v; };
+        countCell.e.push(update);
+
+        // Cleanup on disconnect
+        this.disconnected(() => {
+            const idx = countCell.e.indexOf(update);
+            if (idx !== -1) countCell.e.splice(idx, 1);
+        });
+    });
+});
+```
+
+### Runtime helper: `subscribe()`
+
+To avoid boilerplate in generated code, the runtime provides a `subscribe`
+helper that handles registration and returns a cleanup function:
+
+```js
+// Runtime API
+function subscribe(cell, callback) {
+    cell.e.push(callback);
+    return () => {
+        const idx = cell.e.indexOf(callback);
+        if (idx !== -1) cell.e.splice(idx, 1);
+    };
+}
+```
+
+The compiler emits `subscribe()` calls for runtime bindings and stores the
+cleanup function for `disconnected()`:
+
+```js
+const unsub = subscribe(countCell, (v) => {
+    span_1.nodeValue = "Items: " + v;
+});
+this.disconnected(() => unsub());
+```
+
+### Interaction with existing block controllers
+
+`forBlock` and `showBlock` already implement a form of runtime reactivity —
+they subscribe to a cell and re-render when it changes. Level 1 generalizes
+this pattern but doesn't replace it. Block controllers continue to use their
+own update mechanism (`.update()` calls in inlined sets).
+
+The distinction:
+- **Block controllers** handle structural changes (add/remove DOM nodes)
+- **Runtime subscribers** handle value updates (change text, attributes, etc.)
+
+A cell can have both: a `forBlock` controller that re-reconciles the list
+AND runtime subscribers on individual item bindings within the block.
+
+### Performance characteristics
+
+| Scenario | Compile-time inlining | Runtime notification |
+| --- | --- | --- |
+| Local state, static bindings | ✅ Full | ❌ Not emitted |
+| State passed to child elements | ✅ Local bindings | ✅ For child bindings |
+| State used in `forBlock`/`showBlock` | ✅ Local bindings | Via block `.update()` |
+| State emitted as event detail | ✅ Local bindings | ✅ For external observers |
+| No subscribers on `e[]` | — | Zero-cost (empty loop) |
+
+The compile-time path is always preferred. Runtime notification is additive —
+it never replaces inlined updates, only supplements them for bindings the
+compiler can't see.
+
+---
+
 ## Phase 4: Emit
 
 The emitter serializes the optimized LIR into JavaScript text. This is a
@@ -739,8 +931,9 @@ When emitting import statements, the emitter must deduplicate:
 
 - **Runtime imports** — collect the union of all runtime imports needed across
   all components in the file (`template`, `defineComponent`, `delegate`,
-  `forBlock`, `showBlock`, `svgTemplate`, `setProp`, etc.) and emit a single
-  import statement.
+  `forBlock`, `showBlock`, `svgTemplate`, `setProp`, `subscribe`, etc.) and
+  emit a single import statement. `subscribe` is only included when at least
+  one cell uses runtime notification.
 
 - **`ImportedRefExpr` imports** — if multiple actions or computed values
   reference the same imported module (e.g., `import { formatDate } from

@@ -33,8 +33,11 @@ how it was created.
 
 ### What stays the same
 
-The **runtime** (`packages/roqa/src/runtime/`) is unchanged. The new compiler
-targets the same runtime primitives:
+The **runtime** (`packages/roqa/src/runtime/`) is mostly unchanged. The new
+compiler targets the same runtime primitives, with one addition: `subscribe()`
+for the hybrid reactive model. See [runtime.md](./runtime.md) for the full
+runtime specification, including which modules need updates and which are
+unchanged.
 
 | Runtime export | Purpose |
 | --- | --- |
@@ -46,6 +49,7 @@ targets the same runtime primitives:
 | `put(cell, v)` | Write cell without notify (inlined to `cell.v = v`) |
 | `bind(cell, fn)` | Subscribe to cell (inlined to ref storage) |
 | `notify(cell)` | Trigger all subscribers |
+| `subscribe(cell, fn)` | Runtime subscription — returns cleanup function (for dynamic bindings) |
 | `defineComponent(tag, fn, opts?)` | Register web component (creates `RoqaElement` subclass) |
 | `delegate(events)` | Set up event delegation at document level |
 | `forBlock(container, cell, fn)` | Efficient list rendering (LIS reconciliation) |
@@ -320,7 +324,8 @@ The existing tests in `tests/compiler/` and `tests/integration/` test the
   - Read `.mir.json` fixture files
   - Pass them through `compile()`
   - Verify output against `.expected.js` files or snapshots
-- **Keep** all tests in `tests/runtime/` — the runtime is unchanged.
+- **Keep** all tests in `tests/runtime/` — most runtime modules are unchanged.
+  Add tests for the new `subscribe()` function (see [runtime.md](./runtime.md)).
 
 ### New test structure
 
@@ -334,7 +339,7 @@ packages/roqa/tests/
 │   └── emit.test.js           # LIR → JS emission (Phase 4)
 ├── integration/
 │   └── compile.test.js        # Full pipeline: MIR → JS (uses fixtures)
-└── runtime/                   # Unchanged
+└── runtime/                   # Mostly unchanged — add subscribe.test.js
 ```
 
 ### Fixture-based testing pattern
@@ -429,8 +434,11 @@ signatures, return values, and generated code patterns for `forBlock`,
 ## Runtime API reference
 
 This section documents every runtime export the compiler may generate calls
-to. The runtime is **not changing** — the new MIR-based compiler must produce
-code that works with these exact APIs.
+to. The runtime is **mostly unchanged** — the new MIR-based compiler must
+produce code that works with these exact APIs. The one addition is
+`subscribe()` for the hybrid reactive model. See [runtime.md](./runtime.md)
+for the full runtime specification including the hybrid model, known
+limitations, and implementation timeline.
 
 Source: `packages/roqa/src/runtime/`
 
