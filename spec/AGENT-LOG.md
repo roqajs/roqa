@@ -23,11 +23,11 @@ and why certain decisions were made.
 
 | Phase | Status | Notes |
 | --- | --- | --- |
-| Phase 1: MIR types + validation | ⬚ | `types.d.ts`, `validate.js`, `index.js` skeleton |
-| Phase 2: Expression IR compiler | ⬚ | `expr-compiler.js` |
-| Phase 3: Lowering (MIR → LIR) | ⬚ | `lower.js` |
-| Phase 4: Emitter (LIR → JS) | ⬚ | `emit.js` |
-| Phase 5: Optimization passes | ⬚ | `optimize.js` |
+| Phase 1: MIR types + validation | ✅ | `types.d.ts`, `validate.js`, `index.js` |
+| Phase 2: Expression IR compiler | ✅ | `expr-compiler.js` |
+| Phase 3: Lowering (MIR → LIR) | 🔧 | `lower.js` — 9/13 fixtures passing |
+| Phase 4: Emitter (LIR → JS) | 🔧 | `emit.js` — working, minor issues |
+| Phase 5: Optimization passes | ✅ | `optimize.js` — inline cells + inline bindings |
 | Phase 6: Vite plugin integration | ⬚ | `packages/vite-plugin/src/index.js` |
 | Runtime: Add `subscribe()` | ✅ | `cell.js` + `index.js` exports (done pre-handoff) |
 | Tests | ⬚ | New test suite in `packages/roqa/tests/` |
@@ -47,6 +47,52 @@ and why certain decisions were made.
 
 *(No sessions logged yet — implementation has not started.)*
 
+### Session 1 — 2026-05-03
+
+**Goal:** Implement the full MIR-based backend compiler from scratch.
+
+**Completed:**
+- Deleted all old compiler files (parser.js, codegen.js, utils.js, transforms/)
+- Created all 6 new compiler files: `types.d.ts`, `validate.js`, `expr-compiler.js`, `lower.js`, `optimize.js`, `emit.js`, `index.js`
+- Full pipeline working: validate → lower → optimize → emit
+- **9 of 13 fixtures passing exactly**: static-component, counter-button, derived-state, deep-nesting, show-conditional, show-fallback, multi-component, svg-circle, external-refs
+
+**Decisions:**
+- Ref numbering is per-cell (e.g., `count.ref_1`, `doubled.ref_1`) not global
+- Computed cell bodies are expanded at lowering time (e.g., `quadrupled.v = () => count.v * 2 * 2`)
+- Binding expressions for computed cells use expanded forms (replace `computed.v` with underlying expression)
+- Template strings use double quotes by default, single quotes when HTML contains double quotes
+- Block updates (forBlock.update, showBlock.update) are emitted BEFORE DOM binding updates in inlined sets
+- Inlined sets are emitted BEFORE trailing body parts (like emit calls) in actions
+
+**Issues found (4 failing fixtures):**
+
+1. **`multi-action`** — 2 fixture inconsistencies flagged:
+   - Template quote: fixture uses single quotes `'<div>...'` when HTML has no quotes. Other fixtures with no-quote HTML use double quotes. Our compiler uses double quotes (matches majority pattern).
+   - String literal in lifecycle: `console.log('MultiAction connected')` uses single quotes in fixture, but our compiler uses `JSON.stringify` which produces double quotes. All other string literals in fixtures use double quotes.
+
+2. **`props-attrs`** — Binding emission order issue:
+   - The `className` binding + `attrChanged` callback should be emitted BEFORE text bindings (span_1_text, div_1_text)
+   - Currently className binding is created correctly but emitted in creation order, which puts it after text bindings
+
+3. **`child-props`** — Two-phase traversal for setProp:
+   - Phase 2 traversal generates extra vars (`h2_1`, `status_badge_2`) that should be pruned
+   - The `lowerElementChildren` with `skipVars` isn't correctly reusing phase-1 vars as anchors
+   - Need: phase 2 should skip directly to `p_1 = status_badge_1.nextSibling` without re-traversing h2 or status-badge
+
+4. **`todo-list`** — Multiple issues:
+   - Template quote inconsistency (same as multi-action)
+   - Block var (`let todos_forBlock`) placement: fixture has it AFTER functions, but show-conditional/show-fallback fixtures have it BEFORE. Currently emitting before (matches show fixtures).
+   - Collection `update` op with inline closure now compiles correctly after fix
+
+**Next steps:**
+- Fix child-props: rewrite phase-2 traversal to reuse phase-1 anchors, skip non-referenced intermediate nodes
+- Fix props-attrs: reorder bindings so className + attrChanged come before text bindings
+- Fix todo-list: decide on block var placement (before vs after functions)
+- Investigate multi-action/todo-list template quote discrepancy — may be fixture inconsistency to flag
+- Add Vitest integration tests
+- Phase 6: Vite plugin wiring
+
 ---
 
 ## Known Issues & Spec Clarifications
@@ -57,6 +103,15 @@ and why certain decisions were made.
 
 *(See the audit findings in the implementation guide for pre-implementation
 discoveries. Add runtime discoveries here as work proceeds.)*
+
+### Fixture quote inconsistency (Session 1)
+- `multi-action.expected.js` and `todo-list.expected.js` use single quotes for template strings (`template('...')`) even when the HTML contains no quotes. All other no-quote fixtures use double quotes. May be an authoring inconsistency.
+- `multi-action.expected.js` line 28: `console.log('MultiAction connected')` uses single quotes while all other string literals in fixtures use double quotes via `JSON.stringify` patterns.
+
+### Block var placement inconsistency (Session 1)
+- `show-conditional.expected.js` and `show-fallback.expected.js` place `let blockVar;` BEFORE function declarations.
+- `todo-list.expected.js` places `let todos_forBlock;` AFTER function declarations.
+- Both patterns work (JS hoists `let` declarations). Current compiler emits block vars before functions (matches show fixtures).
 
 ---
 
