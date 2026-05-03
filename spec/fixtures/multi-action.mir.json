@@ -21,14 +21,24 @@
             "name": "increment",
             "params": [],
             "body": {
-                "kind": "state-write",
-                "name": "count",
-                "value": {
-                    "kind": "binary",
-                    "op": "+",
-                    "left": { "kind": "state-read", "name": "count" },
-                    "right": { "kind": "literal", "value": 1 }
-                }
+                "kind": "block",
+                "body": [
+                    {
+                        "kind": "state-write",
+                        "name": "count",
+                        "value": {
+                            "kind": "binary",
+                            "op": "+",
+                            "left": { "kind": "state-read", "name": "count" },
+                            "right": { "kind": "literal", "value": 1 }
+                        }
+                    },
+                    {
+                        "kind": "emit",
+                        "event": "count-changed",
+                        "detail": { "kind": "state-read", "name": "count" }
+                    }
+                ]
             }
         },
         {
@@ -78,10 +88,15 @@
     ],
     "lifecycle": {
         "onConnect": {
-            "kind": "opaque",
-            "source": "console.log('MultiAction connected')",
-            "reads": [],
-            "writes": []
+            "kind": "call",
+            "callee": {
+                "kind": "external-ref",
+                "name": "console",
+                "path": ["log"]
+            },
+            "args": [
+                { "kind": "literal", "value": "MultiAction connected" }
+            ]
         }
     },
 
@@ -100,7 +115,7 @@
                     "children": [
                         {
                             "kind": "reactive-text",
-                            "source": { "kind": "reactive-read", "source": "state", "name": "label" }
+                            "source": { "kind": "state-read", "name": "label" }
                         }
                     ]
                 },
@@ -113,7 +128,7 @@
                         { "kind": "text", "value": "Value: " },
                         {
                             "kind": "reactive-text",
-                            "source": { "kind": "reactive-read", "source": "state", "name": "count" }
+                            "source": { "kind": "state-read", "name": "count" }
                         }
                     ]
                 },
@@ -122,7 +137,7 @@
                     "tag": "button",
                     "attributes": {},
                     "events": [
-                        { "event": "click", "handler": { "kind": "action-ref", "name": "decrement" } }
+                        { "event": "click", "handler": { "kind": "action-call", "name": "decrement", "args": [] } }
                     ],
                     "children": [{ "kind": "text", "value": "-" }]
                 },
@@ -131,7 +146,7 @@
                     "tag": "button",
                     "attributes": {},
                     "events": [
-                        { "event": "click", "handler": { "kind": "action-ref", "name": "increment" } }
+                        { "event": "click", "handler": { "kind": "action-call", "name": "increment", "args": [] } }
                     ],
                     "children": [{ "kind": "text", "value": "+" }]
                 },
@@ -140,7 +155,7 @@
                     "tag": "button",
                     "attributes": {},
                     "events": [
-                        { "event": "click", "handler": { "kind": "action-ref", "name": "reset" } }
+                        { "event": "click", "handler": { "kind": "action-call", "name": "reset", "args": [] } }
                     ],
                     "children": [{ "kind": "text", "value": "Reset" }]
                 }

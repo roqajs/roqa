@@ -81,7 +81,7 @@
                         { "kind": "text", "value": "Rounded: " },
                         {
                             "kind": "reactive-text",
-                            "source": { "kind": "reactive-read", "source": "computed", "name": "rounded" }
+                            "source": { "kind": "computed-read", "name": "rounded" }
                         }
                     ]
                 },
@@ -94,7 +94,7 @@
                         { "kind": "text", "value": "Date: " },
                         {
                             "kind": "reactive-text",
-                            "source": { "kind": "reactive-read", "source": "computed", "name": "formatted" }
+                            "source": { "kind": "computed-read", "name": "formatted" }
                         }
                     ]
                 }

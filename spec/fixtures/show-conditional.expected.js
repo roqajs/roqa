@@ -6,8 +6,11 @@ const $tmpl_2 = template("<p>Now you see me!</p>");
 defineComponent("show-toggle", function ShowToggle() {
 	const visible = { v: false, e: [] };
 
+	let visible_showBlock;
+
 	const toggle = () => {
 		visible.v = !visible.v;
+		visible_showBlock.update();
 	};
 
 	this.connected(() => {
@@ -19,7 +22,7 @@ defineComponent("show-toggle", function ShowToggle() {
 
 		button_1.__click = toggle;
 
-		showBlock(div_1, visible, (anchor) => {
+		visible_showBlock = showBlock(div_1, visible, (anchor) => {
 			const p_1 = $tmpl_2().firstChild;
 			anchor.before(p_1);
 			return { start: p_1, end: p_1 };

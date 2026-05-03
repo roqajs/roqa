@@ -40,14 +40,14 @@
             "events": [
                 {
                     "event": "click",
-                    "handler": { "kind": "action-ref", "name": "increment" }
+                    "handler": { "kind": "action-call", "name": "increment", "args": [] }
                 }
             ],
             "children": [
                 { "kind": "text", "value": "Count: " },
                 {
                     "kind": "reactive-text",
-                    "source": { "kind": "reactive-read", "source": "state", "name": "count" }
+                    "source": { "kind": "state-read", "name": "count" }
                 }
             ]
         }

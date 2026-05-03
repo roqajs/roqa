@@ -20,11 +20,15 @@ Golden test files for the Roqa backend compiler. Each fixture is a pair:
 | `counter-button` | Basic state + event + reactive text binding |
 | `show-conditional` | `ShowIR` conditional rendering with state toggle |
 | `derived-state` | Computed state chains (count → doubled → quadrupled) |
-| `todo-list` | Collections, `EachIR`, bound actions, class bindings, inline handlers |
+| `todo-list` | Collections, `EachIR`, action-calls with args, class bindings, inline handlers |
 | `props-attrs` | Props and attributes with defaults and reflection |
 | `deep-nesting` | Deep DOM tree with reactive class bindings, traversal verification |
 | `external-refs` | `ImportedRefExpr` and `ExternalRefExpr` in computed values |
-| `multi-action` | Multiple actions, block expressions, lifecycle, emit declarations |
+| `child-props` | Custom element child composition, `setProp()`, two-phase traversal |
+| `show-fallback` | `ShowIR` with fallback (else-branch), dual `showBlock` controllers |
+| `svg-circle` | SVG elements, `svgTemplate()`, `setAttribute()` for SVG attributes |
+| `multi-component` | Multiple components in one file, import dedup, single `delegate()` |
+| `multi-action` | Multiple actions, block expressions, lifecycle, emit declarations, `EmitExpr` in action body |
 
 ## How to use
 

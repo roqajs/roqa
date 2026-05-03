@@ -45,7 +45,7 @@
                     "events": [
                         {
                             "event": "click",
-                            "handler": { "kind": "action-ref", "name": "toggle" }
+                            "handler": { "kind": "action-call", "name": "toggle", "args": [] }
                         }
                     ],
                     "children": [
@@ -54,7 +54,7 @@
                 },
                 {
                     "kind": "show",
-                    "condition": { "kind": "state-ref", "name": "visible" },
+                    "condition": { "kind": "cell-ref", "name": "visible" },
                     "render": [
                         {
                             "kind": "element",

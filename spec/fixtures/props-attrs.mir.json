@@ -44,14 +44,14 @@
                     "children": [
                         {
                             "kind": "reactive-text",
-                            "source": { "kind": "reactive-read", "source": "prop", "name": "label" }
+                            "source": { "kind": "prop-read", "name": "label" }
                         }
                     ]
                 },
                 { "kind": "text", "value": ": " },
                 {
                     "kind": "reactive-text",
-                    "source": { "kind": "reactive-read", "source": "prop", "name": "value" }
+                    "source": { "kind": "prop-read", "name": "value" }
                 }
             ]
         }

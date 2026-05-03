@@ -180,6 +180,25 @@ plus intentionally invalid MIR objects (should produce correct diagnostics).
 - `external-ref` → `Name.path` chain
 - `opaque` → pass through source string
 
+**Expression context:** The `compileExpr` function needs a context object to
+handle context-dependent expression types:
+
+```ts
+type ExprContext = {
+    itemAlias?: string;          // Current iteration variable name (e.g., "todo")
+                                 // Set when compiling inside an EachIR render tree
+    isInlineHandler?: boolean;   // true when compiling an event handler ClosureExpr body
+                                 // Affects state-write compilation (no inlined updates)
+    componentName?: string;      // Component function name (for error messages)
+};
+```
+
+Context-dependent compilation rules:
+- `item-field-read` with field `"x"` → `{itemAlias}.x` (requires `itemAlias` in context)
+- `state-write` inside an inline handler → `{cellName}.v = value` (no inlined binding updates)
+- `state-write` inside an action → compiled separately via `FunctionOp.inlinedSets`
+- `emit` → `this.emit("eventName", detail)` (uses component `this`)
+
 **Test with:** Unit tests that compile individual expression trees and verify
 the JS output string.
 
@@ -197,7 +216,7 @@ the JS output string.
   dynamic node
 - Cell operations from state declarations
 - Function operations from actions (using expr-compiler)
-- Binding operations from reactive-read nodes in render tree
+- Binding operations from expression nodes in render tree
 - Event operations from EventBindingIR nodes
 - Block operations from ShowIR/EachIR nodes
 

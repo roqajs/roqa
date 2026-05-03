@@ -15,7 +15,7 @@
             "kind": "element",
             "tag": "div",
             "attributes": {
-                "class": { "kind": "static", "value": "greeting" }
+                "class": { "kind": "literal", "value": "greeting" }
             },
             "events": [],
             "children": [

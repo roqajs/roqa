@@ -26,7 +26,7 @@
             "kind": "element",
             "tag": "div",
             "attributes": {
-                "id": { "kind": "static", "value": "container" }
+                "id": { "kind": "literal", "value": "container" }
             },
             "events": [],
             "children": [
@@ -44,7 +44,7 @@
                             "children": [
                                 {
                                     "kind": "reactive-text",
-                                    "source": { "kind": "reactive-read", "source": "state", "name": "title" }
+                                    "source": { "kind": "state-read", "name": "title" }
                                 }
                             ]
                         }
@@ -61,7 +61,7 @@
                             "content",
                             {
                                 "name": "active",
-                                "condition": { "kind": "reactive-read", "source": "state", "name": "active" }
+                                "condition": { "kind": "state-read", "name": "active" }
                             }
                         ]
                     },

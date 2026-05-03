@@ -66,7 +66,7 @@
                     "events": [
                         {
                             "event": "click",
-                            "handler": { "kind": "action-ref", "name": "increment" }
+                            "handler": { "kind": "action-call", "name": "increment", "args": [] }
                         }
                     ],
                     "children": [
@@ -82,7 +82,7 @@
                         { "kind": "text", "value": "Count: " },
                         {
                             "kind": "reactive-text",
-                            "source": { "kind": "reactive-read", "source": "state", "name": "count" }
+                            "source": { "kind": "state-read", "name": "count" }
                         }
                     ]
                 },
@@ -95,7 +95,7 @@
                         { "kind": "text", "value": "Doubled: " },
                         {
                             "kind": "reactive-text",
-                            "source": { "kind": "reactive-read", "source": "computed", "name": "doubled" }
+                            "source": { "kind": "computed-read", "name": "doubled" }
                         }
                     ]
                 },
@@ -108,7 +108,7 @@
                         { "kind": "text", "value": "Quadrupled: " },
                         {
                             "kind": "reactive-text",
-                            "source": { "kind": "reactive-read", "source": "computed", "name": "quadrupled" }
+                            "source": { "kind": "computed-read", "name": "quadrupled" }
                         }
                     ]
                 }

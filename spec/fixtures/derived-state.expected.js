@@ -5,7 +5,7 @@ const $tmpl_1 = template("<div><button>Increment</button><p> </p><p> </p><p> </p
 defineComponent("derived-counter", function DerivedCounter() {
 	const count = { v: 0, e: [] };
 	const doubled = { v: () => count.v * 2, e: [] };
-	const quadrupled = { v: () => doubled.v * 2, e: [] };
+	const quadrupled = { v: () => count.v * 2 * 2, e: [] };
 
 	const increment = () => {
 		count.v = count.v + 1;

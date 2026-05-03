@@ -92,14 +92,14 @@ runtime's delegation system exactly.
 ```js
 // From transforms/events.js and codegen.js
 //
-// Simple handler (ActionRef):
+// Simple handler (ActionCallExpr with no args):
 //   element.__click = handlerFn;
 //
-// Array form (BoundActionRef with args):
+// Array form (ActionCallExpr with args):
 //   element.__click = [handlerFn, arg1, arg2];
 //   Runtime calls: handlerFn.call(element, arg1, arg2, event)
 //
-// Inline handler (InlineHandlerIR):
+// Inline handler (ClosureExpr):
 //   element.__input = (e) => { /* compiled body */ };
 //   The event parameter is always named `e`.
 //

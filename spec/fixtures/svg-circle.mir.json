@@ -1,0 +1,64 @@
+{
+	"version": 1,
+	"tagName": "icon-dot",
+	"name": "IconDot",
+
+	"state": [
+		{
+			"kind": "value",
+			"name": "radius",
+			"initial": 20
+		}
+	],
+	"actions": [
+		{
+			"kind": "action",
+			"name": "grow",
+			"params": [],
+			"body": {
+				"kind": "state-write",
+				"name": "radius",
+				"value": {
+					"kind": "binary",
+					"op": "+",
+					"left": { "kind": "state-read", "name": "radius" },
+					"right": { "kind": "literal", "value": 5 }
+				}
+			}
+		}
+	],
+	"props": [],
+	"attrs": [],
+	"emits": [],
+	"lifecycle": {},
+
+	"render": [
+		{
+			"kind": "element",
+			"tag": "svg",
+			"attributes": {
+				"width": { "kind": "literal", "value": "100" },
+				"height": { "kind": "literal", "value": "100" }
+			},
+			"events": [
+				{
+					"event": "click",
+					"handler": { "kind": "action-call", "name": "grow", "args": [] }
+				}
+			],
+			"children": [
+				{
+					"kind": "element",
+					"tag": "circle",
+					"attributes": {
+						"cx": { "kind": "literal", "value": "50" },
+						"cy": { "kind": "literal", "value": "50" },
+						"r": { "kind": "state-read", "name": "radius" }
+					},
+					"events": [],
+					"children": []
+				}
+			]
+		}
+	]
+}

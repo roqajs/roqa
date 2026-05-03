@@ -1,7 +1,7 @@
 import { defineComponent, delegate, forBlock, template } from "roqa";
 
 const $tmpl_1 = template('<div><input><button>Add</button><ul></ul></div>');
-const $tmpl_2 = template('<li class="todo"> </li>');
+const $tmpl_2 = template('<li> </li>');
 
 defineComponent("todo-list", function TodoList() {
 	const todos = { v: [], e: [] };

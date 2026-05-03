@@ -8,14 +8,14 @@ events, and custom elements.
 The compiler is the **backend** of Roqa's frontend/IR/backend architecture. It
 accepts valid MIR (as defined in [ir.md](./ir.md)) and produces optimized
 JavaScript. It doesn't know or care which frontend produced the MIR — JSX,
-a custom DSL, a GUI web builder, or an AI agent generating JSON directly.
+a custom DSL, a GUI web builder, or any other authoring tool.
 
 ## Architecture context
 
 ```txt
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Any frontend                                                       │
-│  (JSX, TSRX, DSL, GUI builder, AI agent, other PLs, etc.)           │
+│  (JSX, DSL, GUI builder, AI-built authoring tools, other PLs, etc.)           │
 │           │                                                         │
 │           │  produces                                               │
 │           ▼                                                         │
@@ -52,7 +52,7 @@ a custom DSL, a GUI web builder, or an AI agent generating JSON directly.
 │  │  - Version check (MIR version matches backend expectation) │      │
 │  │  - Tag name is a valid custom element name                 │      │
 │  │  - No duplicate names in state/actions/props/attrs/emits   │      │
-│  │  - All state-refs and action-refs resolve to declarations  │      │
+│  │  - All cell-refs and action-calls resolve to declarations  │      │
 │  │  - Each source conditions reference reactive state         │      │
 │  │  - Show conditions reference reactive state                │      │
 │  │  - Required props have no missing defaults                 │      │
@@ -152,17 +152,16 @@ error messages.
 | `invalid-version` | error | MIR version doesn't match the backend's expected version |
 | `invalid-tag-name` | error | Tag name is not a valid custom element name (must contain hyphen, be lowercase) |
 | `duplicate-name` | error | Duplicate name within state, actions, props, attrs, or emits |
-| `dangling-state-ref` | error | `state-ref` or `state-read` references a state name that doesn't exist |
-| `dangling-action-ref` | error | `action-ref` references an action that doesn't exist |
+| `dangling-cell-ref` | error | `cell-ref` or `state-read` references a state name that doesn't exist |
+| `dangling-action-ref` | error | `action-call` references an action that doesn't exist |
 | `dangling-computed-ref` | error | `computed-read` references a computed that doesn't exist |
-| `invalid-show-condition` | error | `ShowIR` condition is not a `state-ref` |
-| `invalid-each-source` | error | `EachIR` source is not a `state-ref` |
+| `invalid-show-condition` | error | `ShowIR` condition is not a `cell-ref` |
+| `invalid-each-source` | error | `EachIR` source is not a `cell-ref` |
 | `malformed-expression` | error | Expression tree has structural errors (e.g., missing operands) |
 | `missing-key` | warning | `EachIR` without a `key` — may cause inefficient reconciliation |
 | `unreachable-action` | warning | Action declared but never referenced in render or lifecycle |
 | `unsubscribed-state` | warning | State declared but never read in render or computed |
 | `opaque-expression` | info | `OpaqueExpr` used — optimization opportunities limited |
-| `raw-html-used` | warning | `RawHtmlIR` node present — potential XSS vector (see ir.md §Security) |
 | `unsafe-import-path` | error | `ImportedRefExpr.source` contains path traversal or disallowed scheme |
 | `proto-pollution` | error | Initial state value contains `__proto__`, `constructor`, or `prototype` keys |
 | `unsafe-opaque-pattern` | warning | `OpaqueExpr.source` contains suspicious patterns (`eval(`, `innerHTML`, etc.) |
@@ -173,7 +172,7 @@ All diagnostics use a structured format:
 
 ```ts
 type Diagnostic = {
-    code: string;                 // e.g., "dangling-state-ref"
+    code: string;                 // e.g., "dangling-cell-ref"
     severity: "error" | "warning" | "info";
     message: string;              // Human-readable description
     component: string;            // Component tag name
@@ -283,13 +282,21 @@ type InlinedSet = {
     cellName: string;
     valueExpr: string;            // JS expression for the new value
     updates: InlinedUpdate[];     // DOM updates to inline after the set
+    blockUpdates: InlinedBlockUpdate[];  // Block controller .update() calls
 };
 
 type InlinedUpdate = {
     target: string;               // e.g., "count.ref_1.nodeValue"
     expression: string;           // e.g., '"Count is " + count.v'
 };
+
+type InlinedBlockUpdate = {
+    blockVar: string;             // e.g., "todos_forBlock", "visible_showBlock"
+    method: "update";             // Currently always "update"
+};
 ```
+
+The `FunctionOp.inlinedSets` entries may include block controller updates alongside DOM updates. Block updates are emitted as `blockVar.update()` calls after the DOM property updates in the inlined set block.
 
 The `inlinedSets` are the key optimization: instead of emitting `set(count, v)`
 and later rewriting it to include DOM updates, the LIR directly computes what
@@ -472,20 +479,49 @@ directly in the template's `class` attribute.
 
 #### Inline handler event parameter
 
-When an `InlineHandlerIR` generates a closure, the event parameter is always
-named `e`. This is a fixed convention — the backend always uses `e` regardless
-of what the frontend's original source used:
+When an inline handler (`ClosureExpr`) is used as an event handler, the event
+parameter is always named `e`. This is a fixed convention — the backend always
+uses `e` regardless of what the frontend's original source used:
 
 ```js
-// InlineHandlerIR { body: { kind: "state-write", name: "draft", value: <opaque "e.target.value"> } }
+// ClosureExpr { params: ["e"], body: { kind: "state-write", name: "draft", value: <member (param-read "e") "target" → "value"> } }
 // Generates:
 input_1.__input = (e) => {
     draft.v = e.target.value;
 };
 ```
 
-The `e` parameter is the DOM event object. Opaque expressions inside inline
-handlers can reference `e` to access event properties.
+The `e` parameter is the DOM event object. `ParamReadExpr` with `name: "e"`
+references it, and `MemberExpr` chains access event properties.
+
+#### Inline handler vs named action state writes
+
+Inline event handlers (`ClosureExpr` in event bindings) and named actions (`ActionIR`) compile `state-write` differently:
+
+- **Named actions** produce `FunctionOp` with `inlinedSets` — the state write is followed by all inlined DOM binding updates and block controller updates. This is the full "set" pattern.
+
+- **Inline handlers** produce a closure where state writes are "silent" — the handler sets `cell.v` directly without inlined binding updates. Instead, the handler relies on the existing reactive subscription (`bind()` or inlined refs) to propagate the change.
+
+**Rationale:** Inline handlers are typically for low-level DOM→state synchronization (e.g., `input` event → set `draft.v = e.target.value`). The bindings are already set up during `connected()`, so the update propagation happens through the normal reactive path. Named actions are the primary mutation API and need explicit inlined updates for performance.
+
+**Example comparison:**
+
+```js
+// Inline handler — no inlined updates, just the raw write
+input_1.__input = (e) => {
+    draft.v = e.target.value;
+};
+
+// Named action — full inlined updates
+const addTodo = () => {
+    todos.v = [...todos.v, newItem];
+    todos_forBlock.update();
+    draft.v = "";
+    draft.ref_1.value = draft.v;
+};
+```
+
+Note: When an inline handler writes to a cell that has `bind()` subscriptions (non-inlined bindings), the reactive system propagates the update automatically. When all bindings are inlined (the optimized case), the inline handler's write to `cell.v` does NOT trigger ref updates — this is the expected behavior for input synchronization where the DOM element already has the updated value (it's the source of the event).
 
 #### Unused-write state cells
 
@@ -576,6 +612,39 @@ The algorithm:
 
 4. **Prevent circular dependencies.** Track visited cells during expansion
    to avoid infinite loops from circular dependency chains.
+
+#### Block controller updates in inlined actions
+
+When a state cell is used as the `source` for a `forBlock` or `showBlock`, any action that writes to that cell must include a call to the block controller's `.update()` method in the inlined set output. This is how the runtime knows to re-reconcile a list or re-evaluate a condition after state changes.
+
+**Naming conventions:**
+- `forBlock` controllers: `{collectionName}_forBlock` (e.g., `todos_forBlock`)
+- `showBlock` controllers: `{cellName}_showBlock` (e.g., `visible_showBlock`)
+- Fallback block controllers: `{cellName}_fallbackBlock` (e.g., `loggedIn_fallbackBlock`)
+
+**Declaration:** Block controller variables are declared with `let` at the component function scope (outside `this.connected()`) so that action functions can reference them. They're assigned inside `connected()` when the block is created.
+
+**Inlining rule:** When building `FunctionOp.inlinedSets` for a `state-write` to cell `X`:
+1. Include all DOM binding updates for `X` (the existing `InlinedUpdate` entries)
+2. For each `BlockOp` whose `source` is `X`, append the block controller `.update()` call
+3. If the `BlockOp` has a fallback, also append the fallback controller `.update()` call
+
+**Example:**
+
+```js
+// State cell "visible" is used by a showBlock
+let visible_showBlock;
+
+const toggle = () => {
+    visible.v = !visible.v;
+    visible_showBlock.update();  // Block controller update (not a DOM binding update)
+};
+
+this.connected(() => {
+    // ...
+    visible_showBlock = showBlock(div_1, visible, (anchor) => { ... });
+});
+```
 
 ### Pass: Dead binding elimination
 
@@ -692,8 +761,10 @@ string:
 | `{ kind: "literal", value: 42 }` | `42` |
 | `{ kind: "literal", value: "hello" }` | `"hello"` |
 | `{ kind: "template-literal", parts: [...] }` | Binary `+` concatenation (see below) |
+| `{ kind: "object", properties: [...] }` | `{ key: value, ...spread }` |
 | `{ kind: "state-read", name: "count" }` | `count.v` (inlined form) |
 | `{ kind: "state-write", name: "count", value: ... }` | `{ count.v = ...; /* inlined updates */ }` |
+| `{ kind: "param-read", name: "id" }` | `id` (references action/closure parameter) |
 | `{ kind: "binary", op: "+", left: ..., right: ... }` | `left + right` |
 | `{ kind: "unary", op: "!", operand: ... }` | `!operand` |
 | `{ kind: "conditional", test: ..., ... }` | `test ? consequent : alternate` |
@@ -707,8 +778,8 @@ string:
 | `{ kind: "collection-op", op: "insert", ... }` | Collection-specific code |
 | `{ kind: "emit", event: "x", detail: ... }` | `this.emit("x", detail)` |
 | `{ kind: "action-call", name: "x", args: [...] }` | `x(args)` |
-| `{ kind: "prop-read", name: "x" }` | `this.getProp("x")` |
-| `{ kind: "attr-read", name: "x" }` | Attribute accessor code |
+| `{ kind: "prop-read", name: "x" }` | `x` (destructured parameter from component function) |
+| `{ kind: "attr-read", name: "x" }` | `this.getAttribute("x")` |
 | `{ kind: "computed-read", name: "x" }` | `x.v` (inlined form) |
 | `{ kind: "item-field-read", field: "x" }` | `item.x` (in forBlock context) |
 | `{ kind: "imported-ref", source: "...", name: "x" }` | `x` (import added to module head) |
@@ -788,7 +859,7 @@ defineComponent("counter-button", function CounterButton() {
             count.ref_1.nodeValue = "Count is " + count.v;
         };
 
-        button_1_text.nodeValue = "Count is " + count.v + " / doubled is " + doubled.v;
+        button_1_text.nodeValue = "Count is " + count.v + " / doubled is " + count.v * 2;
         count.ref_1 = button_1_text;
     });
 });
@@ -911,9 +982,9 @@ produced invalid MIR.
 ```ts
 // Example diagnostic:
 {
-    code: "dangling-state-ref",
+    code: "dangling-cell-ref",
     severity: "error",
-    message: "State ref 'counter' does not match any declared state. Did you mean 'count'?",
+    message: "Cell ref 'counter' does not match any declared state. Did you mean 'count'?",
     component: "counter-button",
     path: ["render", "children", "1", "source"]
 }
@@ -954,12 +1025,11 @@ roqaPlugin({
 The backend supports two security modes (see ir.md §Security considerations
 for the full threat model):
 
-- **`standard`** (default) — security checks are warnings. `OpaqueExpr` and
-  `RawHtmlIR` are allowed with diagnostics.
+- **`standard`** (default) — security checks are warnings. `OpaqueExpr` is
+  allowed with diagnostics.
 - **`strict`** — all security-related warnings become errors. `OpaqueExpr`
-  and `RawHtmlIR` are rejected. Import paths are validated against an
-  allowlist. Recommended for CI/production builds where the IR source may
-  not be fully trusted.
+  is rejected. Import paths are validated against an allowlist. Recommended
+  for CI/production builds where the IR source may not be fully trusted.
 
 ---
 

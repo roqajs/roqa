@@ -27,13 +27,35 @@
                     {
                         "kind": "collection-op",
                         "op": "insert",
-                        "collection": "todos",
+                        "name": "todos",
                         "args": [
                             {
-                                "kind": "opaque",
-                                "source": "{ id: Date.now(), text: draft.v, completed: false }",
-                                "reads": ["draft"],
-                                "writes": []
+                                "kind": "object",
+                                "properties": [
+                                    {
+                                        "kind": "property",
+                                        "key": "id",
+                                        "value": {
+                                            "kind": "call",
+                                            "callee": {
+                                                "kind": "external-ref",
+                                                "name": "Date",
+                                                "path": ["now"]
+                                            },
+                                            "args": []
+                                        }
+                                    },
+                                    {
+                                        "kind": "property",
+                                        "key": "text",
+                                        "value": { "kind": "state-read", "name": "draft" }
+                                    },
+                                    {
+                                        "kind": "property",
+                                        "key": "completed",
+                                        "value": { "kind": "literal", "value": false }
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -52,22 +74,33 @@
             "body": {
                 "kind": "collection-op",
                 "op": "update",
-                "collection": "todos",
+                "name": "todos",
                 "args": [
-                    {
-                        "kind": "opaque",
-                        "source": "id",
-                        "reads": [],
-                        "writes": []
-                    },
+                    { "kind": "param-read", "name": "id" },
                     {
                         "kind": "closure",
                         "params": ["t"],
                         "body": {
-                            "kind": "opaque",
-                            "source": "({ ...t, completed: !t.completed })",
-                            "reads": [],
-                            "writes": []
+                            "kind": "object",
+                            "properties": [
+                                {
+                                    "kind": "spread",
+                                    "argument": { "kind": "param-read", "name": "t" }
+                                },
+                                {
+                                    "kind": "property",
+                                    "key": "completed",
+                                    "value": {
+                                        "kind": "unary",
+                                        "op": "!",
+                                        "operand": {
+                                            "kind": "member",
+                                            "object": { "kind": "param-read", "name": "t" },
+                                            "property": "completed"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 ]
@@ -90,21 +123,25 @@
                     "kind": "element",
                     "tag": "input",
                     "attributes": {
-                        "value": { "kind": "reactive-read", "source": "state", "name": "draft" }
+                        "value": { "kind": "state-read", "name": "draft" }
                     },
                     "events": [
                         {
                             "event": "input",
                             "handler": {
-                                "kind": "inline-handler",
+                                "kind": "closure",
+                                "params": ["e"],
                                 "body": {
                                     "kind": "state-write",
                                     "name": "draft",
                                     "value": {
-                                        "kind": "opaque",
-                                        "source": "e.target.value",
-                                        "reads": [],
-                                        "writes": []
+                                        "kind": "member",
+                                        "object": {
+                                            "kind": "member",
+                                            "object": { "kind": "param-read", "name": "e" },
+                                            "property": "target"
+                                        },
+                                        "property": "value"
                                     }
                                 }
                             }
@@ -119,7 +156,7 @@
                     "events": [
                         {
                             "event": "click",
-                            "handler": { "kind": "action-ref", "name": "addTodo" }
+                            "handler": { "kind": "action-call", "name": "addTodo", "args": [] }
                         }
                     ],
                     "children": [
@@ -134,9 +171,8 @@
                     "children": [
                         {
                             "kind": "each",
-                            "source": { "kind": "state-ref", "name": "todos" },
+                            "source": { "kind": "cell-ref", "name": "todos" },
                             "key": "id",
-                            "blockId": "todo-items",
                             "itemAlias": "todo",
                             "render": [
                                 {
@@ -147,10 +183,10 @@
                                         {
                                             "event": "click",
                                             "handler": {
-                                                "kind": "bound-action",
+                                                "kind": "action-call",
                                                 "name": "toggleTodo",
                                                 "args": [
-                                                    { "kind": "item-field-ref", "field": "id" }
+                                                    { "kind": "item-field-read", "field": "id" }
                                                 ]
                                             }
                                         }
@@ -161,14 +197,14 @@
                                             "todo",
                                             {
                                                 "name": "completed",
-                                                "condition": { "kind": "item-field-ref", "field": "completed" }
+                                                "condition": { "kind": "item-field-read", "field": "completed" }
                                             }
                                         ]
                                     },
                                     "children": [
                                         {
                                             "kind": "reactive-text",
-                                            "source": { "kind": "item-field-ref", "field": "text" }
+                                            "source": { "kind": "item-field-read", "field": "text" }
                                         }
                                     ]
                                 }

@@ -9,6 +9,7 @@ defineComponent("multi-action", function MultiAction() {
 	const increment = () => {
 		count.v = count.v + 1;
 		count.ref_1.nodeValue = "Value: " + count.v;
+		this.emit("count-changed", count.v);
 	};
 
 	const decrement = () => {
