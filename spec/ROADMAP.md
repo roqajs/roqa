@@ -20,12 +20,15 @@ direct JavaScript output. This restores the `roqa()` Vite plugin for `.jsx`
 - **Input:** JSX source code (the syntax existing examples use)
 - **Output:** `ComponentIR` (passed to the backend compiler)
 - **Scope:** Parse JSX → Babel AST → walk AST → produce MIR. The existing
-  `spec/reference-algorithms.md` documents the old compiler's patterns for
+  `spec/archive/reference-algorithms.md` documents the old compiler's patterns for
   template extraction, traversal, bindings, etc. — these inform the JSX→MIR
   translation.
 - **Key design question:** Should the JSX frontend produce `.roqa` files on
   disk (for caching / inspection) or pass MIR objects in-memory only? The
   in-memory path is simpler for v1.
+- **Spec:** [`spec/jsx-frontend.md`](./jsx-frontend.md) — translation rules,
+  package structure, reference translations
+- **Package:** `packages/roqa-jsx/` (`@roqajs/jsx`)
 
 ### Other frontends (future)
 
@@ -44,6 +47,7 @@ Create a guide for building custom frontends:
 - Common patterns: mapping source syntax to MIR nodes
 - Validation: what the backend checks and how to test frontends independently
 - Reference: the `spec/ir.md` type definitions
+- **Spec:** [`spec/frontend-guide.md`](./frontend-guide.md)
 
 ---
 
