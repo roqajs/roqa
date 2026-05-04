@@ -1,10 +1,6 @@
----
-applyTo: "**"
----
-
 # Roqa
 
-Roqa is a UI framework that compiles component definitions into optimized
+Roqa is a headless UI framework that compiles component definitions into optimized
 vanilla JavaScript using web components. Components are authored as MIR
 (Mid-level IR) in `.roqa` files and compiled by the backend compiler.
 
