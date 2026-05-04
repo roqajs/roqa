@@ -3,11 +3,30 @@
 import { compile } from "roqa/compiler";
 
 /**
+ * @typedef {Object} RoqaFrontend
+ * @property {(id: string) => boolean} handles - Whether this frontend handles the given file
+ * @property {(code: string, id: string) => import("roqa/compiler").ComponentIR | import("roqa/compiler").ComponentIR[]} toMIR - Convert source code to MIR
+ */
+
+/**
+ * @typedef {Object} RoqaPluginOptions
+ * @property {RoqaFrontend} [frontend] - Frontend that converts source files to MIR
+ */
+
+/**
+ * Vite plugin for the Roqa UI framework.
+ *
+ * Accepts an optional `frontend` that converts source files to MIR.
+ * The MIR is then compiled to optimized JavaScript by the Roqa backend.
+ *
+ * @param {RoqaPluginOptions} [options]
  * @returns {Plugin}
  */
-export default function roqa() {
+export default function roqa(options) {
+	const frontend = options?.frontend;
+
 	return {
-		name: "roqa-jsx-compiler",
+		name: "roqa",
 		enforce: "pre",
 
 		config() {
@@ -15,53 +34,46 @@ export default function roqa() {
 				esbuild: {
 					jsx: "preserve",
 				},
-				optimizeDeps: {
-					entries: ["!**/*.jsx", "!**/*.tsx"],
-				},
 			};
 		},
 
-		transform(code, id) {
-			if (!id.endsWith(".jsx") && !id.endsWith(".tsx")) return null;
-			try {
-				const result = compile(code, id);
-				return {
-					code: result.code,
-					map: result.map,
-				};
-			} catch (error) {
-				const message = formatCompileError(error);
-				this.error(message, error.loc?.start?.line);
+		async transform(code, id) {
+			// If a frontend is provided, let it decide what to handle
+			if (frontend) {
+				if (!frontend.handles(id)) return null;
+
+				try {
+					const mir = frontend.toMIR(code, id);
+					return compile(mir);
+				} catch (error) {
+					this.error(formatCompileError(error, id));
+				}
 			}
+
+			// No frontend — check for .mir.json files (direct MIR input)
+			if (id.endsWith(".mir.json")) {
+				try {
+					const mir = JSON.parse(code);
+					return compile(mir);
+				} catch (error) {
+					this.error(formatCompileError(error, id));
+				}
+			}
+
+			return null;
 		},
 	};
 }
 
-function formatCompileError(error) {
-	let message = `Roqa JSX compilation failed: ${error.message}`;
-
-	// Add suggestions for common errors
-	if (error.code === "UNSUPPORTED_COMPONENT") {
-		const name = error.componentName;
-		message += `\n\nSuggestions:`;
-		message += `\n  - Use web components: defineComponent("${toKebabCase(name)}", ${name})`;
-		message += `\n  - Use control flow: <For each={items}>`;
-		message += `\n  - Use lowercase HTML: <div>, <span>, <button>`;
+/**
+ * @param {any} error
+ * @param {string} id
+ * @returns {string}
+ */
+function formatCompileError(error, id) {
+	let message = `Roqa compilation failed: ${error.message}`;
+	if (id) {
+		message += `\n\nFile: ${id}`;
 	}
-
-	if (error.loc && error.loc.start) {
-		message += `\n\nLocation: line ${error.loc.start.line}, column ${error.loc.start.column}`;
-	} else if (error.loc && typeof error.loc.line === "number") {
-		// Handle Babel-style loc format
-		message += `\n\nLocation: line ${error.loc.line}, column ${error.loc.column}`;
-	}
-
 	return message;
-}
-
-function toKebabCase(str) {
-	return str
-		.replace(/([a-z])([A-Z])/g, "$1-$2")
-		.replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
-		.toLowerCase();
 }

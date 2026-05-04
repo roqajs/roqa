@@ -28,7 +28,7 @@ and why certain decisions were made.
 | Phase 3: Lowering (MIR → LIR) | ✅ | `lower.js` — all 13 fixtures passing |
 | Phase 4: Emitter (LIR → JS) | ✅ | `emit.js` |
 | Phase 5: Optimization passes | ✅ | `optimize.js` — inline cells + inline bindings |
-| Phase 6: Vite plugin integration | ⬚ | `packages/vite-plugin/src/index.js` |
+| Phase 6: Vite plugin integration | ✅ | `packages/vite-plugin/src/index.js` — frontend option + .mir.json support |
 | Runtime: Add `subscribe()` | ✅ | `cell.js` + `index.js` exports (done pre-handoff) |
 | Tests | ✅ | 36 tests passing (5 validate + 15 expr + 16 integration) |
 
