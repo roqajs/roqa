@@ -122,6 +122,28 @@ All other 11 fixtures with the same pattern (no quotes in HTML) use double quote
 - Phase 6: Vite plugin wiring
 - Delete old compiler tests, add new test suite
 
+### Session 3 — 2026-05-03
+
+**Goal:** Create IR examples for all 13 fixtures, document .roqa file extension decision.
+
+**Completed:**
+- Created `examples/ir/` directories for all 13 fixtures: static-component, counter-button, derived-state, deep-nesting, show-conditional, show-fallback, multi-component, svg-circle, external-refs, multi-action, props-attrs, child-props, todo-list
+- Each example is a standalone Vite app with `package.json`, `vite.config.js`, `index.html`, `src/main.js`, and `src/<name>.roqa`
+- Added `src/utils.js` stub for external-refs example (provides `formatDate`)
+- All 13 examples build successfully with `vite build`
+- Updated all spec documents (ir.md, compiler.md, implementation-guide.md, fixtures/README.md) to document the `.roqa` file extension as the canonical MIR format
+- Recorded architecture decision in AGENT-LOG
+
+**Decisions:**
+- `.roqa` is the canonical file extension for serialized MIR (JSON). Avoids Vite/Rolldown builtin JSON plugin conflicts. Test fixtures remain `.mir.json` (descriptive, editor JSON support).
+
+**Issues found:**
+- None — all examples built cleanly on first pass
+
+**Next steps:**
+- JSX frontend adapter (separate workstream)
+- Consider adding styles/CSS to IR examples for visual polish
+
 ---
 
 ## Known Issues & Spec Clarifications

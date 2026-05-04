@@ -1,0 +1,1 @@
+import "./multi-component.roqa";

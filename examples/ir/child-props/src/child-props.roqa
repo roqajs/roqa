@@ -1,0 +1,61 @@
+{
+	"version": 1,
+	"tagName": "card-wrapper",
+	"name": "CardWrapper",
+
+	"state": [
+		{
+			"kind": "value",
+			"name": "total",
+			"initial": 5
+		}
+	],
+	"actions": [],
+	"props": [],
+	"attrs": [],
+	"emits": [],
+	"lifecycle": {},
+
+	"render": [
+		{
+			"kind": "element",
+			"tag": "div",
+			"attributes": {},
+			"events": [],
+			"children": [
+				{
+					"kind": "element",
+					"tag": "h2",
+					"attributes": {},
+					"events": [],
+					"children": [
+						{ "kind": "text", "value": "Card" }
+					]
+				},
+				{
+					"kind": "element",
+					"tag": "status-badge",
+					"attributes": {
+						"label": { "kind": "literal", "value": "Active" },
+						"count": { "kind": "state-read", "name": "total" }
+					},
+					"events": [],
+					"children": []
+				},
+				{
+					"kind": "element",
+					"tag": "p",
+					"attributes": {},
+					"events": [],
+					"children": [
+						{ "kind": "text", "value": "Total: " },
+						{
+							"kind": "reactive-text",
+							"source": { "kind": "state-read", "name": "total" }
+						}
+					]
+				}
+			]
+		}
+	]
+}

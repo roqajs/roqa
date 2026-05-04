@@ -1,0 +1,74 @@
+{
+    "version": 1,
+    "tagName": "prop-display",
+    "name": "PropDisplay",
+
+    "state": [],
+    "actions": [],
+    "props": [
+        {
+            "kind": "prop",
+            "name": "label",
+            "required": true
+        },
+        {
+            "kind": "prop",
+            "name": "value",
+            "required": false,
+            "default": 0
+        }
+    ],
+    "attrs": [
+        {
+            "kind": "attr",
+            "name": "variant",
+            "default": "default",
+            "reflect": true
+        }
+    ],
+    "emits": [],
+    "lifecycle": {},
+
+    "render": [
+        {
+            "kind": "element",
+            "tag": "div",
+            "attributes": {},
+            "classes": {
+                "kind": "class-list",
+                "items": [
+                    "prop-display",
+                    {
+                        "name": "highlight",
+                        "condition": {
+                            "kind": "binary",
+                            "op": "===",
+                            "left": { "kind": "attr-read", "name": "variant" },
+                            "right": { "kind": "literal", "value": "highlight" }
+                        }
+                    }
+                ]
+            },
+            "events": [],
+            "children": [
+                {
+                    "kind": "element",
+                    "tag": "span",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "reactive-text",
+                            "source": { "kind": "prop-read", "name": "label" }
+                        }
+                    ]
+                },
+                { "kind": "text", "value": ": " },
+                {
+                    "kind": "reactive-text",
+                    "source": { "kind": "prop-read", "name": "value" }
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,25 @@
+{
+    "version": 1,
+    "tagName": "hello-world",
+    "name": "HelloWorld",
+
+    "state": [],
+    "actions": [],
+    "props": [],
+    "attrs": [],
+    "emits": [],
+    "lifecycle": {},
+
+    "render": [
+        {
+            "kind": "element",
+            "tag": "div",
+            "attributes": {},
+            "classes": { "kind": "static-class", "value": "greeting" },
+            "events": [],
+            "children": [
+                { "kind": "text", "value": "Hello, World!" }
+            ]
+        }
+    ]
+}
