@@ -406,6 +406,11 @@ merging, static hoisting) can be added later.
 - Update the Vite plugin to accept a `frontend` option
 - The frontend provides `handles(id)` and `toMIR(code, id)` methods
 - The plugin calls `compile(mir)` with the new compiler
+- **Native `.roqa` file support** — the plugin handles `.roqa` files directly
+  without a frontend. A `.roqa` file is a JSON-serializable MIR
+  (`ComponentIR` or `ComponentIR[]`). The plugin uses `resolveId` to resolve
+  `.roqa` imports, `load` to read and compile them, and `transform` for dev
+  server support.
 - For now, the JSX frontend can be the existing parse + generate pipeline
   adapted to produce MIR instead of direct output (or this can be deferred)
 

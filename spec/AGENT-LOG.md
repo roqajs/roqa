@@ -152,6 +152,48 @@ discoveries. Add runtime discoveries here as work proceeds.)*
 
 *(No decisions logged yet.)*
 
+### `.roqa` file extension for MIR (Session 2 — 2026-05-03)
+
+**Decision:** The canonical file extension for serialized MIR is `.roqa`. A `.roqa` file contains a JSON-serializable `ComponentIR` (or array of `ComponentIR` for multi-component files) as defined in `spec/ir.md`.
+
+**Rationale:**
+- Using a dedicated extension (not `.json` or `.mir.json`) avoids conflicts with Vite/Rolldown's built-in JSON plugin, which aggressively claims `.json` files and interferes with custom compilation.
+- `.roqa` is short, distinctive, and immediately associated with the framework.
+- The Vite plugin handles `.roqa` files natively — no frontend needed. The plugin's `resolveId` hook resolves `.roqa` imports, the `load` hook reads and compiles them in build mode, and the `transform` hook handles dev server HMR.
+- Frontends that produce MIR can write `.roqa` files directly, or pass MIR objects programmatically via the `frontend.toMIR()` API.
+
+**File format:**
+```json
+{
+    "version": 1,
+    "tagName": "counter-button",
+    "name": "CounterButton",
+    "state": [...],
+    "actions": [...],
+    ...
+}
+```
+
+Multi-component files use a JSON array at the top level:
+```json
+[
+    { "version": 1, "tagName": "comp-a", ... },
+    { "version": 1, "tagName": "comp-b", ... }
+]
+```
+
+**Usage in Vite:**
+```js
+// main.js
+import "./counter-button.roqa";
+```
+
+```js
+// vite.config.js
+import roqa from "@roqajs/vite-plugin";
+export default defineConfig({ plugins: [roqa()] });
+```
+
 ---
 
 ## Test Results History

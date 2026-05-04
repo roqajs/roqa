@@ -36,3 +36,8 @@ Tests should read each `.mir.json`, pass it through `compile()`, and compare
 the output against the corresponding `.expected.js`. The expected files may
 need updating as the compiler is built — start with the simpler fixtures and
 work up.
+
+> **`.mir.json` vs `.roqa`:** Test fixtures use `.mir.json` (descriptive,
+> recognized by editors as JSON). The app-facing file extension is `.roqa` —
+> that's what developers author and what the Vite plugin compiles. Both
+> contain the same JSON-serializable MIR format.

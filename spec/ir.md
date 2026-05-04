@@ -1329,11 +1329,27 @@ The MIR is serialized as **JSON**. This was chosen for:
 - **Universal support** — every language has a JSON library
 - **Tooling** — JSON Schema, linters, diff tools all work out of the box
 
-File extension: `.roqa-ir.json`
+File extension: **`.roqa`**
+
+A `.roqa` file contains a JSON-serializable `ComponentIR` object (or an array
+of `ComponentIR` for multi-component files). The file is plain JSON — no
+comments, no trailing commas, no JS expressions.
+
+```
+src/
+├── counter-button.roqa     ← single component
+├── dashboard.roqa          ← multi-component (JSON array)
+└── main.js                 ← import "./counter-button.roqa"
+```
+
+The Vite plugin handles `.roqa` files natively. When Vite encounters an import
+of a `.roqa` file, the plugin reads the JSON, compiles the MIR to optimized
+JavaScript, and serves the result as a JS module. No frontend adapter is needed
+for `.roqa` files — the backend compiler consumes them directly.
 
 The MIR can also be passed as an in-memory JavaScript object (skipping
 serialization) when the frontend runs in the same process as the backend
-(e.g., a Vite plugin).
+(e.g., a Vite plugin with a custom `frontend` option).
 
 A JSON Schema for MIR validation will be provided so frontend authors can
 validate their output independently of the Roqa backend.

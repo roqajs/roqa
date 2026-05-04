@@ -1067,40 +1067,69 @@ in its final inlined form because optimization happened at the LIR level.
 
 ## Vite plugin integration
 
-The Vite plugin orchestrates the pipeline. It intercepts source files, delegates
-to frontends for MIR production, then runs the backend compiler.
+The Vite plugin orchestrates the pipeline. It handles two modes:
+
+1. **`.roqa` files** — compiled directly (no frontend needed). The plugin reads
+   the JSON MIR from the `.roqa` file and passes it to `compile()`.
+2. **Frontend-delegated files** — a `frontend` option provides `handles(id)` and
+   `toMIR(code, id)` methods for custom source formats (JSX, DSL, etc.).
 
 ```ts
 // packages/vite-plugin/src/index.js
 export default function roqaPlugin(options) {
-    // The frontend is responsible for converting source to MIR.
-    // Different frontends handle different file types.
     const frontend = options?.frontend;
 
     return {
         name: "roqa",
         enforce: "pre",
 
-        config() {
-            return {
-                esbuild: {
-                    jsx: "preserve",
-                },
-            };
+        // Resolve .roqa imports
+        resolveId(source, importer) {
+            if (source.endsWith(".roqa") && importer) {
+                return resolve(dirname(importer), source);
+            }
         },
 
+        // Load .roqa files — reads JSON, compiles to JS
+        load(id) {
+            if (id.endsWith(".roqa")) {
+                const mir = JSON.parse(readFileSync(id, "utf-8"));
+                return compile(mir);
+            }
+        },
+
+        // Transform hook — handles frontend-delegated files and
+        // .roqa files in dev server mode
         async transform(code, id) {
-            // Let the frontend decide if it handles this file
-            if (!frontend.handles(id)) return null;
-
-            // Frontend produces MIR
-            const mir = frontend.toMIR(code, id);
-
-            // Backend compiles MIR to JS
-            return compile(mir);
+            if (id.endsWith(".roqa")) {
+                const mir = JSON.parse(code);
+                return compile(mir);
+            }
+            if (frontend?.handles(id)) {
+                const mir = frontend.toMIR(code, id);
+                return compile(mir);
+            }
         },
     };
 }
+```
+
+Usage with `.roqa` files (no frontend):
+```js
+// vite.config.js
+import roqa from "@roqajs/vite-plugin";
+export default defineConfig({ plugins: [roqa()] });
+
+// main.js
+import "./counter-button.roqa";
+```
+
+Usage with a custom frontend:
+```js
+// vite.config.js
+import roqa from "@roqajs/vite-plugin";
+import jsxFrontend from "@roqajs/jsx-frontend";
+export default defineConfig({ plugins: [roqa({ frontend: jsxFrontend() })] });
 ```
 
 The `compile()` entry point runs the backend pipeline:
@@ -1127,8 +1156,8 @@ export function compile(mir: ComponentIR | ComponentIR[]) {
 ```
 
 Note: the Vite plugin doesn't know or care which frontend produced the MIR. The
-`frontend` object is pluggable — a JSX frontend, a DSL frontend, or even a
-"JSON file" frontend that just reads `.roqa-ir.json` files.
+`frontend` object is pluggable — a JSX frontend, a DSL frontend, or any tool
+that produces valid MIR. For `.roqa` files, no frontend is needed at all.
 
 ---
 
