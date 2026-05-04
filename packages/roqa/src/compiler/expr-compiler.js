@@ -186,6 +186,12 @@ function compileUnary(expr, ctx) {
 function compileClosure(expr, ctx) {
 	const params = expr.params.map((p) => compileClosureParam(p)).join(", ");
 	const body = compileExpr(expr.body, ctx);
+	// Use block syntax for statement-like bodies
+	const needsBlock = expr.body.kind === "state-write" || expr.body.kind === "block" ||
+		expr.body.kind === "collection-op";
+	if (needsBlock) {
+		return `(${params}) => {\n\t\t\t${body};\n\t\t}`;
+	}
 	return `(${params}) => ${body}`;
 }
 
@@ -325,6 +331,13 @@ function expandExpr(expr, computedBodies, visited) {
 			const consequent = expandExpr(expr.consequent, computedBodies, visited);
 			const alternate = expandExpr(expr.alternate, computedBodies, visited);
 			return `${test} ? ${consequent} : ${alternate}`;
+		}
+		case "template-literal": {
+			const parts = expr.parts.map((part) => {
+				if (typeof part === "string") return JSON.stringify(part);
+				return expandExpr(part, computedBodies, visited);
+			});
+			return parts.join(" + ");
 		}
 		default:
 			return compileExpr(expr);

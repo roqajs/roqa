@@ -25,8 +25,8 @@ and why certain decisions were made.
 | --- | --- | --- |
 | Phase 1: MIR types + validation | ✅ | `types.d.ts`, `validate.js`, `index.js` |
 | Phase 2: Expression IR compiler | ✅ | `expr-compiler.js` |
-| Phase 3: Lowering (MIR → LIR) | 🔧 | `lower.js` — 9/13 fixtures passing |
-| Phase 4: Emitter (LIR → JS) | 🔧 | `emit.js` — working, minor issues |
+| Phase 3: Lowering (MIR → LIR) | ✅ | `lower.js` — 11/13 fixtures exact match, 2 quote-only diffs |
+| Phase 4: Emitter (LIR → JS) | ✅ | `emit.js` |
 | Phase 5: Optimization passes | ✅ | `optimize.js` — inline cells + inline bindings |
 | Phase 6: Vite plugin integration | ⬚ | `packages/vite-plugin/src/index.js` |
 | Runtime: Add `subscribe()` | ✅ | `cell.js` + `index.js` exports (done pre-handoff) |
@@ -92,6 +92,35 @@ and why certain decisions were made.
 - Investigate multi-action/todo-list template quote discrepancy — may be fixture inconsistency to flag
 - Add Vitest integration tests
 - Phase 6: Vite plugin wiring
+
+### Session 2 — 2026-05-03
+
+**Goal:** Fix the remaining 4 failing fixtures.
+
+**Completed:**
+- Fixed child-props: rewrote phase-2 traversal to skip intermediate elements and use phase-1 prop target vars as anchors for subsequent traversals
+- Fixed props-attrs: className + attrChanged now emitted in correct position (creation order, with blank line after attrChanged block); fixed attr-read class bindings to create bindings even without reactive state cells
+- Fixed todo-list: block vars now placed correctly (show/fallback before functions, each/forBlock after functions); inline closures with statement bodies now use block syntax `{ }; collection update op correctly inlines closure body; `remaining` computed expanded correctly via template-literal expansion; delegate events preserve first-encountered order
+- Fixed deep-nesting: bindings emit in creation order (no sorting), which naturally puts them in traversal order
+- **11 of 13 fixtures now pass exactly**
+
+**Remaining 2 fixture mismatches are quote-style-only:**
+1. `multi-action`: template uses `"..."` (our output) vs `'...'` (fixture) for HTML with no quotes; lifecycle `console.log("...")` vs `console.log('...')` 
+2. `todo-list`: template uses `"..."` vs `'...'` for HTML with no quotes
+
+All other 11 fixtures with the same pattern (no quotes in HTML) use double quotes. These 2 fixtures are outliers. The compiled output is structurally and semantically identical — only quote style differs.
+
+**Decisions:**
+- Block var placement: show/fallback block vars before functions, each/forBlock vars after (matches both show and todo-list fixture patterns)
+- Template string quotes: double quotes by default, single when HTML contains double quotes (matches 11/13 fixtures)
+- String literal quotes: double quotes via JSON.stringify (matches majority of string occurrences in fixtures)
+- Delegate event order: preserve first-encountered order (not alphabetical)
+- Closure bodies with statements (state-write, block, collection-op) use block syntax `(e) => { ... }`
+
+**Next steps:**
+- Add Vitest integration tests for all fixtures
+- Phase 6: Vite plugin wiring
+- Delete old compiler tests, add new test suite
 
 ---
 

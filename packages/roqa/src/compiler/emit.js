@@ -91,8 +91,8 @@ export function emit(lirs) {
 	// 4. Delegate call
 	if (allDelegatedEvents.size > 0) {
 		lines.push("");
-		const sortedEvents = [...allDelegatedEvents].sort();
-		lines.push(`delegate([${sortedEvents.map((e) => `"${e}"`).join(", ")}]);`);
+		const events = [...allDelegatedEvents];
+		lines.push(`delegate([${events.map((e) => `"${e}"`).join(", ")}]);`);
 	}
 
 	const code = lines.join("\n") + "\n";
@@ -128,17 +128,26 @@ function emitComponent(lir, lines) {
 
 	if (lir.cells.length > 0) lines.push("");
 
-	// Block variable declarations (hoisted, before functions)
-	for (const bv of lir.blockVars) {
+	// Block var declarations: show/fallback before functions, each after
+	const showBlockVars = lir.blockVars.filter((bv) => bv.blockType === "show" || bv.blockType === "fallback");
+	const eachBlockVars = lir.blockVars.filter((bv) => bv.blockType === "each");
+
+	for (const bv of showBlockVars) {
 		lines.push(`\tlet ${bv.name};`);
 	}
-	if (lir.blockVars.length > 0) lines.push("");
+	if (showBlockVars.length > 0) lines.push("");
 
 	// Function declarations
 	for (const fn of lir.functions) {
 		emitFunction(fn, lines);
 		lines.push("");
 	}
+
+	// Each block vars after functions
+	for (const bv of eachBlockVars) {
+		lines.push(`\tlet ${bv.name};`);
+	}
+	if (eachBlockVars.length > 0) lines.push("");
 
 	// Connected block
 	lines.push("\tthis.connected(() => {");
@@ -234,21 +243,28 @@ function emitComponent(lir, lines) {
 	if (lir.connected.bindings.length > 0) {
 		lines.push("");
 		for (const binding of lir.connected.bindings) {
-			if (binding.inlined) {
+			if (binding.inlined || !binding.cellName) {
 				if (binding.isSvgAttr) {
 					lines.push(`\t\t${binding.target}.setAttribute("${binding.property}", ${binding.initialValue});`);
 				} else {
 					lines.push(`\t\t${binding.target}.${binding.property} = ${binding.initialValue};`);
 				}
+
+				// Emit attrChanged right after className binding if it uses attr-read
+				if (binding.property === "className" && binding.expression.includes("this.getAttribute")) {
+					const attrName = extractAttrName(binding.expression);
+					lines.push(`\t\tthis.attrChanged(${attrName}, () => {`);
+					lines.push(`\t\t\t${binding.target}.${binding.property} = ${binding.expression};`);
+					lines.push(`\t\t});`);
+					lines.push("");
+				}
+
 				if (binding.cellName && binding.refName) {
 					lines.push(`\t\t${binding.refName} = ${binding.target};`);
 				}
 			}
 		}
 	}
-
-	// Attr-read class bindings with attrChanged
-	emitAttrChangedBindings(lir, lines);
 
 	lines.push("\t});");
 	lines.push("});");

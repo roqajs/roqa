@@ -517,10 +517,54 @@ class LoweringContext {
 				}
 			}
 
-			// Phase 2: remaining traversals after appendChild
-			// Process non-prop children from the custom elements as anchors
+			// Phase 2: remaining children after appendChild
+			// Only traverse children that come AFTER prop targets, using prop vars as anchors
 			const propVarNames = new Set(propTargets.map((t) => t.varName));
-			this.lowerElementChildren(el, rootVar, false, propVarNames);
+			const propTagNames = new Set(propTargets.map((t) => {
+				// Find the child element that this prop target corresponds to
+				for (const c of el.children) {
+					if (c.kind === "element" && c.tag.includes("-") && Object.keys(c.attributes).length > 0) {
+						return c.tag;
+					}
+				}
+				return "";
+			}));
+
+			// Walk children: skip elements until we pass all prop targets, then traverse remaining
+			let prevAnchor = null;
+			let lastPropTarget = propTargets[propTargets.length - 1];
+			let pastAllPropTargets = false;
+
+			for (const child of el.children) {
+				if (child.kind !== "element") {
+					continue;
+				}
+
+				if (child.tag.includes("-") && Object.keys(child.attributes).length > 0) {
+					// This is a prop target — use its var as anchor
+					prevAnchor = propTargets.find((t) => true)?.varName; // Use the prop target var
+					for (const pt of propTargets) {
+						prevAnchor = pt.varName; // Get last prop target var as anchor
+					}
+					pastAllPropTargets = true;
+					continue;
+				}
+
+				if (!pastAllPropTargets) {
+					// Before prop targets — skip, but remember as potential sibling
+					continue;
+				}
+
+				// After all prop targets — traverse from last anchor
+				const varName = this.nextElementVar(child.tag);
+				this.traversals.push({
+					kind: "traversal",
+					varName,
+					path: prevAnchor ? `${prevAnchor}.nextSibling` : `${rootVar}.firstChild`,
+				});
+				this.lowerElementChildren(child, varName, false);
+				prevAnchor = varName;
+			}
 		} else {
 			this.traversals.push({
 				kind: "traversal",
@@ -1453,9 +1497,7 @@ class LoweringContext {
 			this.runtimeImports.add("delegate");
 		}
 
-		// Sort delegated events
-		this.delegatedEvents.sort();
-
+		// Don't sort — maintain first-encountered order
 		return {
 			tagName: this.mir.tagName,
 			name: this.mir.name,
