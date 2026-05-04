@@ -12,6 +12,7 @@
 		"roqa": "workspace:*"
 	},
 	"devDependencies": {
+		"@roqajs/jsx": "workspace:*",
 		"@roqajs/vite-plugin": "workspace:*",
 		"@tailwindcss/vite": "^4.1.4",
 		"tailwindcss": "^4.1.4",

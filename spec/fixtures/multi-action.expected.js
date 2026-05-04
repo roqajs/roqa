@@ -25,8 +25,6 @@ defineComponent("multi-action", function MultiAction() {
 	};
 
 	this.connected(() => {
-		console.log('MultiAction connected');
-
 		const $root_1 = $tmpl_1();
 		this.appendChild($root_1);
 
@@ -47,6 +45,8 @@ defineComponent("multi-action", function MultiAction() {
 		label.ref_1 = h2_1_text;
 		p_1_text.nodeValue = "Value: " + count.v;
 		count.ref_1 = p_1_text;
+
+		console.log('MultiAction connected');
 	});
 });
 

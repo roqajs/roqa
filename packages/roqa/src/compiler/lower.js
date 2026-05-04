@@ -81,6 +81,8 @@ class LoweringContext {
 		this.elementCounters = new Map();
 		/** @type {Map<string, number>} cell name → ref counter */
 		this.refCounters = new Map();
+		/** @type {Set<string>} */
+		this.usedBlockVarNames = new Set();
 
 		// State name sets for lookups
 		this.stateNames = new Set(mir.state.map((s) => s.name));
@@ -105,9 +107,20 @@ class LoweringContext {
 		// Collect imports from metadata
 		if (mir.metadata?.imports) {
 			for (const imp of mir.metadata.imports) {
+				if (imp.source === "roqa") {
+					// Absorb roqa runtime imports the user referenced into the
+					// component's runtime imports set so the emitted output
+					// requires the same exports.
+					for (const b of imp.bindings) {
+						const name = typeof b === "string" ? b : b.local;
+						this.runtimeImports.add(name);
+					}
+					continue;
+				}
 				this.userImportMap.set(imp.source, {
 					source: imp.source,
 					bindings: [...imp.bindings],
+					sideEffect: imp.sideEffect,
 				});
 			}
 		}
@@ -215,6 +228,23 @@ class LoweringContext {
 	}
 
 	/**
+	 * Make a block controller variable name unique by appending a numeric
+	 * suffix when the same base name has already been used in this component.
+	 * @param {string} base
+	 */
+	uniqueBlockVar(base) {
+		if (!this.usedBlockVarNames.has(base)) {
+			this.usedBlockVarNames.add(base);
+			return base;
+		}
+		let i = 2;
+		while (this.usedBlockVarNames.has(`${base}_${i}`)) i++;
+		const name = `${base}_${i}`;
+		this.usedBlockVarNames.add(name);
+		return name;
+	}
+
+	/**
 	 * Compile an expression, expanding computed-read references with their bodies.
 	 * @param {ExprIR} expr
 	 * @param {import("./expr-compiler.js").ExprContext} [ctx]
@@ -224,11 +254,27 @@ class LoweringContext {
 		return compileExpandedExpr(expr, this.computedBodies);
 	}
 
+	/**
+	 * Compile an expression for use in a string-concatenation chain. Wraps
+	 * binary/conditional/etc. expressions in parens so they don't get re-parsed
+	 * as part of the surrounding `+` chain (e.g. `a + b` would otherwise
+	 * coalesce with adjacent string literals into string concatenation).
+	 * @param {ExprIR} expr
+	 * @returns {string}
+	 */
+	compileTextRunPart(expr) {
+		const code = this.compileExprExpanded(expr);
+		if (expr.kind === "binary" || expr.kind === "conditional" || expr.kind === "unary") {
+			return `(${code})`;
+		}
+		return code;
+	}
+
 	lowerState() {
 		for (const state of this.mir.state) {
 			switch (state.kind) {
 				case "value": {
-					const initial = serializeInitial(state.initial);
+					const initial = state.initialExpr ?? serializeInitial(state.initial);
 					this.cells.push({
 						kind: "cell",
 						varName: state.name,
@@ -297,6 +343,7 @@ class LoweringContext {
 			params: action.params,
 			body: bodyParts.join(";\n"),
 			inlinedSets,
+			async: !!action.async,
 		});
 	}
 
@@ -311,28 +358,37 @@ class LoweringContext {
 				this.compileActionBody(stmt, inlinedSets, bodyParts);
 			}
 		} else if (expr.kind === "state-write") {
-			// Flush any pending body parts as a "marker" inlinedSet with empty cell
-			if (bodyParts.length > 0) {
-				// Store body parts before this state write as trailing body of previous set
-				// Actually we need a different approach — let's collect an ordered list of ops
-			}
 			const valueExpr = compileExpr(expr.value);
-			inlinedSets.push({
+			/** @type {import("./types.d.ts").InlinedSet} */
+			const set = {
 				cellName: expr.name,
 				valueExpr,
 				updates: [],
 				blockUpdates: [],
 				notify: false,
-			});
+			};
+			// Capture any pending body parts and run them before this set so the
+			// emitted order matches the original action.
+			if (bodyParts.length > 0) {
+				set.prelude = bodyParts.join(";\n");
+				bodyParts.length = 0;
+			}
+			inlinedSets.push(set);
 		} else if (expr.kind === "collection-op") {
 			const compiled = compileExpr(expr);
-			inlinedSets.push({
+			/** @type {import("./types.d.ts").InlinedSet} */
+			const set = {
 				cellName: expr.name,
 				valueExpr: compiled.replace(`${expr.name}.v = `, ""),
 				updates: [],
 				blockUpdates: [],
 				notify: false,
-			});
+			};
+			if (bodyParts.length > 0) {
+				set.prelude = bodyParts.join(";\n");
+				bodyParts.length = 0;
+			}
+			inlinedSets.push(set);
 		} else {
 			bodyParts.push(compileExpr(expr));
 		}
@@ -383,6 +439,121 @@ class LoweringContext {
 				});
 
 				this.lowerElementChildren(rootEl, rootVar, false);
+			}
+		} else if (rootElements.length > 1) {
+			this.lowerMultiRootRender(isSvg);
+		}
+	}
+
+	/**
+	 * Lower a multi-root render array (fragment with multiple root elements).
+	 * Generates traversals, bindings, events for each root and any
+	 * interspersed text/reactive-text nodes.
+	 * @param {boolean} isSvg
+	 */
+	lowerMultiRootRender(isSvg) {
+		let prevVar = null;
+		let childIndex = 0;
+		let i = 0;
+
+		while (i < this.mir.render.length) {
+			const child = this.mir.render[i];
+
+			if (child.kind === "element") {
+				const varName = this.nextElementVar(child.tag);
+
+				let path;
+				if (childIndex === 0) {
+					path = "this.firstChild";
+				} else if (prevVar) {
+					path = `${prevVar}.nextSibling`;
+				} else {
+					path = "this.firstChild";
+				}
+
+				this.traversals.push({
+					kind: "traversal",
+					varName,
+					path,
+				});
+
+				this.lowerElementChildren(child, varName, isSvg);
+				prevVar = varName;
+				childIndex++;
+				i++;
+			} else if (child.kind === "text" || child.kind === "reactive-text") {
+				// Handle text/reactive-text runs at root level
+				let runStart = i;
+				let runHasText = false;
+				let runHasReactive = false;
+				while (
+					i < this.mir.render.length &&
+					(this.mir.render[i].kind === "text" || this.mir.render[i].kind === "reactive-text")
+				) {
+					if (this.mir.render[i].kind === "text") runHasText = true;
+					else runHasReactive = true;
+					i++;
+				}
+				let runEnd = i;
+
+				const textVar = `root_text_${childIndex}`;
+				let path;
+				if (childIndex === 0) {
+					path = "this.firstChild";
+				} else if (prevVar) {
+					path = `${prevVar}.nextSibling`;
+				} else {
+					path = "this.firstChild";
+				}
+
+				this.traversals.push({
+					kind: "traversal",
+					varName: textVar,
+					path,
+				});
+
+				if (runHasReactive) {
+					/** @type {string[]} */
+					const parts = [];
+					for (let j = runStart; j < runEnd; j++) {
+						const c = this.mir.render[j];
+						if (c.kind === "text") {
+							parts.push(JSON.stringify(c.value));
+						} else if (c.kind === "reactive-text") {
+							parts.push(this.compileTextRunPart(c.source));
+						}
+					}
+
+					const expression = parts.join(" + ");
+					const cellName = this.findRunBindingCell(this.mir.render, runStart, runEnd);
+
+					if (cellName) {
+						const refName = this.nextRefName(cellName);
+						this.bindings.push({
+							kind: "binding",
+							cellName,
+							refName,
+							target: textVar,
+							property: "nodeValue",
+							expression,
+							initialValue: expression,
+							inlined: false,
+						});
+					}
+				}
+
+				// Advance the traversal anchor past the (possibly coalesced) text
+				// node so subsequent root traversals can chain via `.nextSibling`.
+				prevVar = textVar;
+				childIndex++;
+			} else if (child.kind === "show") {
+				this.lowerShowBlock(child, prevVar || "this");
+				i++;
+			} else if (child.kind === "each") {
+				this.lowerEachBlock(child, prevVar || "this");
+				i++;
+			} else {
+				i++;
 			}
 		}
 	}
@@ -929,7 +1100,7 @@ class LoweringContext {
 						if (c.kind === "text") {
 							parts.push(JSON.stringify(c.value));
 						} else if (c.kind === "reactive-text") {
-							parts.push(this.compileExprExpanded(c.source));
+							parts.push(this.compileTextRunPart(c.source));
 						}
 					}
 
@@ -997,7 +1168,7 @@ class LoweringContext {
 				parts.push({ kind: "static", value: JSON.stringify(child.value) });
 				textStarted = true;
 			} else if (child.kind === "reactive-text") {
-				parts.push({ kind: "reactive", value: this.compileExprExpanded(child.source), expr: child.source });
+				parts.push({ kind: "reactive", value: this.compileTextRunPart(child.source), expr: child.source });
 				textStarted = true;
 			} else if (child.kind === "element") {
 				elementChildren.push(child);
@@ -1025,7 +1196,7 @@ class LoweringContext {
 			const reactiveParts = parts.filter((p) => p.kind === "reactive" && p.expr);
 			const cells = new Set();
 			for (const part of reactiveParts) {
-				const cell = this.findBindingCell(/** @type {ExprIR} */ (part.expr));
+				const cell = this.findBindingCell(/** @type {ExprIR} */(part.expr));
 				if (cell) cells.add(cell);
 			}
 
@@ -1181,7 +1352,7 @@ class LoweringContext {
 		this.runtimeImports.add("showBlock");
 
 		const cellName = show.condition.name;
-		const controllerVar = `${cellName}_showBlock`;
+		const controllerVar = this.uniqueBlockVar(`${cellName}_showBlock`);
 
 		this.blockVars.push({ name: controllerVar, blockType: "show" });
 
@@ -1250,7 +1421,7 @@ class LoweringContext {
 		this.runtimeImports.add("forBlock");
 
 		const cellName = each.source.name;
-		const controllerVar = `${cellName}_forBlock`;
+		const controllerVar = this.uniqueBlockVar(`${cellName}_forBlock`);
 
 		this.blockVars.push({ name: controllerVar, blockType: "each" });
 
@@ -1310,103 +1481,16 @@ class LoweringContext {
 			const el = /** @type {import("./types.d.ts").ElementIR} */ (renderNodes[0]);
 			const rootVar = this.nextElementVar(el.tag);
 
-			// Process events
-			for (const evt of el.events) {
-				const eventName = evt.event;
-				let handler;
-				if (evt.handler.kind === "action-call") {
-					if (evt.handler.args.length === 0) {
-						handler = evt.handler.name;
-					} else {
-						const ctx = { itemAlias };
-						const args = evt.handler.args.map((a) => compileExpr(a, ctx));
-						handler = `[${evt.handler.name}, ${args.join(", ")}]`;
-					}
-				} else if (evt.handler.kind === "closure") {
-					handler = compileExpr(evt.handler, { isInlineHandler: true, itemAlias });
-				} else {
-					handler = compileExpr(evt.handler, { itemAlias });
-				}
-
-				events.push({
-					kind: "event",
-					target: rootVar,
-					event: eventName,
-					handler,
-					delegated: true,
-				});
-
-				if (!this.delegatedEvents.includes(eventName)) {
-					this.delegatedEvents.push(eventName);
-				}
-			}
-
-			// Process classes
-			if (el.classes && el.classes.kind === "class-list") {
-				const parts = el.classes.items.map((item) => {
-					if (typeof item === "string") return JSON.stringify(item);
-					return `(${compileExpr(item.condition, { itemAlias })} ? " ${item.name}" : "")`;
-				});
-				classBindings.push({
-					target: rootVar,
-					expression: parts.join(" + "),
-				});
-			}
-
-			// Process children for text bindings
-			const hasCoalescedText = this.hasAdjacentTextAndReactive(el.children);
-			if (hasCoalescedText) {
-				const textVar = `${rootVar}_text`;
-				traversals.push({
-					kind: "traversal",
-					varName: textVar,
-					path: `${rootVar}.firstChild`,
-				});
-
-				const parts = [];
-				for (const child of el.children) {
-					if (child.kind === "text") {
-						parts.push(JSON.stringify(child.value));
-					} else if (child.kind === "reactive-text") {
-						parts.push(compileExpr(child.source, { itemAlias }));
-					}
-				}
-
-				bindings.push({
-					kind: "binding",
-					cellName: "",
-					refName: "",
-					target: textVar,
-					property: "nodeValue",
-					expression: parts.join(" + "),
-					initialValue: parts.join(" + "),
-					inlined: false,
-				});
-			} else {
-				// Process reactive text children directly
-				let childIdx = 0;
-				for (const child of el.children) {
-					if (child.kind === "reactive-text") {
-						const textVar = `${rootVar}_text`;
-						traversals.push({
-							kind: "traversal",
-							varName: textVar,
-							path: `${rootVar}.firstChild`,
-						});
-						bindings.push({
-							kind: "binding",
-							cellName: "",
-							refName: "",
-							target: textVar,
-							property: "nodeValue",
-							expression: compileExpr(child.source, { itemAlias }),
-							initialValue: compileExpr(child.source, { itemAlias }),
-							inlined: false,
-						});
-					}
-					childIdx++;
-				}
-			}
+			this.processBlockElement(
+				el,
+				rootVar,
+				itemAlias,
+				traversals,
+				events,
+				bindings,
+				classBindings,
+				/* isRoot */ true,
+			);
 
 			// Restore counters
 			this.elementCounters = savedElementCounters;
@@ -1432,6 +1516,157 @@ class LoweringContext {
 			bindings: [],
 			classBindings: [],
 		};
+	}
+
+	/**
+	 * Recursively walk an element inside a block render body, generating
+	 * traversals/events/bindings/classes for it and its descendants.
+	 *
+	 * @param {import("./types.d.ts").ElementIR} el
+	 * @param {string} elVar
+	 * @param {string | undefined} itemAlias
+	 * @param {TraversalOp[]} traversals
+	 * @param {EventOp[]} events
+	 * @param {BindingOp[]} bindings
+	 * @param {import("./types.d.ts").ClassBinding[]} classBindings
+	 * @param {boolean} isRoot
+	 */
+	processBlockElement(el, elVar, itemAlias, traversals, events, bindings, classBindings, isRoot) {
+		// Events on this element
+		for (const evt of el.events) {
+			const eventName = evt.event;
+			let handler;
+			if (evt.handler.kind === "action-call") {
+				if (evt.handler.args.length === 0) {
+					handler = evt.handler.name;
+				} else {
+					const ctx = { itemAlias };
+					const args = evt.handler.args.map((a) => compileExpr(a, ctx));
+					handler = `[${evt.handler.name}, ${args.join(", ")}]`;
+				}
+			} else if (evt.handler.kind === "closure") {
+				handler = compileExpr(evt.handler, { isInlineHandler: true, itemAlias });
+			} else {
+				handler = compileExpr(evt.handler, { itemAlias });
+			}
+			events.push({
+				kind: "event",
+				target: elVar,
+				event: eventName,
+				handler,
+				delegated: true,
+			});
+			if (!this.delegatedEvents.includes(eventName)) {
+				this.delegatedEvents.push(eventName);
+			}
+		}
+
+		// Reactive attributes
+		for (const [name, expr] of Object.entries(el.attributes)) {
+			if (expr.kind === "literal") continue;
+			const isSvgAttr = SVG_ELEMENTS.has(el.tag) && name !== "className";
+			bindings.push({
+				kind: "binding",
+				cellName: "",
+				refName: "",
+				target: elVar,
+				property: name,
+				expression: compileExpr(expr, { itemAlias }),
+				initialValue: compileExpr(expr, { itemAlias }),
+				inlined: false,
+				isSvgAttr,
+			});
+		}
+
+		// Classes
+		if (el.classes && el.classes.kind === "class-list") {
+			const parts = el.classes.items.map((item) => {
+				if (typeof item === "string") return JSON.stringify(item);
+				return `(${compileExpr(item.condition, { itemAlias })} ? " ${item.name}" : "")`;
+			});
+			classBindings.push({
+				target: elVar,
+				expression: parts.join(" + "),
+			});
+		}
+
+		// Children
+		const hasCoalescedText = this.hasAdjacentTextAndReactive(el.children);
+		if (hasCoalescedText) {
+			const textVar = `${elVar}_text`;
+			traversals.push({
+				kind: "traversal",
+				varName: textVar,
+				path: `${elVar}.firstChild`,
+			});
+			const parts = [];
+			for (const child of el.children) {
+				if (child.kind === "text") {
+					parts.push(JSON.stringify(child.value));
+				} else if (child.kind === "reactive-text") {
+					parts.push(compileExpr(child.source, { itemAlias }));
+				}
+			}
+			bindings.push({
+				kind: "binding",
+				cellName: "",
+				refName: "",
+				target: textVar,
+				property: "nodeValue",
+				expression: parts.join(" + "),
+				initialValue: parts.join(" + "),
+				inlined: false,
+			});
+			return;
+		}
+
+		// Walk children: traverse each element child + bind text children
+		let prevSiblingVar = null;
+		let domChildIdx = 0;
+		for (const child of el.children) {
+			if (child.kind === "element") {
+				const childVar = this.nextElementVar(child.tag);
+				let path;
+				if (domChildIdx === 0) path = `${elVar}.firstChild`;
+				else if (prevSiblingVar) path = `${prevSiblingVar}.nextSibling`;
+				else path = `${elVar}.firstChild`;
+				traversals.push({ kind: "traversal", varName: childVar, path });
+				this.processBlockElement(
+					child,
+					childVar,
+					itemAlias,
+					traversals,
+					events,
+					bindings,
+					classBindings,
+					false,
+				);
+				prevSiblingVar = childVar;
+				domChildIdx++;
+			} else if (child.kind === "reactive-text") {
+				const textVar = `${elVar}_text${domChildIdx === 0 ? "" : "_" + domChildIdx}`;
+				let path;
+				if (domChildIdx === 0) path = `${elVar}.firstChild`;
+				else if (prevSiblingVar) path = `${prevSiblingVar}.nextSibling`;
+				else path = `${elVar}.firstChild`;
+				traversals.push({ kind: "traversal", varName: textVar, path });
+				bindings.push({
+					kind: "binding",
+					cellName: "",
+					refName: "",
+					target: textVar,
+					property: "nodeValue",
+					expression: compileExpr(child.source, { itemAlias }),
+					initialValue: compileExpr(child.source, { itemAlias }),
+					inlined: false,
+				});
+				prevSiblingVar = textVar;
+				domChildIdx++;
+			} else if (child.kind === "text") {
+				domChildIdx++;
+				prevSiblingVar = null;
+			}
+		}
 	}
 
 	/**
@@ -1519,6 +1754,9 @@ class LoweringContext {
 			userImports: [...this.userImportMap.values()],
 			observedAttributes: this.observedAttributes,
 			lifecycle: this.mir.lifecycle,
+			locals: this.mir.locals || [],
+			preamble: this.mir.preamble || [],
+			moduleCode: this.mir.metadata?.moduleCode,
 		};
 	}
 }

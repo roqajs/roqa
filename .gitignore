@@ -11,6 +11,7 @@ build/
 # Test coverage
 coverage
 *.lcov
+.playwright-mcp/
 
 # Optional eslint cache
 .eslintcache

@@ -15,13 +15,31 @@ export type ComponentIR = {
 	lifecycle: LifecycleIR;
 	render: NodeIR[];
 
+	/** Top-level `let` / `var` declarations from the component body. These are
+	 *  emitted in component scope so that closures (event handlers, lifecycle
+	 *  callbacks, etc.) can capture and assign to them. */
+	locals?: LocalDeclIR[];
+
+	/** Miscellaneous top-level statements (e.g. `this.method = ...`) emitted
+	 *  in component scope after locals and before the connected callback. */
+	preamble?: ExprIR[];
+
 	metadata?: ComponentMetadata;
+};
+
+export type LocalDeclIR = {
+	kind: "let" | "var";
+	name: string;
+	init?: ExprIR;
 };
 
 export type ComponentMetadata = {
 	sourceFile?: string;
 	frontend?: string;
 	imports?: ImportIR[];
+	/** Raw module-level code (non-import, non-defineComponent statements)
+	 *  that the frontend wants emitted at the top of the file. */
+	moduleCode?: string;
 };
 
 // --- State ---
@@ -32,6 +50,9 @@ export type StateValueIR = {
 	kind: "value";
 	name: string;
 	initial: unknown;
+	/** When the original initializer wasn't a literal, this holds the raw JS
+	 *  source so it can be evaluated at runtime (e.g. `FEEDS.top`). */
+	initialExpr?: string;
 	hints?: OptimizationHints;
 };
 
@@ -65,6 +86,7 @@ export type ExprIR =
 	| LiteralExpr
 	| TemplateLiteralExpr
 	| ObjectExpr
+	| ArrayExpr
 	| StateReadExpr
 	| StateWriteExpr
 	| PropReadExpr
@@ -87,6 +109,8 @@ export type ExprIR =
 	| ClosureExpr
 	| ImportedRefExpr
 	| ExternalRefExpr
+	| AssignExpr
+	| UpdateExpr
 	| OpaqueExpr;
 
 export type LiteralExpr = {
@@ -102,6 +126,25 @@ export type TemplateLiteralExpr = {
 export type ObjectExpr = {
 	kind: "object";
 	properties: ObjectPropertyIR[];
+};
+
+export type ArrayExpr = {
+	kind: "array";
+	elements: ExprIR[];
+};
+
+export type AssignExpr = {
+	kind: "assign";
+	op: "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "??=" | "||=" | "&&=";
+	target: ExprIR;
+	value: ExprIR;
+};
+
+export type UpdateExpr = {
+	kind: "update";
+	op: "++" | "--";
+	prefix: boolean;
+	target: ExprIR;
 };
 
 export type ObjectPropertyIR =
@@ -143,20 +186,20 @@ export type ParamReadExpr = {
 export type BinaryExpr = {
 	kind: "binary";
 	op:
-		| "+"
-		| "-"
-		| "*"
-		| "/"
-		| "%"
-		| "==="
-		| "!=="
-		| ">"
-		| "<"
-		| ">="
-		| "<="
-		| "&&"
-		| "||"
-		| "??";
+	| "+"
+	| "-"
+	| "*"
+	| "/"
+	| "%"
+	| "==="
+	| "!=="
+	| ">"
+	| "<"
+	| ">="
+	| "<="
+	| "&&"
+	| "||"
+	| "??";
 	left: ExprIR;
 	right: ExprIR;
 };
@@ -237,6 +280,7 @@ export type ClosureExpr = {
 	kind: "closure";
 	params: ClosureParam[];
 	body: ExprIR;
+	async?: boolean;
 };
 
 export type ClosureParam = string | DestructuredParam;
@@ -368,6 +412,7 @@ export type ActionIR = {
 	name: string;
 	params: string[];
 	body: ExprIR;
+	async?: boolean;
 };
 
 // --- Props, Attrs, Emits ---
@@ -392,10 +437,19 @@ export type EmitIR = {
 	eventName: string;
 };
 
+export type ImportBinding =
+	| string
+	| {
+			local: string;
+			imported?: string;
+			kind?: "named" | "default" | "namespace";
+	  };
+
 export type ImportIR = {
 	kind: "import";
 	source: string;
-	bindings: string[];
+	bindings: ImportBinding[];
+	sideEffect?: boolean;
 };
 
 // --- Lifecycle ---
@@ -424,11 +478,15 @@ export type ComponentLIR = {
 	userImports: UserImport[];
 	observedAttributes: string[];
 	lifecycle: LifecycleIR;
+	locals: LocalDeclIR[];
+	preamble: ExprIR[];
+	moduleCode?: string;
 };
 
 export type UserImport = {
 	source: string;
-	bindings: string[];
+	bindings: ImportBinding[];
+	sideEffect?: boolean;
 };
 
 export type BlockVar = {
@@ -470,6 +528,7 @@ export type FunctionOp = {
 	params: string[];
 	body: string;
 	inlinedSets: InlinedSet[];
+	async?: boolean;
 };
 
 export type InlinedSet = {
@@ -478,6 +537,9 @@ export type InlinedSet = {
 	updates: InlinedUpdate[];
 	blockUpdates: InlinedBlockUpdate[];
 	notify: boolean;
+	/** Body code that must run immediately before this set (e.g. local var
+	 *  declarations) to preserve the original action's statement order. */
+	prelude?: string;
 };
 
 export type InlinedUpdate = {

@@ -13,8 +13,10 @@ export function emit(lirs) {
 
 	// Collect all imports across components
 	const runtimeImports = new Set();
-	/** @type {Map<string, Set<string>>} source → bindings */
+	/** @type {Map<string, Map<string, {imported?: string, kind: "named" | "default" | "namespace"}>>} source → local → meta */
 	const userImportMap = new Map();
+	/** @type {Set<string>} */
+	const sideEffectImports = new Set();
 	/** @type {Set<string>} */
 	const allDelegatedEvents = new Set();
 
@@ -23,11 +25,19 @@ export function emit(lirs) {
 			runtimeImports.add(imp);
 		}
 		for (const uimp of lir.userImports) {
-			if (!userImportMap.has(uimp.source)) {
-				userImportMap.set(uimp.source, new Set());
+			if (uimp.sideEffect) {
+				sideEffectImports.add(uimp.source);
 			}
+			if (!userImportMap.has(uimp.source)) {
+				userImportMap.set(uimp.source, new Map());
+			}
+			const bucket = userImportMap.get(uimp.source);
 			for (const b of uimp.bindings) {
-				userImportMap.get(uimp.source).add(b);
+				if (typeof b === "string") {
+					bucket.set(b, { kind: "named" });
+				} else {
+					bucket.set(b.local, { imported: b.imported, kind: b.kind || "named" });
+				}
 			}
 		}
 		for (const evt of lir.delegatedEvents) {
@@ -44,10 +54,60 @@ export function emit(lirs) {
 	const sortedImports = [...runtimeImports].sort();
 	lines.push(`import { ${sortedImports.join(", ")} } from "roqa";`);
 
-	// 2. Emit user imports
-	for (const [source, bindings] of userImportMap) {
-		const sortedBindings = [...bindings].sort();
-		lines.push(`import { ${sortedBindings.join(", ")} } from "${source}";`);
+	// 2. Emit user imports — separate default, namespace, and named per source
+	for (const [source, bucket] of userImportMap) {
+		if (bucket.size === 0) continue;
+
+		/** @type {string | null} */
+		let defaultLocal = null;
+		/** @type {string | null} */
+		let namespaceLocal = null;
+		/** @type {string[]} */
+		const namedClauses = [];
+
+		for (const [local, meta] of bucket) {
+			if (meta.kind === "default") {
+				defaultLocal = local;
+			} else if (meta.kind === "namespace") {
+				namespaceLocal = local;
+			} else {
+				if (meta.imported && meta.imported !== local) {
+					namedClauses.push(`${meta.imported} as ${local}`);
+				} else {
+					namedClauses.push(local);
+				}
+			}
+		}
+
+		// Namespace imports must be on their own statement.
+		if (namespaceLocal) {
+			lines.push(`import * as ${namespaceLocal} from "${source}";`);
+		}
+
+		const headParts = [];
+		if (defaultLocal) headParts.push(defaultLocal);
+		if (namedClauses.length > 0) {
+			namedClauses.sort();
+			headParts.push(`{ ${namedClauses.join(", ")} }`);
+		}
+		if (headParts.length > 0) {
+			lines.push(`import ${headParts.join(", ")} from "${source}";`);
+		}
+	}
+
+	for (const source of [...sideEffectImports].sort()) {
+		if (userImportMap.get(source)?.size > 0) continue;
+		lines.push(`import "${source}";`);
+	}
+
+	// 2b. Emit module-level code from any LIR that has it (helpers, constants)
+	const seenModuleCode = new Set();
+	for (const lir of lirs) {
+		if (lir.moduleCode && !seenModuleCode.has(lir.moduleCode)) {
+			seenModuleCode.add(lir.moduleCode);
+			lines.push("");
+			lines.push(lir.moduleCode);
+		}
 	}
 
 	// 3. Emit templates (all, globally renumbered)
@@ -128,6 +188,26 @@ function emitComponent(lir, lines) {
 
 	if (lir.cells.length > 0) lines.push("");
 
+	// Top-level locals (let/var declarations from the original component body)
+	if (lir.locals && lir.locals.length > 0) {
+		for (const local of lir.locals) {
+			if (local.init) {
+				lines.push(`\t${local.kind} ${local.name} = ${compileExpr(local.init)};`);
+			} else {
+				lines.push(`\t${local.kind} ${local.name};`);
+			}
+		}
+		lines.push("");
+	}
+
+	// Preamble: top-level statements like `this.method = ...`
+	if (lir.preamble && lir.preamble.length > 0) {
+		for (const expr of lir.preamble) {
+			lines.push(`\t${compileExpr(expr)};`);
+		}
+		lines.push("");
+	}
+
 	// Block var declarations: show/fallback before functions, each after
 	const showBlockVars = lir.blockVars.filter((bv) => bv.blockType === "show" || bv.blockType === "fallback");
 	const eachBlockVars = lir.blockVars.filter((bv) => bv.blockType === "each");
@@ -151,13 +231,6 @@ function emitComponent(lir, lines) {
 
 	// Connected block
 	lines.push("\tthis.connected(() => {");
-
-	// Lifecycle onConnect at beginning of connected()
-	if (lir.lifecycle.onConnect) {
-		const code = compileExpr(lir.lifecycle.onConnect);
-		lines.push(`\t\t${code};`);
-		lines.push("");
-	}
 
 	// Check for two-phase traversal (setProp)
 	const hasPropSets = lir.connected.propSets.length > 0;
@@ -266,6 +339,14 @@ function emitComponent(lir, lines) {
 		}
 	}
 
+	// Lifecycle onConnect runs after the DOM has been set up so user code can
+	// query/observe rendered elements.
+	if (lir.lifecycle.onConnect) {
+		lines.push("");
+		const code = compileExpr(lir.lifecycle.onConnect);
+		emitBodyLines(code, lines, "\t\t");
+	}
+
 	lines.push("\t});");
 	lines.push("});");
 
@@ -285,20 +366,22 @@ function emitComponent(lir, lines) {
  */
 function emitFunction(fn, lines) {
 	const params = fn.params.join(", ");
+	const asyncPrefix = fn.async ? "async " : "";
 
 	if (fn.inlinedSets.length === 0 && fn.body) {
-		lines.push(`\tconst ${fn.varName} = (${params}) => {`);
-		for (const line of fn.body.split("\n")) {
-			lines.push(`\t\t${line};`);
-		}
+		lines.push(`\tconst ${fn.varName} = ${asyncPrefix}(${params}) => {`);
+		emitBodyLines(fn.body, lines, "\t\t");
 		lines.push(`\t};`);
 		return;
 	}
 
-	lines.push(`\tconst ${fn.varName} = (${params}) => {`);
+	lines.push(`\tconst ${fn.varName} = ${asyncPrefix}(${params}) => {`);
 
 	// Emit inlined sets first
 	for (const set of fn.inlinedSets) {
+		if (set.prelude) {
+			emitBodyLines(set.prelude, lines, "\t\t");
+		}
 		lines.push(`\t\t${set.cellName}.v = ${set.valueExpr};`);
 		// Block updates first (forBlock.update, showBlock.update)
 		for (const blockUpdate of set.blockUpdates) {
@@ -322,14 +405,47 @@ function emitFunction(fn, lines) {
 
 	// Emit body parts after inlined sets
 	if (fn.body) {
-		for (const line of fn.body.split("\n")) {
-			if (line.trim()) {
-				lines.push(`\t\t${line};`);
-			}
-		}
+		emitBodyLines(fn.body, lines, "\t\t");
 	}
 
 	lines.push(`\t};`);
+}
+
+/**
+ * Emit a possibly multi-line body string, indenting each line and ensuring
+ * the body terminates with a semicolon. Avoids appending `;` to every line
+ * (which would corrupt multi-line opaque expressions).
+ *
+ * @param {string} body
+ * @param {string[]} lines
+ * @param {string} indent
+ */
+function emitBodyLines(body, lines, indent) {
+	const rawLines = body.split("\n");
+	// Find the index of the last non-empty line so we can ensure it ends with `;`
+	let lastNonEmpty = -1;
+	for (let i = rawLines.length - 1; i >= 0; i--) {
+		if (rawLines[i].trim()) {
+			lastNonEmpty = i;
+			break;
+		}
+	}
+	for (let i = 0; i < rawLines.length; i++) {
+		const line = rawLines[i];
+		if (!line.trim()) {
+			lines.push("");
+			continue;
+		}
+		const trimmedEnd = line.trimEnd();
+		const lastChar = trimmedEnd.slice(-1);
+		const needsTerminator =
+			i === lastNonEmpty &&
+			lastChar !== ";" &&
+			lastChar !== "{" &&
+			lastChar !== "}" &&
+			lastChar !== ",";
+		lines.push(`${indent}${line}${needsTerminator ? ";" : ""}`);
+	}
 }
 
 /**

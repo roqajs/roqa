@@ -251,13 +251,34 @@ type ComponentIR = {
     lifecycle: LifecycleIR;
     render: NodeIR[];             // The root children of the view tree
 
+    // Component-scope `let` / `var` declarations from the original source.
+    // Emitted in component scope so that closures (event handlers, lifecycle
+    // callbacks, action bodies) can capture and assign to them.
+    locals?: LocalDeclIR[];
+
+    // Miscellaneous top-level statements (e.g. `this.method = ...`) that
+    // execute in component scope after `locals` and before `lifecycle.onConnect`
+    // runs. Useful for exposing imperative APIs on the element.
+    preamble?: ExprIR[];
+
     metadata?: ComponentMetadata; // Optional non-structural information
+};
+
+type LocalDeclIR = {
+    kind: "let" | "var";
+    name: string;
+    init?: ExprIR;                // Optional initializer
 };
 
 type ComponentMetadata = {
     sourceFile?: string;          // Original source file path
     frontend?: string;            // Which frontend produced this IR (e.g., "jsx", "builder")
     imports?: ImportIR[];         // External dependencies
+    moduleCode?: string;          // Raw module-level helper code (constants,
+                                  // helper functions) to emit verbatim above
+                                  // the component definitions. Use sparingly —
+                                  // prefer structured imports + actions when
+                                  // possible.
 };
 ```
 
@@ -267,7 +288,10 @@ simplifies iteration.
 
 The `render` field is an array of `NodeIR` children (the root-level nodes).
 When a component has a single root element, this is a one-element array. When
-it has multiple root elements (a fragment), it's a multi-element array.
+it has multiple root elements (a fragment), it's a multi-element array. Both
+elements and bare text/reactive-text nodes can appear at the top level — the
+backend wires up sibling traversals (`firstChild` then `.nextSibling` chains)
+so that bindings on every root node are live.
 
 The `version` field is critical for the multi-frontend architecture. When the
 MIR format changes, frontends with outdated output are caught immediately with
@@ -300,6 +324,7 @@ type ExprIR =
     | LiteralExpr
     | TemplateLiteralExpr
     | ObjectExpr
+    | ArrayExpr
     | StateReadExpr
     | StateWriteExpr
     | PropReadExpr
@@ -322,6 +347,8 @@ type ExprIR =
     | ClosureExpr
     | ImportedRefExpr
     | ExternalRefExpr
+    | AssignExpr
+    | UpdateExpr
     | OpaqueExpr;
 ```
 
@@ -355,6 +382,14 @@ type ObjectExpr = {
 type ObjectPropertyIR =
     | { kind: "property"; key: string; value: ExprIR }
     | { kind: "spread"; argument: ExprIR };
+
+// Construct an array literal: [a, b, ...rest]
+// Frontends should prefer this over OpaqueExpr for array creation so the
+// backend can analyze and optimize the contents.
+type ArrayExpr = {
+    kind: "array";
+    elements: ExprIR[];           // SpreadExpr is permitted as an element
+};
 
 // Read the current value of a state cell
 type StateReadExpr = {
@@ -432,6 +467,24 @@ type ConditionalExpr = {
     consequent: ExprIR;
     alternate: ExprIR;
 };
+
+// Assignment to a target: target = value (and compound forms)
+// The target is typically a MemberExpr or IndexExpr — for cell writes,
+// always use StateWriteExpr instead so the backend can wire reactivity.
+type AssignExpr = {
+    kind: "assign";
+    op: "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "??=" | "||=" | "&&=";
+    target: ExprIR;
+    value: ExprIR;
+};
+
+// Increment / decrement: ++x, x++, --y, y--
+type UpdateExpr = {
+    kind: "update";
+    op: "++" | "--";
+    prefix: boolean;              // true for ++x, false for x++
+    target: ExprIR;
+};
 ```
 
 ### Access expressions
@@ -495,6 +548,7 @@ type ClosureExpr = {
     kind: "closure";
     params: ClosureParam[];
     body: ExprIR;
+    async?: boolean;              // true if the closure was declared `async`
 };
 
 // Closure parameters support both simple names and destructuring patterns.
@@ -692,6 +746,10 @@ type StateValueIR = {
     kind: "value";
     name: string;                 // The state property name
     initial: unknown;             // The initial value (number, string, boolean, array, etc.)
+    initialExpr?: string;         // Raw JS source for non-literal initializers
+                                  // (e.g. `cell(FEEDS.top)`). When set, the
+                                  // backend evaluates this expression at
+                                  // runtime instead of using `initial`.
     hints?: OptimizationHints;
 };
 ```
@@ -1064,6 +1122,7 @@ type ActionIR = {
     name: string;                 // The action name
     params: string[];             // Parameter names (always simple strings)
     body: ExprIR;                 // Action logic as a structured expression
+    async?: boolean;              // true if the action was declared `async`
 };
 ```
 
@@ -1120,9 +1179,27 @@ type EmitIR = {
 type ImportIR = {
     kind: "import";
     source: string;               // Module specifier (e.g., "./utils.js")
-    bindings: string[];           // Names imported (e.g., ["formatDate", "capitalize"])
+    bindings: ImportBinding[];    // What to import from this module
+    sideEffect?: boolean;         // true for bare `import "./styles.css"`
 };
+
+// Import bindings can be plain strings (named import where local === imported)
+// or objects describing default / namespace / renamed imports.
+type ImportBinding =
+    | string                      // `import { foo }` — local name
+    | {
+        local: string;            // The local binding name
+        imported?: string;        // For renamed named imports: { foo as bar }
+        kind?: "named" | "default" | "namespace";
+      };
 ```
+
+Examples:
+- `import { foo } from "x"` → `{ local: "foo", kind: "named" }` (or just `"foo"`)
+- `import { foo as bar } from "x"` → `{ local: "bar", imported: "foo", kind: "named" }`
+- `import foo from "x"` → `{ local: "foo", kind: "default" }`
+- `import * as foo from "x"` → `{ local: "foo", kind: "namespace" }`
+- `import "x"` → `{ kind: "import", source: "x", bindings: [], sideEffect: true }`
 
 ---
 
@@ -1134,6 +1211,17 @@ type LifecycleIR = {
     onDisconnect?: ExprIR;        // Runs when the component is unmounted
 };
 ```
+
+**`onConnect` ordering guarantee.** The backend emits `onConnect` *after*:
+
+1. The template has been cloned and appended to `this`.
+2. All DOM traversals have completed (refs to elements are stored).
+3. Event handlers have been attached.
+4. Initial bindings have been written.
+
+This means `onConnect` code can safely call `this.querySelector(...)`, observe
+already-rendered elements, and assume reactive bindings are live. Frontends
+should not try to emit `onConnect` content earlier in the connected callback.
 
 Lifecycle hooks are structured expressions, just like action bodies. The code
 generator compiles them the same way and places them inside

@@ -211,6 +211,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -224,6 +227,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -237,6 +243,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -250,6 +259,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -266,6 +278,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -282,6 +297,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -295,6 +313,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -308,6 +329,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -321,6 +345,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -334,6 +361,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -347,6 +377,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -360,6 +393,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -373,6 +409,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -386,6 +425,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -399,6 +441,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -412,6 +457,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -425,6 +473,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -441,6 +492,9 @@ importers:
         specifier: ^0.182.0
         version: 0.182.0
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -457,6 +511,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -470,6 +527,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -492,6 +552,9 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/roqa
     devDependencies:
+      '@roqajs/jsx':
+        specifier: workspace:*
+        version: link:../../../packages/roqa-jsx
       '@roqajs/vite-plugin':
         specifier: workspace:*
         version: link:../../../packages/vite-plugin
@@ -526,6 +589,25 @@ importers:
       playwright:
         specifier: ^1.49.0
         version: 1.57.0
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@25.0.3)(@vitest/browser@3.2.4)(jiti@2.6.1)(lightningcss@1.30.2)
+
+  packages/roqa-jsx:
+    dependencies:
+      '@babel/parser':
+        specifier: catalog:default
+        version: 7.28.5
+      '@babel/traverse':
+        specifier: catalog:default
+        version: 7.28.5
+      '@babel/types':
+        specifier: catalog:default
+        version: 7.28.5
+    devDependencies:
+      roqa:
+        specifier: workspace:*
+        version: link:../roqa
       vitest:
         specifier: ^3.0.0
         version: 3.2.4(@types/debug@4.1.12)(@types/node@25.0.3)(@vitest/browser@3.2.4)(jiti@2.6.1)(lightningcss@1.30.2)

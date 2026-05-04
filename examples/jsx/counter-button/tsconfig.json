@@ -8,5 +8,7 @@
 		"jsx": "react-jsx",
 		"jsxImportSource": "roqa"
 	},
-	"include": ["src"]
+	"include": [
+		"src"
+	]
 }

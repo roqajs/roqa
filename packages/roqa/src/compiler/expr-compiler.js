@@ -25,6 +25,16 @@ export function compileExpr(expr, ctx = {}) {
 		case "object":
 			return compileObject(expr, ctx);
 
+		case "array":
+			return `[${expr.elements.map((e) => compileExpr(e, ctx)).join(", ")}]`;
+
+		case "assign":
+			return `${compileExpr(expr.target, ctx)} ${expr.op} ${compileExpr(expr.value, ctx)}`;
+
+		case "update":
+			if (expr.prefix) return `${expr.op}${compileExpr(expr.target, ctx)}`;
+			return `${compileExpr(expr.target, ctx)}${expr.op}`;
+
 		case "state-read":
 			return `${expr.name}.v`;
 
@@ -62,19 +72,19 @@ export function compileExpr(expr, ctx = {}) {
 			return `${compileExpr(expr.test, ctx)} ? ${compileExpr(expr.consequent, ctx)} : ${compileExpr(expr.alternate, ctx)}`;
 
 		case "member":
-			return `${compileExpr(expr.object, ctx)}.${expr.property}`;
+			return `${compileReceiver(expr.object, ctx)}.${expr.property}`;
 
 		case "index":
-			return `${compileExpr(expr.object, ctx)}[${compileExpr(expr.index, ctx)}]`;
+			return `${compileReceiver(expr.object, ctx)}[${compileExpr(expr.index, ctx)}]`;
 
 		case "spread":
 			return `...${compileExpr(expr.argument, ctx)}`;
 
 		case "call":
-			return `${compileExpr(expr.callee, ctx)}(${expr.args.map((a) => compileExpr(a, ctx)).join(", ")})`;
+			return `${compileReceiver(expr.callee, ctx)}(${expr.args.map((a) => compileExpr(a, ctx)).join(", ")})`;
 
 		case "method-call":
-			return `${compileExpr(expr.object, ctx)}.${expr.method}(${expr.args.map((a) => compileExpr(a, ctx)).join(", ")})`;
+			return `${compileReceiver(expr.object, ctx)}.${expr.method}(${expr.args.map((a) => compileExpr(a, ctx)).join(", ")})`;
 
 		case "block":
 			return expr.body.map((e) => compileExpr(e, ctx)).join(";\n");
@@ -111,6 +121,52 @@ export function compileExpr(expr, ctx = {}) {
 
 		default:
 			throw new Error(`Unknown expression kind: ${/** @type {any} */ (expr).kind}`);
+	}
+}
+
+/**
+ * Compile an expression in receiver position (e.g. left side of `.member`,
+ * callee of `f(...)`). Wraps in parentheses when the expression's outer
+ * grammar would bind less tightly than property access — this is required for
+ * literals like `(32).toFixed(1)` and for binary/conditional/assignment
+ * receivers.
+ *
+ * @param {ExprIR} expr
+ * @param {ExprContext} [ctx]
+ * @returns {string}
+ */
+function compileReceiver(expr, ctx) {
+	const code = compileExpr(expr, ctx);
+	if (needsReceiverParens(expr, code)) {
+		return `(${code})`;
+	}
+	return code;
+}
+
+/**
+ * @param {ExprIR} expr
+ * @param {string} code
+ * @returns {boolean}
+ */
+function needsReceiverParens(expr, code) {
+	switch (expr.kind) {
+		case "binary":
+		case "unary":
+		case "conditional":
+		case "spread":
+		case "object":
+		case "closure":
+			return true;
+		case "literal":
+			// Numeric literals followed by `.` would be parsed as decimals.
+			return typeof expr.value === "number";
+		case "opaque":
+			// Opaque source may itself be a complex expression — wrap defensively
+			// when it doesn't already start with `(` or look like a simple
+			// identifier / member chain.
+			return /[+\-*/%<>=&|?:,]/.test(code) && !/^\s*\(/.test(code);
+		default:
+			return false;
 	}
 }
 
@@ -160,9 +216,68 @@ function compileObject(expr, ctx) {
  * @returns {string}
  */
 function compileBinary(expr, ctx) {
-	const left = compileExpr(expr.left, ctx);
-	const right = compileExpr(expr.right, ctx);
+	const left = compileBinaryOperand(expr.left, expr.op, "left", ctx);
+	const right = compileBinaryOperand(expr.right, expr.op, "right", ctx);
 	return `${left} ${expr.op} ${right}`;
+}
+
+/**
+ * @param {ExprIR} operand
+ * @param {string} parentOp
+ * @param {"left" | "right"} side
+ * @param {ExprContext} ctx
+ * @returns {string}
+ */
+function compileBinaryOperand(operand, parentOp, side, ctx) {
+	const code = compileExpr(operand, ctx);
+	if (operand.kind !== "binary" && operand.kind !== "conditional") {
+		return code;
+	}
+	if (operand.kind === "conditional") {
+		return `(${code})`;
+	}
+	const childPrec = binaryPrecedence(operand.op);
+	const parentPrec = binaryPrecedence(parentOp);
+	if (childPrec < parentPrec) return `(${code})`;
+	if (childPrec === parentPrec) {
+		// Most binary operators are left-associative; right operand needs parens
+		// when it shares precedence so that `a - (b - c)` doesn't become `a - b - c`.
+		if (side === "right") return `(${code})`;
+	}
+	return code;
+}
+
+/**
+ * @param {string} op
+ * @returns {number}
+ */
+function binaryPrecedence(op) {
+	switch (op) {
+		case "||":
+		case "??":
+			return 1;
+		case "&&":
+			return 2;
+		case "==":
+		case "===":
+		case "!=":
+		case "!==":
+			return 3;
+		case "<":
+		case "<=":
+		case ">":
+		case ">=":
+			return 4;
+		case "+":
+		case "-":
+			return 5;
+		case "*":
+		case "/":
+		case "%":
+			return 6;
+		default:
+			return 0;
+	}
 }
 
 /**
@@ -186,13 +301,19 @@ function compileUnary(expr, ctx) {
 function compileClosure(expr, ctx) {
 	const params = expr.params.map((p) => compileClosureParam(p)).join(", ");
 	const body = compileExpr(expr.body, ctx);
+	const asyncPrefix = expr.async ? "async " : "";
 	// Use block syntax for statement-like bodies
 	const needsBlock = expr.body.kind === "state-write" || expr.body.kind === "block" ||
 		expr.body.kind === "collection-op";
 	if (needsBlock) {
-		return `(${params}) => {\n\t\t\t${body};\n\t\t}`;
+		return `${asyncPrefix}(${params}) => {\n\t\t\t${body};\n\t\t}`;
 	}
-	return `(${params}) => ${body}`;
+	// Object literal expression bodies must be wrapped in parens; otherwise
+	// the parser treats `{ ... }` as a block statement.
+	if (expr.body.kind === "object") {
+		return `${asyncPrefix}(${params}) => (${body})`;
+	}
+	return `${asyncPrefix}(${params}) => ${body}`;
 }
 
 /**

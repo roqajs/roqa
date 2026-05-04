@@ -1,0 +1,60 @@
+{
+	"name": "@roqajs/jsx",
+	"version": "0.0.1",
+	"description": "JSX frontend for the Roqa UI framework",
+	"keywords": [
+		"roqa",
+		"roqajs",
+		"jsx",
+		"tsx",
+		"frontend",
+		"compiler"
+	],
+	"homepage": "https://roqa.dev",
+	"bugs": {
+		"url": "https://github.com/roqajs/roqa/issues"
+	},
+	"license": "MIT",
+	"author": "Hawk Ticehurst",
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/roqajs/roqa.git",
+		"directory": "packages/roqa-jsx"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"type": "module",
+	"files": [
+		"src",
+		"types",
+		"README.md",
+		"LICENSE"
+	],
+	"exports": {
+		".": {
+			"types": "./types/index.d.ts",
+			"import": "./src/index.js"
+		}
+	},
+	"scripts": {
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"dependencies": {
+		"@babel/parser": "catalog:default",
+		"@babel/traverse": "catalog:default",
+		"@babel/types": "catalog:default"
+	},
+	"peerDependencies": {
+		"roqa": "workspace:*"
+	},
+	"devDependencies": {
+		"roqa": "workspace:*",
+		"vitest": "^3.0.0"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	}
+}

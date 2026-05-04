@@ -10,6 +10,48 @@ accepts valid MIR (as defined in [ir.md](./ir.md)) and produces optimized
 JavaScript. It doesn't know or care which frontend produced the MIR — JSX,
 a custom DSL, a GUI web builder, or any other authoring tool.
 
+## Compiler invariants
+
+These are guarantees the backend makes to frontends. Frontends should be able
+to rely on them without compensating in their own output.
+
+1. **Operator precedence is preserved.** `compileExpr(IR)` produces JavaScript
+   whose evaluation order matches the IR tree. A `BinaryExpr { op: "*", left:
+   BinaryExpr { op: "-", ... } }` will be parenthesized correctly so the
+   subtraction doesn't get reassociated under multiplication. Number-literal
+   receivers (`(32).toFixed(1)`) and other "ambiguous left operand" cases are
+   parenthesized when they appear in receiver position of `MemberExpr`,
+   `IndexExpr`, `CallExpr`, or `MethodCallExpr`.
+
+2. **Action body order is preserved.** Statements in a `BlockExpr` action body
+   are emitted in order. Local variable declarations that precede a state
+   write are emitted before the resulting inlined-set updates fire, so
+   expressions like `const x = compute(); set(cell, x)` behave correctly.
+
+3. **`onConnect` runs after DOM setup.** Lifecycle code in
+   `LifecycleIR.onConnect` is emitted after the template has been mounted, all
+   element traversals captured, event handlers attached, and initial bindings
+   written. This means user code can safely call `this.querySelector(...)` or
+   read computed bindings inside `onConnect`.
+
+4. **Multi-line opaque source is emitted verbatim.** When an `OpaqueExpr.source`
+   spans multiple lines, the backend wraps the whole expression as a single
+   statement (terminating semicolon on the last non-empty line) without
+   inserting `;` between every line of the source.
+
+5. **Block render bodies recurse.** `<Show>` and `<For>` render bodies wire
+   bindings, events, and class lists for elements at any depth — not just
+   direct children of the block root.
+
+6. **Block controller variables are unique within a component.** Two blocks
+   reading the same cell (e.g., two `<Show when={visible}>` blocks) produce
+   distinct controller variable names rather than colliding.
+
+7. **Multi-root render with interleaved text nodes.** When `render` contains a
+   mix of element and text/reactive-text nodes at the top level, the backend
+   chains sibling traversals across all of them so subsequent root elements
+   resolve correctly.
+
 ## Architecture context
 
 ```txt

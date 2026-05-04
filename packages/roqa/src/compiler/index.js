@@ -7,6 +7,8 @@ import { lower } from "./lower.js";
 import { optimize } from "./optimize.js";
 import { emit } from "./emit.js";
 
+export { compileExpr } from "./expr-compiler.js";
+
 /**
  * Compile MIR to JavaScript.
  * @param {ComponentIR | ComponentIR[]} mir

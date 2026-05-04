@@ -181,6 +181,18 @@ export function validate(mir) {
 					}
 				}
 				break;
+			case "array":
+				for (let i = 0; i < expr.elements.length; i++) {
+					validateExpr(expr.elements[i], [...path, "elements", String(i)]);
+				}
+				break;
+			case "assign":
+				validateExpr(expr.target, [...path, "target"]);
+				validateExpr(expr.value, [...path, "value"]);
+				break;
+			case "update":
+				validateExpr(expr.target, [...path, "target"]);
+				break;
 			case "emit":
 				if (expr.detail) {
 					validateExpr(expr.detail, [...path, "detail"]);
