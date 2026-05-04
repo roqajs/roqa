@@ -2,50 +2,59 @@
 applyTo: "**"
 ---
 
-# Roqa MIR Compiler Rewrite
+# Roqa
 
-You are implementing a new MIR-based backend compiler for Roqa. The compiler
-accepts structured MIR (Mid-level IR) data and produces optimized JavaScript.
+Roqa is a UI framework that compiles component definitions into optimized
+vanilla JavaScript using web components. Components are authored as MIR
+(Mid-level IR) in `.roqa` files and compiled by the backend compiler.
 
-## Getting oriented
+## Architecture
 
-**Start every session by reading these two files:**
+```
+Frontend (JSX, DSL, etc.)  →  MIR (.roqa files)  →  Backend compiler  →  Optimized JS
+```
 
-1. **`spec/AGENT-LOG.md`** — the running log of all prior implementation
-   progress, decisions, and discoveries. This ensures continuity across
-   sessions where chat context may be reset.
-2. **`spec/implementation-guide.md`** — the full implementation plan, including
-   file locations, phase ordering, test strategy, and audit findings.
+- **MIR format:** JSON-serializable `ComponentIR` — see `spec/ir.md`
+- **Backend compiler:** `packages/roqa/src/compiler/` — validate → lower → optimize → emit
+- **Runtime:** `packages/roqa/src/runtime/` — template, cell, defineComponent, forBlock, etc.
+- **Vite plugin:** `packages/vite-plugin/` — compiles `.roqa` files and frontend-delegated files
 
-**Then reference these specs as needed:**
+## Key references
 
-- `spec/ir.md` — the MIR type definitions (the compiler's input format)
-- `spec/compiler.md` — the compilation pipeline spec (validate → lower → optimize → emit)
-- `spec/runtime.md` — the runtime primitives the compiler targets
-- `spec/reference-algorithms.md` — algorithmic patterns from the old compiler (use as reference, don't copy verbatim)
+- `spec/ir.md` — MIR type definitions (the compiler's input format)
+- `spec/compiler.md` — compilation pipeline spec
+- `spec/runtime.md` — runtime primitives the compiler targets
+- `spec/ROADMAP.md` — future work items (frontends, optimizations, tooling)
+- `spec/AGENT-LOG.md` — implementation history from the compiler rewrite
+- `spec/fixtures/` — test fixtures (`.mir.json` + `.expected.js` pairs)
 
-**Test against:**
+## Project layout
 
-- `spec/fixtures/*.mir.json` — MIR input fixtures
-- `spec/fixtures/*.expected.js` — expected JavaScript output
-
-## Key rules
-
-- **Do NOT reference the old compiler source code** in
-  `packages/roqa/src/compiler/` for behavior — it is being replaced. Use
-  `spec/reference-algorithms.md` for algorithmic patterns only.
-- **Do NOT modify the runtime** (`packages/roqa/src/runtime/`) beyond what
-  the implementation guide specifies (the `subscribe()` addition is already done).
-- **Do NOT modify examples, the Vite plugin, or package.json files** unless
-  the implementation guide explicitly says to.
-- **Log your progress** — update `spec/AGENT-LOG.md` at the end of every
-  session with what you did, decisions made, and issues found.
-- **Flag fixture mismatches** — if you think a fixture is wrong, log it in
-  `spec/AGENT-LOG.md` rather than silently adjusting your implementation.
-  See the "Fixture accuracy" section in `spec/implementation-guide.md`.
+```
+packages/roqa/src/compiler/   — the MIR-based backend compiler
+packages/roqa/src/runtime/    — runtime primitives (cell, template, forBlock, etc.)
+packages/roqa/tests/          — test suite (36 tests)
+packages/vite-plugin/         — Vite plugin (@roqajs/vite-plugin)
+examples/ir/                  — IR-based examples (13 working apps)
+examples/jsx/                 — JSX-based examples (require JSX frontend — not yet built)
+spec/                         — specifications and implementation history
+```
 
 ## Code style
 
 - Use tabs for indentation (see `.oxfmtrc.json`)
 - Plain JavaScript with JSDoc type annotations (no TypeScript compilation)
 - Type definitions in `.d.ts` files, imported via `/** @typedef {import(...)} */`
+
+## Rules
+
+- **Do NOT modify the compiler** (`packages/roqa/src/compiler/`) without
+  running the test suite (`cd packages/roqa && pnpm test`). All 36 tests
+  must pass.
+- **Do NOT modify the runtime** (`packages/roqa/src/runtime/`) unless the
+  task explicitly requires it.
+- **Do NOT modify `spec/fixtures/`** — these are the ground truth for
+  compiler output. If you think a fixture is wrong, flag it rather than
+  changing it.
+- **Test fixtures use `.mir.json`** (for editor JSON support). App files
+  use `.roqa`. Both contain the same JSON-serializable MIR format.

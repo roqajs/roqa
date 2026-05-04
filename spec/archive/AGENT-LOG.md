@@ -224,3 +224,37 @@ export default defineConfig({ plugins: [roqa()] });
 > Format: `YYYY-MM-DD | fixture-name | pass/fail | notes`
 
 *(No test runs yet.)*
+
+### 2026-05-03 | All fixtures | 36 tests passing
+
+```
+✅ static-component     (exact match)
+✅ counter-button       (exact match)
+✅ derived-state        (exact match)
+✅ deep-nesting         (exact match)
+✅ show-conditional     (exact match)
+✅ show-fallback        (exact match)
+✅ multi-component      (exact match)
+✅ svg-circle           (exact match)
+✅ external-refs        (exact match)
+✅ props-attrs          (exact match)
+✅ child-props          (exact match)
+✅ multi-action         (quote-normalized match — fixture inconsistency)
+✅ todo-list            (quote-normalized match — fixture inconsistency)
+```
+
+All 13 IR examples build successfully via `vite build`.
+
+---
+
+## Workstream Completion Summary
+
+**The MIR-based backend compiler rewrite is complete as of 2026-05-03.**
+
+All 6 implementation phases are done. The compiler accepts `.roqa` files
+(JSON-serializable MIR) and produces optimized JavaScript. The Vite plugin
+handles `.roqa` files natively. 13 examples in `examples/ir/` demonstrate
+every supported pattern.
+
+Remaining work (advanced optimizations, JSX frontend, JSON Schema, source
+maps, etc.) is tracked in `spec/ROADMAP.md`.
