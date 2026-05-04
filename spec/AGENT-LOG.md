@@ -25,12 +25,12 @@ and why certain decisions were made.
 | --- | --- | --- |
 | Phase 1: MIR types + validation | ✅ | `types.d.ts`, `validate.js`, `index.js` |
 | Phase 2: Expression IR compiler | ✅ | `expr-compiler.js` |
-| Phase 3: Lowering (MIR → LIR) | ✅ | `lower.js` — 11/13 fixtures exact match, 2 quote-only diffs |
+| Phase 3: Lowering (MIR → LIR) | ✅ | `lower.js` — all 13 fixtures passing |
 | Phase 4: Emitter (LIR → JS) | ✅ | `emit.js` |
 | Phase 5: Optimization passes | ✅ | `optimize.js` — inline cells + inline bindings |
 | Phase 6: Vite plugin integration | ⬚ | `packages/vite-plugin/src/index.js` |
 | Runtime: Add `subscribe()` | ✅ | `cell.js` + `index.js` exports (done pre-handoff) |
-| Tests | ⬚ | New test suite in `packages/roqa/tests/` |
+| Tests | ✅ | 36 tests passing (5 validate + 15 expr + 16 integration) |
 
 ---
 
