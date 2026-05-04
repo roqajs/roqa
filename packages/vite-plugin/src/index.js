@@ -1,6 +1,8 @@
 /** @import {Plugin} from 'vite' */
 
 import { compile } from "roqa/compiler";
+import { resolve, dirname } from "node:path";
+import { readFileSync } from "node:fs";
 
 /**
  * @typedef {Object} RoqaFrontend
@@ -37,23 +39,45 @@ export default function roqa(options) {
 			};
 		},
 
+		resolveId(source, importer) {
+			if (source.endsWith(".roqa") && importer) {
+				return resolve(dirname(importer), source);
+			}
+			return null;
+		},
+
+		async load(id) {
+			// Handle .roqa files directly (no frontend needed)
+			if (id.endsWith(".roqa")) {
+				try {
+					const code = readFileSync(id, "utf-8");
+					const mir = JSON.parse(code);
+					const result = compile(mir);
+					return { code: result.code, map: result.map };
+				} catch (error) {
+					this.error(formatCompileError(error, id));
+				}
+			}
+			return null;
+		},
+
 		async transform(code, id) {
-			// If a frontend is provided, let it decide what to handle
+			// Handle .roqa files in dev server (transform runs after load)
+			if (id.endsWith(".roqa")) {
+				try {
+					const mir = JSON.parse(code);
+					return compile(mir);
+				} catch {
+					// Already handled by load hook in build mode
+					return null;
+				}
+			}
+
 			if (frontend) {
 				if (!frontend.handles(id)) return null;
 
 				try {
 					const mir = frontend.toMIR(code, id);
-					return compile(mir);
-				} catch (error) {
-					this.error(formatCompileError(error, id));
-				}
-			}
-
-			// No frontend — check for .mir.json files (direct MIR input)
-			if (id.endsWith(".mir.json")) {
-				try {
-					const mir = JSON.parse(code);
 					return compile(mir);
 				} catch (error) {
 					this.error(formatCompileError(error, id));

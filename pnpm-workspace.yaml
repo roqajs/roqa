@@ -1,7 +1,8 @@
 # Roqa monorepo workspace configuration
 packages:
   - packages/*
-  - examples/*
+  - examples/jsx/*
+  - examples/ir/*
 
 # Shared dependency versions (use with `catalog:default` in package.json)
 catalogs:

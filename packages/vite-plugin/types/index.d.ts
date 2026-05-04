@@ -23,7 +23,7 @@ export interface RoqaPluginOptions {
  *
  * Accepts an optional `frontend` that converts source files to MIR.
  * The MIR is then compiled to optimized JavaScript by the Roqa backend.
- * Also handles `.mir.json` files directly (no frontend needed).
+ * Also handles `.roqa` files directly (no frontend needed).
  *
  * @example
  * ```js
