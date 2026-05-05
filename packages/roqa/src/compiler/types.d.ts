@@ -92,7 +92,8 @@ export type ExprIR =
 	| PropReadExpr
 	| AttrReadExpr
 	| ComputedReadExpr
-	| ParamReadExpr
+	| LocalReadExpr
+	| LetExpr
 	| BinaryExpr
 	| UnaryExpr
 	| ConditionalExpr
@@ -107,7 +108,6 @@ export type ExprIR =
 	| CollectionOpExpr
 	| EmitExpr
 	| ActionCallExpr
-	| ItemFieldReadExpr
 	| ClosureExpr
 	| ImportedRefExpr
 	| ExternalRefExpr
@@ -180,9 +180,21 @@ export type ComputedReadExpr = {
 	name: string;
 };
 
-export type ParamReadExpr = {
-	kind: "param-read";
+/** Read a name introduced by an enclosing scope: action params, closure
+ *  params, `EachIR.itemAlias`, `EachIR.indexAlias`, `LetExpr`, or (future)
+ *  `TryIR.catch.errorAlias`. Compiles to a bare identifier reference. */
+export type LocalReadExpr = {
+	kind: "local-read";
 	name: string;
+};
+
+/** Declare a local binding inside a `BlockExpr` body. The binding is in
+ *  scope for every subsequent statement in the same block (including nested
+ *  expressions). Compiles to `let <name> = <value>;`. */
+export type LetExpr = {
+	kind: "let";
+	name: string;
+	value: ExprIR;
 };
 
 export type BinaryExpr = {
@@ -290,11 +302,6 @@ export type ActionCallExpr = {
 	args: ExprIR[];
 };
 
-export type ItemFieldReadExpr = {
-	kind: "item-field-read";
-	field: string;
-};
-
 export type ClosureExpr = {
 	kind: "closure";
 	params: ClosureParam[];
@@ -339,17 +346,60 @@ export type OpaqueExpr = {
 
 // --- Nodes ---
 
-export type NodeIR = ElementIR | TextIR | ReactiveTextIR | ShowIR | EachIR;
+export type NodeIR =
+	| ElementIR
+	| DynamicElementIR
+	| TextIR
+	| ReactiveTextIR
+	| RawHtmlIR
+	| ShowIR
+	| SwitchIR
+	| EachIR
+	| TryIR;
 
 export type ElementIR = {
 	kind: "element";
 	tag: string;
-	ref?: string;
+	/** Zero or more refs on this element. Currently only the `name` kind is
+	 *  emitted by the backend; `callback` and `binding` kinds are reserved
+	 *  for v2 and trigger an `unsupported-ir-node` diagnostic. */
+	refs?: RefIR[];
 	attributes: Record<string, ExprIR>;
 	events: EventBindingIR[];
 	children: NodeIR[];
 	classes?: ClassIR;
 	styles?: StyleIR;
+	/** Optional source position metadata. Honored by the (future) source-map
+	 *  emitter; ignored otherwise. */
+	loc?: SourceLocation;
+};
+
+/** Runtime-dispatched element. `tag` is an expression that resolves to a
+ *  string at render time (TSRX-style `<@Heading />`).
+ *
+ *  Reserved for v2 — the compiler currently rejects this node with
+ *  `unsupported-ir-node`. */
+export type DynamicElementIR = {
+	kind: "dynamic-element";
+	tag: ExprIR;
+	refs?: RefIR[];
+	attributes: Record<string, ExprIR>;
+	events: EventBindingIR[];
+	children: NodeIR[];
+	classes?: ClassIR;
+	styles?: StyleIR;
+	loc?: SourceLocation;
+};
+
+export type RefIR =
+	| { kind: "name"; name: string }
+	| { kind: "callback"; handler: ExprIR }
+	| { kind: "binding"; target: ExprIR };
+
+export type SourceLocation = {
+	start: { line: number; column: number };
+	end?: { line: number; column: number };
+	source?: string;
 };
 
 export type TextIR = {
@@ -362,11 +412,38 @@ export type ReactiveTextIR = {
 	source: ExprIR;
 };
 
+/** Raw HTML insertion. Reserved for v2 — frontends may emit, but the compiler
+ *  currently rejects with `unsupported-ir-node`. */
+export type RawHtmlIR = {
+	kind: "raw-html";
+	source: ExprIR;
+	trusted?: boolean;
+};
+
 export type ShowIR = {
 	kind: "show";
 	condition: CellRef;
 	render: NodeIR[];
 	fallback?: NodeIR[];
+};
+
+/** Multi-branch rendering: `if/else if/else`, `switch`, `match`. */
+export type SwitchIR = {
+	kind: "switch";
+	/** Optional discriminant. When present, each arm's `test` is compared
+	 *  with `===` against this value (`switch (x)` semantics). When absent,
+	 *  each arm's `test` is evaluated as a boolean predicate (if/else-if). */
+	discriminant?: ExprIR;
+	arms: SwitchArmIR[];
+	fallback?: NodeIR[];
+	/** Optional explicit dependency cells. Frontends may declare them when
+	 *  the compiler can't statically derive them from arm tests. */
+	deps?: CellRef[];
+};
+
+export type SwitchArmIR = {
+	test: ExprIR;
+	render: NodeIR[];
 };
 
 /** Source for `EachIR`. Most frontends emit a `cell-ref` so the runtime can
@@ -381,7 +458,22 @@ export type EachIR = {
 	source: EachSourceIR;
 	key?: string | null;
 	itemAlias: string;
+	/** Optional alias bound to the iteration index. Read inside `render` via
+	 *  `local-read` with `name: <indexAlias>`. */
+	indexAlias?: string;
 	render: NodeIR[];
+	/** Optional view tree rendered when the source is empty. Toggled in/out
+	 *  at the same anchor as the items. */
+	empty?: NodeIR[];
+};
+
+/** Error / async boundary. Reserved for v2 — frontends may emit, but the
+ *  compiler currently rejects with `unsupported-ir-node`. */
+export type TryIR = {
+	kind: "try";
+	render: NodeIR[];
+	catch?: { errorAlias: string; render: NodeIR[] };
+	pending?: { render: NodeIR[] };
 };
 
 export type CellRef = {
@@ -525,7 +617,7 @@ export type UserImport = {
 
 export type BlockVar = {
 	name: string;
-	blockType: "show" | "each" | "fallback";
+	blockType: "show" | "each" | "fallback" | "switch" | "empty";
 };
 
 export type ConnectedBlock = {
@@ -601,6 +693,10 @@ export type BindingOp = {
 	 *  `target.<property> = value`. The `property` field holds the kebab-case
 	 *  CSS property name (e.g. `font-size`, `--my-var`). */
 	isStyleProp?: boolean;
+	/** When true, the binding writes raw HTML via `target.innerHTML = value`.
+	 *  Only emitted for `RawHtmlIR` lowerings. The `property` field is
+	 *  always `"innerHTML"` in this case. */
+	isInnerHTML?: boolean;
 };
 
 export type EventOp = {
@@ -613,16 +709,45 @@ export type EventOp = {
 
 export type BlockOp = {
 	kind: "block";
-	blockType: "show" | "each";
+	blockType: "show" | "each" | "switch";
 	container: string;
 	source: string;
 	controllerVar: string;
 	templateId?: string;
-	renderBody: BlockRenderBody;
+	/** Render body for show/each. For switch blocks, arm bodies live in
+	 *  `switchArms` and this field is omitted. */
+	renderBody?: BlockRenderBody;
 	fallbackBody?: BlockRenderBody;
 	fallbackControllerVar?: string;
 	key?: string;
 	itemAlias?: string;
+	indexAlias?: string;
+	/** Empty-body for `each` blocks. When set, an extra controller toggles
+	 *  this fallback in/out as the source's length crosses zero. */
+	emptyBody?: BlockRenderBody;
+	emptyControllerVar?: string;
+	/** Switch arms. Set only when blockType === "switch". Each arm carries
+	 *  its own template, root element, render body, and arm test. */
+	switchArms?: SwitchArmOp[];
+	/** When true, switch arms compare against `source` (the discriminant
+	 *  variable name) with `===`. When false, each arm's test is a boolean
+	 *  predicate. Only relevant for blockType === "switch". */
+	switchHasDiscriminant?: boolean;
+	/** Cell names this switch depends on (for runtime subscription). Only
+	 *  relevant for blockType === "switch". */
+	switchDeps?: string[];
+};
+
+export type SwitchArmOp = {
+	templateId: string;
+	rootElement: string;
+	traversals: TraversalOp[];
+	events: EventOp[];
+	bindings: BindingOp[];
+	classBindings: ClassBinding[];
+	/** Compiled test expression. Always a boolean expression in the emitted
+	 *  output (the discriminant comparison is folded in at lowering time). */
+	testExpr: string;
 };
 
 export type BlockRenderBody = {

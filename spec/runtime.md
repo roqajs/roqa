@@ -120,6 +120,7 @@ packages/roqa/src/runtime/
 ├── events.js         # Event delegation system
 ├── for-block.js      # List rendering with LIS reconciliation
 ├── show-block.js     # Conditional rendering
+├── switch-block.js   # Multi-branch rendering (if/else-if, switch, match)
 ├── template.js       # DOM template creation (HTML + SVG)
 └── index.js          # Public exports
 ```
@@ -133,8 +134,9 @@ packages/roqa/src/runtime/
 | `events.js` | Unchanged | Event delegation system is stable |
 | `for-block.js` | Unchanged | LIS reconciliation is stable |
 | `show-block.js` | Unchanged | Conditional rendering is stable |
+| `switch-block.js` | ✅ New | Multi-branch rendering for `SwitchIR` |
 | `template.js` | Unchanged | Template cloning is stable |
-| `index.js` | ✅ Done | `subscribe` added to exports |
+| `index.js` | ✅ Done | `subscribe`, `switchBlock` added to exports |
 
 ---
 
@@ -399,6 +401,33 @@ internally (via `bind()`). The hybrid model doesn't change how list
 reconciliation works — it just means the source cell may also have
 additional subscribers from other components.
 
+### Clear-to-empty fast path
+
+When a list transitions from non-empty to empty, `reconcileFastClear`
+picks one of two strategies based on whether the for-block exclusively
+owns its parent container:
+
+- **Fast path** — `parent.textContent = ""` followed by re-attaching the
+  anchor. Used when `items[0].start === parent.firstChild` *and*
+  `anchor === parent.lastChild` (i.e., no sibling DOM in the parent).
+  This is the fastest possible bulk-clear in browsers.
+- **Slow path** — `Range.deleteContents()` over the items' DOM range.
+  Used when siblings exist in the same parent (e.g., the anchor of an
+  `each.empty` showBlock, or static template content rendered alongside
+  the for-block). Removes only the items' nodes without touching
+  siblings.
+
+The `Range`-based slow path is correct and currently passes all tests,
+but its performance has not been thoroughly characterized.
+
+> **TODO (perf):** Benchmark `Range.deleteContents()` against alternative
+> slow-path implementations — e.g., a manual `node.remove()` loop walking
+> from `items[0].start` to `anchor.previousSibling`, batching via
+> `DocumentFragment`, or detaching the parent and reattaching after a
+> `textContent` clear. Pick whichever is fastest across the engines we
+> care about. The fast path is already optimal; only the slow path is
+> open for tuning.
+
 ---
 
 ## show-block.js — conditional rendering
@@ -417,6 +446,36 @@ Supports three condition types:
 
 **No changes needed.** Like `forBlock`, `showBlock` already uses the `e[]`
 subscriber array internally.
+
+---
+
+## switch-block.js — multi-branch rendering
+
+Multi-branch rendering — the runtime target for `if/else if/else`, `switch`,
+and `match`-style template constructs. Tracks which arm is active and only
+swaps DOM when the active arm changes.
+
+```js
+switchBlock(container, arms, fallbackRender, deps?)
+  → { update, destroy, get activeArm() }
+```
+
+- **arms** — ordered list of `{ test: () => boolean, render: (anchor) => { start, end, cleanup? } }`.
+  Tests are evaluated in declaration order; first match wins.
+- **fallbackRender** — optional render fn used when no arm matches; pass
+  `null` to leave the block empty in that case.
+- **deps** — cells the block subscribes to so updates re-pick the active arm.
+- **activeArm** — `0..arms.length-1` for an arm, `arms.length` for the
+  fallback, or `-1` when nothing is rendered.
+
+**Discriminant vs predicate modes** are folded at compile time:
+- **Discriminant mode** (`switch (x)`): each arm's test becomes
+  `() => x === <armValue>`.
+- **Predicate mode** (`if/else if`): each arm's test is its own boolean
+  expression.
+
+The runtime treats both modes the same — it just calls each arm's `test`
+function until one returns truthy.
 
 ---
 

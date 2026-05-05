@@ -1,0 +1,148 @@
+{
+	"version": 1,
+	"tagName": "switch-discriminant-demo",
+	"name": "SwitchDiscriminantDemo",
+
+	"state": [
+		{
+			"kind": "value",
+			"name": "status",
+			"initial": "loading"
+		}
+	],
+	"actions": [
+		{
+			"kind": "action",
+			"name": "setLoading",
+			"params": [],
+			"body": { "kind": "state-write", "name": "status", "value": { "kind": "literal", "value": "loading" } }
+		},
+		{
+			"kind": "action",
+			"name": "setSuccess",
+			"params": [],
+			"body": { "kind": "state-write", "name": "status", "value": { "kind": "literal", "value": "success" } }
+		},
+		{
+			"kind": "action",
+			"name": "setError",
+			"params": [],
+			"body": { "kind": "state-write", "name": "status", "value": { "kind": "literal", "value": "error" } }
+		},
+		{
+			"kind": "action",
+			"name": "setUnknown",
+			"params": [],
+			"body": { "kind": "state-write", "name": "status", "value": { "kind": "literal", "value": "???" } }
+		}
+	],
+	"props": [],
+	"attrs": [],
+	"emits": [],
+	"lifecycle": {},
+
+	"render": [
+		{
+			"kind": "element",
+			"tag": "section",
+			"attributes": {},
+			"events": [],
+			"children": [
+				{
+					"kind": "element",
+					"tag": "h2",
+					"attributes": {},
+					"events": [],
+					"children": [{ "kind": "text", "value": "SwitchIR (discriminant mode)" }]
+				},
+				{
+					"kind": "element",
+					"tag": "div",
+					"attributes": { "class": { "kind": "literal", "value": "buttons" } },
+					"events": [],
+					"children": [
+						{
+							"kind": "element",
+							"tag": "button",
+							"attributes": {},
+							"events": [{ "event": "click", "handler": { "kind": "action-call", "name": "setLoading", "args": [] } }],
+							"children": [{ "kind": "text", "value": "loading" }]
+						},
+						{
+							"kind": "element",
+							"tag": "button",
+							"attributes": {},
+							"events": [{ "event": "click", "handler": { "kind": "action-call", "name": "setSuccess", "args": [] } }],
+							"children": [{ "kind": "text", "value": "success" }]
+						},
+						{
+							"kind": "element",
+							"tag": "button",
+							"attributes": {},
+							"events": [{ "event": "click", "handler": { "kind": "action-call", "name": "setError", "args": [] } }],
+							"children": [{ "kind": "text", "value": "error" }]
+						},
+						{
+							"kind": "element",
+							"tag": "button",
+							"attributes": {},
+							"events": [{ "event": "click", "handler": { "kind": "action-call", "name": "setUnknown", "args": [] } }],
+							"children": [{ "kind": "text", "value": "???" }]
+						}
+					]
+				},
+				{
+					"kind": "switch",
+					"discriminant": { "kind": "state-read", "name": "status" },
+					"arms": [
+						{
+							"test": { "kind": "literal", "value": "loading" },
+							"render": [
+								{
+									"kind": "element",
+									"tag": "p",
+									"attributes": { "class": { "kind": "literal", "value": "status loading" } },
+									"events": [],
+									"children": [{ "kind": "text", "value": "⏳ Loading..." }]
+								}
+							]
+						},
+						{
+							"test": { "kind": "literal", "value": "success" },
+							"render": [
+								{
+									"kind": "element",
+									"tag": "p",
+									"attributes": { "class": { "kind": "literal", "value": "status success" } },
+									"events": [],
+									"children": [{ "kind": "text", "value": "✅ Done!" }]
+								}
+							]
+						},
+						{
+							"test": { "kind": "literal", "value": "error" },
+							"render": [
+								{
+									"kind": "element",
+									"tag": "p",
+									"attributes": { "class": { "kind": "literal", "value": "status error" } },
+									"events": [],
+									"children": [{ "kind": "text", "value": "❌ Something broke." }]
+								}
+							]
+						}
+					],
+					"fallback": [
+						{
+							"kind": "element",
+							"tag": "p",
+							"attributes": { "class": { "kind": "literal", "value": "status fallback" } },
+							"events": [],
+							"children": [{ "kind": "text", "value": "🤷 Unknown status." }]
+						}
+					]
+				}
+			]
+		}
+	]
+}

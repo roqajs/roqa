@@ -330,7 +330,8 @@ type ExprIR =
     | PropReadExpr
     | AttrReadExpr
     | ComputedReadExpr
-    | ParamReadExpr
+    | LocalReadExpr
+    | LetExpr
     | BinaryExpr
     | UnaryExpr
     | ConditionalExpr
@@ -345,7 +346,6 @@ type ExprIR =
     | CollectionOpExpr
     | EmitExpr
     | ActionCallExpr
-    | ItemFieldReadExpr
     | ClosureExpr
     | ImportedRefExpr
     | ExternalRefExpr
@@ -425,22 +425,63 @@ type ComputedReadExpr = {
     name: string;
 };
 
-// Read a parameter by name (action params, closure params, event param)
-// Replaces opaque source strings like "id", "t", "e.target.value".
-// The name must match a parameter declared in the enclosing ActionIR.params
-// or ClosureExpr.params. For inline event handlers, the implicit event
-// parameter is always named "e".
-type ParamReadExpr = {
-    kind: "param-read";
-    name: string;                 // Parameter name: "id", "t", "e", etc.
+// Read a name introduced by an enclosing scope. The set of valid scope
+// introducers is:
+//   - ActionIR.params (action parameters)
+//   - ClosureExpr.params (closure parameters, including the implicit `e`
+//     in inline event handlers)
+//   - EachIR.itemAlias (current iteration item)
+//   - EachIR.indexAlias (current iteration index)
+//   - LetExpr.name (a local binding declared inside a BlockExpr body)
+//   - (future) TryIR.catch.errorAlias
+//
+// Compiles to a bare identifier reference. Frontends MUST ensure the name
+// is in scope; the validator reports `unbound-local` for dangling reads.
+type LocalReadExpr = {
+    kind: "local-read";
+    name: string;
 };
 
-// Read a field of the current list item (inside each() render callbacks)
-type ItemFieldReadExpr = {
-    kind: "item-field-read";
-    field: string;
+// Declare a local binding inside a `BlockExpr` body. The binding is in
+// scope for every subsequent statement in the same block (and for any
+// nested expressions inside those statements). Compiles to
+// `let <name> = <value>;`.
+//
+// Use case: action-body temporaries, computing intermediate values before
+// writing state, destructuring helper objects.
+//
+// Example:
+//   {
+//     "kind": "block",
+//     "body": [
+//       { "kind": "let", "name": "next", "value": <ExprIR> },
+//       { "kind": "state-write", "name": "count", "value": { "kind": "local-read", "name": "next" } }
+//     ]
+//   }
+type LetExpr = {
+    kind: "let";
+    name: string;
+    value: ExprIR;
 };
 ```
+
+#### Reading list-item fields
+
+There is no dedicated `item-field-read` node — frontends compose item field
+access from a `LocalReadExpr` (the each loop's `itemAlias`) and a
+`MemberExpr`:
+
+```json
+// equivalent of accessing `todo.text` inside an each over `todos`:
+{
+    "kind": "member",
+    "object": { "kind": "local-read", "name": "todo" },
+    "property": "text"
+}
+```
+
+This keeps the IR small and composes naturally with deeper paths
+(`todo.author.name` is two nested `MemberExpr`s).
 
 ### Operator expressions
 
@@ -731,7 +772,7 @@ And a computed value:
                 "op": "!",
                 "operand": {
                     "kind": "member",
-                    "object": { "kind": "param-read", "name": "t" },
+                    "object": { "kind": "local-read", "name": "t" },
                     "property": "completed"
                 }
             }
@@ -861,11 +902,22 @@ The view tree. Every node the component renders is one of these types.
 ```ts
 type NodeIR =
     | ElementIR
+    | DynamicElementIR
     | TextIR
     | ReactiveTextIR
+    | RawHtmlIR
     | ShowIR
-    | EachIR;
+    | SwitchIR
+    | EachIR
+    | TryIR;
 ```
+
+> **Implementation status.** As of v1, `ElementIR`, `TextIR`, `ReactiveTextIR`,
+> `RawHtmlIR`, `ShowIR`, `EachIR`, and `SwitchIR` are fully implemented.
+> `DynamicElementIR` and `TryIR` are reserved IR shapes — frontends may emit
+> them, but the compiler currently rejects them with an `unsupported-ir-node`
+> diagnostic. They're spec'd here so adding runtime support later is
+> non-breaking.
 
 ### `ElementIR` — an HTML element
 
@@ -876,14 +928,62 @@ events, children, etc.
 type ElementIR = {
     kind: "element";
     tag: string;                  // HTML tag name (e.g., "div", "button")
-    ref?: string;                 // Named ref for lifecycle access
+    refs?: RefIR[];               // Zero or more refs on this element
     attributes: Record<string, ExprIR>;
     events: EventBindingIR[];
     children: NodeIR[];
     classes?: ClassIR;
     styles?: StyleIR;
+    loc?: SourceLocation;         // Optional source position metadata
+                                  //   (used by source-map emission only)
+};
+
+// Refs. Only the `name` kind is currently honored by the backend.
+// `callback` and `binding` are reserved for v2 — they're spec'd here so
+// frontends targeting v2 can plan, and so adding runtime support later is
+// non-breaking.
+type RefIR =
+    | { kind: "name"; name: string }              // Named lifecycle slot
+    | { kind: "callback"; handler: ExprIR }       // Function called with the node
+    | { kind: "binding"; target: ExprIR };        // Assign node into a state cell
+                                                  //   or other writable target
+
+// Source position metadata. Optional on every IR node; used only by the
+// source-map emitter. Absence is fine — the backend produces correct output
+// either way.
+type SourceLocation = {
+    start: { line: number; column: number };
+    end?: { line: number; column: number };
+    source?: string;              // Absolute or relative path to the original
+                                  //   source file (overrides ComponentMetadata.sourceFile)
 };
 ```
+
+### `DynamicElementIR` — runtime-dispatched element (reserved)
+
+```ts
+type DynamicElementIR = {
+    kind: "dynamic-element";
+    tag: ExprIR;                  // Expression resolving to a tag name string
+    refs?: RefIR[];
+    attributes: Record<string, ExprIR>;
+    events: EventBindingIR[];
+    children: NodeIR[];
+    classes?: ClassIR;
+    styles?: StyleIR;
+    loc?: SourceLocation;
+};
+```
+
+> **Status: not yet implemented.** Frontends may emit `DynamicElementIR` for
+> forward compatibility, but the compiler currently rejects it with
+> `unsupported-ir-node`.
+
+When implemented, `DynamicElementIR` will lower to a runtime helper that
+creates the element with `document.createElement(<tag>)`, applies all
+attributes/events/classes/styles, and re-creates the element when the tag
+expression's dependencies change. Use case: `<Heading as={level}>`,
+polymorphic primitives, "render this list as `ul` or `ol`."
 
 Attribute values are `ExprIR` nodes. Static attributes use `LiteralExpr`,
 reactive attributes use `StateReadExpr`, `PropReadExpr`, `ComputedReadExpr`,
@@ -927,7 +1027,7 @@ Goes directly into the template HTML string. No binding needed.
 type ReactiveTextIR = {
     kind: "reactive-text";
     source: ExprIR;               // Expression to display (typically StateReadExpr,
-                                  // ComputedReadExpr, PropReadExpr, or ItemFieldReadExpr)
+                                  // ComputedReadExpr, PropReadExpr, or LocalReadExpr / MemberExpr)
 };
 ```
 
@@ -975,6 +1075,114 @@ Lowered to `showBlock(container, conditionCell, renderFn)`.
 The `condition` is a **cell-ref** (not an expression read) — the code generator
 passes the cell directly to `showBlock()` for subscription.
 
+`ShowIR` is intentionally a binary (truthy/falsy) primitive. For multi-branch
+rendering — `if/else if/else`, `switch`, `match` — use `SwitchIR` instead.
+The two are kept separate because `showBlock` is the most common case and a
+focused 2-arm primitive is smaller and cheaper than the general N-arm one.
+
+### `SwitchIR` — multi-branch rendering
+
+`SwitchIR` is the IR-level normalization of `if/else if/else` chains, JS
+`switch` statements, and `match`-style multi-branch rendering. Frontends with
+different surface syntaxes (TSRX-style template `if`, a future Roqa DSL with
+`match`, etc.) all lower to the same node shape.
+
+```ts
+type SwitchIR = {
+    kind: "switch";
+
+    // Optional discriminant. When present, each arm's `test` is compared
+    // against this value with `===` (JavaScript `switch` semantics).
+    // When absent, each arm's `test` is evaluated as a boolean predicate
+    // (if/else if chain semantics).
+    discriminant?: ExprIR;
+
+    arms: SwitchArmIR[];          // Evaluated in order; first match wins
+    fallback?: NodeIR[];          // Default branch (`else` / `default:`)
+
+    // Optional explicit dependency list. When the compiler can't statically
+    // derive the cells driving this switch (e.g. predicate arms over local
+    // expressions), frontends may declare them here. The compiler also
+    // performs auto-dependency extraction by walking arm tests.
+    deps?: CellRef[];
+};
+
+type SwitchArmIR = {
+    test: ExprIR;                 // Equality test (with discriminant)
+                                  //   or boolean predicate (without)
+    render: NodeIR[];
+};
+```
+
+Lowered to `switchBlock(container, arms, fallbackRenderFn?, deps?)`. See
+[runtime.md §switch-block.js](./runtime.md#switch-blockjs--multi-branch-rendering)
+for the runtime semantics.
+
+**Predicate-mode example** (no discriminant, if/else-if chain):
+
+```json
+{
+    "kind": "switch",
+    "arms": [
+        {
+            "test": {
+                "kind": "binary",
+                "op": "===",
+                "left": { "kind": "state-read", "name": "status" },
+                "right": { "kind": "literal", "value": "loading" }
+            },
+            "render": [/* loading branch */]
+        },
+        {
+            "test": {
+                "kind": "binary",
+                "op": "===",
+                "left": { "kind": "state-read", "name": "status" },
+                "right": { "kind": "literal", "value": "error" }
+            },
+            "render": [/* error branch */]
+        }
+    ],
+    "fallback": [/* default branch */]
+}
+```
+
+**Discriminant-mode example** (`switch (status) { ... }`):
+
+```json
+{
+    "kind": "switch",
+    "discriminant": { "kind": "state-read", "name": "status" },
+    "arms": [
+        { "test": { "kind": "literal", "value": "loading" }, "render": [/* ... */] },
+        { "test": { "kind": "literal", "value": "error" },   "render": [/* ... */] },
+        { "test": { "kind": "literal", "value": "success" }, "render": [/* ... */] }
+    ],
+    "fallback": [/* default */]
+}
+```
+
+**Why both modes?** Predicate mode handles `if/else if` chains naturally —
+each arm has its own arbitrary test. Discriminant mode handles `switch (x)`
+naturally and lets the runtime use a single `===` dispatch instead of N
+function calls per update. Frontends pick whichever mode their surface syntax
+maps to most cleanly; the runtime supports both with one helper.
+
+**Fall-through is not supported.** First-match-wins is the only semantics —
+a JS `switch` with fall-through must be normalized into duplicated arms (or
+a different `arms[]` test expression) before reaching the MIR.
+
+#### When to emit `SwitchIR` vs nested `ShowIR`
+
+- `if (a) { ... }` → `ShowIR { condition, render }`.
+- `if (a) { ... } else { ... }` → `ShowIR { condition, render, fallback }`.
+- `if (a) { ... } else if (b) { ... } [else { ... }]` → `SwitchIR` (predicate mode).
+- `switch (x) { ... }` → `SwitchIR` (discriminant mode).
+
+Frontends should normalize aggressively — a 3-branch nested `ShowIR` chain is
+valid IR but produces inferior code (one anchor per branch, three controllers,
+three subscriptions).
+
 ### `EachIR` — list rendering
 
 ```ts
@@ -983,7 +1191,12 @@ type EachIR = {
     source: EachSourceIR;         // Cell or arbitrary expression (auto-lifted)
     key?: string | null;          // Key field name or null for identity
     itemAlias: string;            // Variable name for the current item (e.g., "todo")
+    indexAlias?: string;          // Optional name bound to the iteration index.
+                                  //   When set, the render body may use a
+                                  //   `local-read` with this name to read 0-based index.
     render: NodeIR[];             // View tree for each item
+    empty?: NodeIR[];             // Optional view tree rendered when source is empty.
+                                  //   Toggled in/out at the same anchor as the items.
 };
 
 // `each` accepts either a cell-ref or any ExprIR. Non-cell sources (constant
@@ -994,11 +1207,116 @@ type EachIR = {
 type EachSourceIR = CellRef | ExprIR;
 ```
 
-Lowered to `forBlock(container, sourceCell, renderFn)`.
+Lowered to `forBlock(container, sourceCell, renderFn, options?)`.
 
 The `itemAlias` names the iteration variable in the generated `forBlock` render
-callback. The backend derives which item fields are accessed by walking the
-render tree for `item-field-read` expression nodes.
+callback. To access fields of the current item, frontends compose a
+`MemberExpr` over a `LocalReadExpr` whose name matches the `itemAlias`
+(e.g., `member { object: local-read("todo"), property: "text" }` for
+`todo.text`).
+
+When `indexAlias` is set, the index parameter of the `forBlock` render
+callback is bound to that name and may be referenced inside the render body
+via a `local-read` with `name: <indexAlias>`. Frontends that don't need the
+index simply omit the field.
+
+When `empty` is set, the compiler emits a sibling controller that toggles the
+empty fallback in/out as the source's length transitions across zero. This
+shares the same anchor as the items, so they always render in source order.
+
+### `RawHtmlIR` — raw HTML insertion
+
+```ts
+type RawHtmlIR = {
+    kind: "raw-html";
+    source: ExprIR;               // Expression resolving to a string of HTML markup
+    trusted?: boolean;            // Frontend declaration acknowledging the
+                                  //   security implications. The default is
+                                  //   `false`. Has no codegen effect today —
+                                  //   reserved for a future runtime
+                                  //   sanitization pass.
+};
+```
+
+`RawHtmlIR` lowers to a binding that sets `<parentEl>.innerHTML = <source>`.
+Reactive sources update the parent's subtree on every change (the runtime's
+existing `cell.ref → property` machinery handles this — no special runtime
+helper is needed).
+
+**Constraints, enforced at validation:**
+
+- A `RawHtmlIR` must be the **sole child** of its parent element. Sibling
+  children alongside a `raw-html` are a compile-time error
+  (`raw-html-not-sole-child`). This matches TSRX's Vue-target constraint and
+  reflects that the runtime replaces the parent's entire subtree on every
+  update.
+- Multiple `RawHtmlIR` children on a single element are also rejected
+  (`duplicate-raw-html`).
+- Every usage emits a `raw-html-used` warning (security advisory). In a
+  future `strict` security mode this becomes an error.
+
+**Security:** `RawHtmlIR` inserts unsanitized HTML — only use with trusted
+input. The `trusted: true` flag is an explicit acknowledgement that the
+frontend has reasoned about the source. A future runtime sanitization pass
+may choose to skip sanitization for `trusted: true` sources.
+
+This is kept distinct from `ReactiveTextIR` because the two have fundamentally
+different DOM semantics — escaped text node vs parsed HTML subtree — and
+making the distinction explicit at the IR level prevents accidental XSS via
+"the expression happened to resolve to a string with `<` in it."
+
+#### Example
+
+```json
+{
+    "kind": "element",
+    "tag": "article",
+    "attributes": {},
+    "events": [],
+    "children": [
+        {
+            "kind": "raw-html",
+            "source": { "kind": "state-read", "name": "markup" },
+            "trusted": true
+        }
+    ]
+}
+```
+
+Compiles to (essentials):
+
+```js
+article_1.innerHTML = markup.v;
+markup.ref_1 = article_1;
+// ...and on action-driven cell writes, `markup.ref_1.innerHTML = markup.v`
+// is inlined into the action body for reactive updates.
+```
+
+### `TryIR` — error and async boundaries (reserved)
+
+```ts
+type TryIR = {
+    kind: "try";
+    render: NodeIR[];             // Primary content
+    catch?: {
+        errorAlias: string;       // Name bound to the caught error inside `render`.
+                                  //   Read via `local-read` with this name.
+        render: NodeIR[];
+    };
+    pending?: { render: NodeIR[] };  // Suspense-style fallback for async children
+};
+```
+
+> **Status: not yet implemented.** Frontends may emit `TryIR` for forward
+> compatibility, but the compiler currently rejects this node with an
+> `unsupported-ir-node` error diagnostic. Spec'd here so adding it later is
+> non-breaking.
+
+When implemented, `TryIR` will lower to a runtime helper analogous to
+`showBlock`/`switchBlock` that swaps between `render`, `catch.render`, and
+`pending.render` based on child status (synchronous error → `catch`, in-flight
+async work → `pending`, otherwise → `render`). The model is intentionally
+similar to TSRX's `try { } catch { } pending { }` template form.
 
 ---
 
@@ -1061,8 +1379,8 @@ Event handlers are `ExprIR` nodes. The most common forms:
 
 - **Named action** — `{ kind: "action-call", name: "increment", args: [] }`.
   Lowers to `el.__click = increment`.
-- **Bound action** — `{ kind: "action-call", name: "toggleTodo", args: [{ kind: "item-field-read", field: "id" }] }`.
-  Lowers to `el.__click = [toggleTodo, id]` (array-form delegated event).
+- **Bound action** — `{ kind: "action-call", name: "toggleTodo", args: [{ kind: "member", object: { kind: "local-read", name: "todo" }, property: "id" }] }`.
+  Lowers to `el.__click = [toggleTodo, todo.id]` (array-form delegated event).
 - **Inline handler** — `{ kind: "closure", params: ["e"], body: <ExprIR> }`.
   Lowers to `el.__input = (e) => { ... }`.
 
@@ -1141,7 +1459,7 @@ class={["todo", { completed: todo.completed }]}
     "kind": "class-list",
     "items": [
         "todo",
-        { "name": "completed", "condition": { "kind": "item-field-read", "field": "completed" } }
+        { "name": "completed", "condition": { "kind": "member", "object": { "kind": "local-read", "name": "todo" }, "property": "completed" } }
     ]
 }
 ```
@@ -1678,18 +1996,6 @@ is breaking.
 
 ## Open questions
 
-### Variable declarations and assignments
-
-The expression IR currently handles state reads/writes as first-class nodes,
-but doesn't have a general-purpose `let`/`const` declaration or local variable
-assignment. Action bodies sometimes need local temporaries (e.g., computing an
-intermediate value before setting state). Currently this would require either:
-- Nesting expressions (which can get unwieldy)
-- Using `OpaqueExpr` for the whole action body
-
-A `LetExpr` or `AssignExpr` node may be needed if action logic grows beyond
-simple one-liners. Worth monitoring as real-world components are built.
-
 ### Async expressions
 
 The expression IR has no concept of `async`/`await`. For the initial
@@ -1701,7 +2007,7 @@ either:
 - Relegation to `OpaqueExpr` for now
 
 This interacts with the server functions / data fetching story (see §Meta-
-framework extensibility below).
+framework extensibility below) and with `TryIR.pending`.
 
 ---
 
@@ -1902,18 +2208,124 @@ third-party code — it just makes the references explicit.
 
 ### CSS and styling
 
-The IR handles inline styles (`StyleIR`) and class bindings (`ClassIR`) but
-does not attempt to model CSS-in-JS, CSS modules, or utility-class frameworks
-(Tailwind, etc.). This is deliberate:
+The IR handles inline styles (`StyleIR`) and class bindings (`ClassIR`) today.
+A `StylesheetIR` for component-scoped CSS rules is **reserved** — frontends
+may emit it for forward compatibility, but the compiler currently ignores
+it. The shape below is normative for v2.
 
-- CSS is its own language with its own tooling chain
-- Trying to model CSS in the IR would massively expand the spec with little
-  benefit
-- The output is standard web components — CSS can be applied externally via
-  regular stylesheets, adopted stylesheets, or (in the future) shadow DOM
+#### `StylesheetIR` — component-scoped CSS rules (reserved)
 
-A future `StylesheetIR` could associate a component with its CSS (e.g., for
-shadow DOM encapsulation), but this is not part of v1.
+```ts
+type StylesheetIR = {
+    kind: "stylesheet";
+    source: string;               // The raw CSS source text authored by the user.
+                                  //   The compiler parses, scopes, and emits it.
+    scope: ScopeMode;             // How the compiler isolates these rules
+                                  //   from the rest of the page.
+    deduplicate?: boolean;        // When true (default), identical stylesheets
+                                  //   across components share an `adoptedStyleSheets`
+                                  //   instance.
+};
+
+type ScopeMode =
+    | { kind: "tag-prefix" }                     // Default — see below.
+    | { kind: "hash"; classes?: string[] }       // Hash-rewrite (Svelte/Vue/TSRX style).
+    | { kind: "global" }                         // No scoping (escape hatch).
+    | { kind: "shadow" };                        // Reserved for future Shadow DOM support.
+```
+
+A component's `ComponentIR` will gain an optional `styles?: StylesheetIR`
+field when `StylesheetIR` lands. The compiler emits the stylesheet via
+`document.adoptedStyleSheets` (or a shared `<style>` element) at component
+register time, deduplicated across components when `deduplicate` is true.
+
+#### Scoping strategies
+
+Two valid strategies, chosen via `ScopeMode`:
+
+**1. Tag-prefix scoping** (`{ kind: "tag-prefix" }`) — the default.
+
+Every selector in `source` is prefixed with the component's custom-element
+tag name, leaning on the fact that Roqa components are guaranteed-unique
+custom elements:
+
+```css
+/* Authored */
+.badge { padding: 0.5rem; }
+.badge.active { background: green; }
+
+/* Compiled (for tag "user-card") */
+user-card .badge { padding: 0.5rem; }
+user-card .badge.active { background: green; }
+```
+
+Pros: zero element rewriting, trivial implementation, predictable output.
+Cons: leaks into descendant components that happen to use the same selectors
+(e.g., a child component that also renders `.badge` will inherit the rule).
+This is the right default for components that don't *need* full isolation —
+which, in practice, is most of them.
+
+**2. Hash-rewrite scoping** (`{ kind: "hash" }`) — opt-in.
+
+Every class selector in `source` gets a unique hash suffix, and the compiler
+walks the render tree to add the suffix to every `class` attribute that
+matches. This is Svelte/Vue/TSRX-style scoping:
+
+```css
+/* Authored, compiled with hash "abc123" */
+.badge { padding: 0.5rem; }
+
+/* Compiled CSS */
+.badge-abc123 { padding: 0.5rem; }
+
+/* Render tree class="badge" attributes become class="badge-abc123" */
+```
+
+Pros: full isolation; rules truly only match elements the component owns.
+Cons: requires the compiler to walk and rewrite the render tree; cross-
+component class composition (e.g., passing class names to children) needs
+an explicit directive (TSRX's `{style "name"}`) to forward the hashed name.
+
+The optional `classes` allowlist on hash mode lets frontends declare the
+exact class names eligible for rewriting, so descendant-combinator selectors
+that mention parent-component classes can be rewritten correctly.
+
+**3. Global** (`{ kind: "global" }`) — escape hatch for design-system
+resets, font-face rules, CSS custom property declarations on `:root`, etc.
+Emitted unmodified.
+
+**4. Shadow DOM** (`{ kind: "shadow" }`) — reserved alongside the broader
+Shadow DOM support landing (see §Next steps). When enabled, the stylesheet is
+attached to the component's shadow root and no scoping rewrite is needed.
+
+#### Cross-component class composition (future)
+
+When hash-rewrite scoping ships, a `{style "className"}` directive
+(equivalent to TSRX's directive) will let parent components forward a hashed
+class name to child components as a regular `class` attribute string. The IR
+shape will look something like:
+
+```ts
+type StyleClassRefExpr = {
+    kind: "style-class-ref";
+    name: string;                 // Class name as authored in the parent stylesheet
+};
+```
+
+This is also reserved — not part of v1.
+
+#### Why a single primitive with multiple modes?
+
+The two scoping strategies share more than they diverge: both parse CSS,
+both emit to `adoptedStyleSheets`, both deduplicate. Splitting them into
+separate IR nodes would double the surface area without buying anything.
+A `ScopeMode` union keeps the IR small and lets frontends choose per
+component (or even per stylesheet within a component, eventually).
+
+The IR doesn't model CSS-in-JS, CSS Modules, or utility-class frameworks
+(Tailwind, etc.) — those are higher-level patterns that compile *to* either
+`StyleIR`, `ClassIR`, or external CSS files. Trying to model them in the IR
+would massively expand the spec with little benefit.
 
 ### TypeScript
 
@@ -2043,24 +2455,55 @@ This is a future concern — the v1 IR is client-side only.
 
 ### Server functions (future)
 
-Server functions (like Solid's `"use server"` or Next's server actions) split
-a single component's logic across the client/server boundary. This is a deep
-concern that affects codegen:
+Server functions (like Solid's `"use server"`, Next's server actions, or
+TSRX's `module server { ... }` submodules) split a single component's logic
+across the client/server boundary. This is a deep concern that affects
+codegen — the compiler must produce two outputs from one source: a client
+bundle that issues RPCs, and a server bundle that handles them.
+
+Roqa intends to model this as a **module-scoped boundary** rather than a
+per-action flag. This is the TC39 module-declarations-aligned shape that
+TSRX uses, and it composes better than smearing client/server discrimination
+across N action declarations:
 
 ```ts
-type ActionIR = {
-    kind: "action";
-    name: string;
-    params: string[];
-    body: ExprIR;
-    server?: boolean;             // If true, this action runs on the server
-                                  // Backend generates an RPC call on the client
+type ServerModuleIR = {
+    kind: "server-module";
+    exports: ServerExportIR[];    // Functions / values the client may import
+    body: ExprIR;                 // Server-side initialization (runs once per request)
+    imports?: ImportIR[];         // Imports available only on the server side
+                                  //   (e.g. database drivers)
+};
+
+type ServerExportIR = {
+    name: string;                 // Exported binding name
+    params: string[];             // RPC parameter names
+    body: ExprIR;                 // Server-side function body
+    async?: boolean;
+};
+
+// On the ComponentIR:
+type ComponentIR = {
+    // ...existing fields...
+    serverModule?: ServerModuleIR;
 };
 ```
 
-This is also a future concern but worth noting here because it affects the
-`ActionIR` type shape. The key insight is that server functions are a
-compilation concern (the backend must split code), not just a runtime concern.
+When implemented, a frontend will emit `ComponentIR.serverModule` for any
+`module server { ... }`-style declaration. Each `ServerExportIR` becomes:
+- **Server output**: a regular function registered with the RPC dispatcher.
+- **Client output**: a stub that serializes args, calls the dispatcher, and
+  awaits the result.
+
+References to server exports from action bodies become `ImportedRefExpr`
+nodes whose `source` is a magic specifier (e.g., `roqa:server`) that the
+backend recognizes and rewrites in the client bundle.
+
+The previous `ActionIR.server?: boolean` sketch is **superseded** by this
+module-scoped shape — submodules share imports, types, error handling, and
+authentication context, which a per-action flag can't express cleanly.
+
+This is a future concern; v1 components are client-only.
 
 ---
 
@@ -2090,21 +2533,16 @@ When Shadow DOM support is added, the MIR will be extended with optional
 `ComponentMetadata`. The default will remain light DOM for backward
 compatibility.
 
-### `RawHtmlIR` — trusted HTML insertion
+### `RawHtmlIR` — security follow-ups
 
-A `RawHtmlIR` node type (`kind: "raw-html"`) for inserting trusted HTML
-strings directly into the DOM is deferred from v1. This is a significant
-security concern — it creates a direct XSS attack vector if the HTML comes
-from untrusted sources.
+The `RawHtmlIR` shape is specified in §MIR: Node IR and is implemented as of
+v1 (lowering, the `raw-html-used` warning, and the sole-child constraint).
+The remaining items below are scheduled for the eventual `strict` security
+mode and a future runtime sanitization pass:
 
-When this is added in a future version, it will require:
-- A `raw-html-used` validation warning for every usage
 - Static analysis of HTML strings at build time to reject dangerous patterns
-  (script tags, event handler attributes, `javascript:` URLs)
-- Optional runtime sanitization for dynamic (reactive) HTML values
-- A `trusted: boolean` flag for explicitly opting out of sanitization
+  (script tags, event handler attributes, `javascript:` URLs).
+- Optional runtime sanitization for reactive HTML values (skipped when the
+  IR sets `trusted: true`).
 - Full support in the `strict` security mode (reject all `RawHtmlIR` in
-  strict mode)
-
-Until `RawHtmlIR` is implemented, components that need to render HTML strings
-should use standard DOM APIs via `OpaqueExpr` or lifecycle hooks.
+  strict mode regardless of the `trusted` flag).

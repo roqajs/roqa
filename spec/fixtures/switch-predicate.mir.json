@@ -1,0 +1,83 @@
+{
+	"version": 1,
+	"tagName": "score-badge",
+	"name": "ScoreBadge",
+
+	"state": [
+		{
+			"kind": "value",
+			"name": "score",
+			"initial": 0
+		}
+	],
+	"actions": [],
+	"props": [],
+	"attrs": [],
+	"emits": [],
+	"lifecycle": {},
+
+	"render": [
+		{
+			"kind": "element",
+			"tag": "div",
+			"attributes": {},
+			"events": [],
+			"children": [
+				{
+					"kind": "switch",
+					"arms": [
+						{
+							"test": {
+								"kind": "binary",
+								"op": ">=",
+								"left": { "kind": "state-read", "name": "score" },
+								"right": { "kind": "literal", "value": 90 }
+							},
+							"render": [
+								{
+									"kind": "element",
+									"tag": "span",
+									"attributes": {
+										"class": { "kind": "literal", "value": "gold" }
+									},
+									"events": [],
+									"children": [{ "kind": "text", "value": "Gold" }]
+								}
+							]
+						},
+						{
+							"test": {
+								"kind": "binary",
+								"op": ">=",
+								"left": { "kind": "state-read", "name": "score" },
+								"right": { "kind": "literal", "value": 70 }
+							},
+							"render": [
+								{
+									"kind": "element",
+									"tag": "span",
+									"attributes": {
+										"class": { "kind": "literal", "value": "silver" }
+									},
+									"events": [],
+									"children": [{ "kind": "text", "value": "Silver" }]
+								}
+							]
+						}
+					],
+					"fallback": [
+						{
+							"kind": "element",
+							"tag": "span",
+							"attributes": {
+								"class": { "kind": "literal", "value": "none" }
+							},
+							"events": [],
+							"children": [{ "kind": "text", "value": "Try again" }]
+						}
+					]
+				}
+			]
+		}
+	]
+}

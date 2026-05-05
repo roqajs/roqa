@@ -40,7 +40,7 @@ defineComponent("todo-list", function TodoList() {
 		};
 		button_1.__click = addTodo;
 
-		todos_forBlock = forBlock(ul_1, todos, (anchor, todo, index) => {
+		todos_forBlock = forBlock(ul_1, todos, (anchor, todo, _index) => {
 			const li_1 = $tmpl_2().firstChild;
 			const li_1_text = li_1.firstChild;
 

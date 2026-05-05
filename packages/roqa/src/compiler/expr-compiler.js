@@ -3,7 +3,6 @@
 
 /**
  * @typedef {Object} ExprContext
- * @property {string} [itemAlias] - Current iteration variable name
  * @property {boolean} [isInlineHandler] - Inside an inline event handler
  * @property {string} [componentName] - Component function name
  * @property {Map<string, string>} [collectionKeys] - Collection name → key field.
@@ -59,11 +58,11 @@ export function compileExpr(expr, ctx = {}) {
 		case "attr-read":
 			return `this.getAttribute("${expr.name}")`;
 
-		case "param-read":
+		case "local-read":
 			return expr.name;
 
-		case "item-field-read":
-			return `${ctx.itemAlias || "item"}.${expr.field}`;
+		case "let":
+			return `let ${expr.name} = ${compileExpr(expr.value, ctx)}`;
 
 		case "binary":
 			return compileBinary(expr, ctx);

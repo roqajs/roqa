@@ -1,0 +1,34 @@
+{
+	"version": 1,
+	"tagName": "raw-html-demo",
+	"name": "RawHtmlDemo",
+
+	"state": [
+		{
+			"kind": "value",
+			"name": "markup",
+			"initial": "<strong>Hello</strong> from <em>raw HTML</em>!"
+		}
+	],
+	"actions": [],
+	"props": [],
+	"attrs": [],
+	"emits": [],
+	"lifecycle": {},
+
+	"render": [
+		{
+			"kind": "element",
+			"tag": "article",
+			"attributes": {},
+			"events": [],
+			"children": [
+				{
+					"kind": "raw-html",
+					"source": { "kind": "state-read", "name": "markup" },
+					"trusted": true
+				}
+			]
+		}
+	]
+}

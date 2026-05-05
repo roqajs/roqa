@@ -40,7 +40,7 @@ describe("compileExpr", () => {
 	it("compiles member expression", () => {
 		const expr = {
 			kind: "member",
-			object: { kind: "param-read", name: "e" },
+			object: { kind: "local-read", name: "e" },
 			property: "target",
 		};
 		expect(compileExpr(expr)).toBe("e.target");
@@ -72,8 +72,17 @@ describe("compileExpr", () => {
 		expect(compileExpr({ kind: "attr-read", name: "variant" })).toBe('this.getAttribute("variant")');
 	});
 
-	it("compiles item-field-read", () => {
-		expect(compileExpr({ kind: "item-field-read", field: "text" }, { itemAlias: "todo" })).toBe("todo.text");
+	it("compiles local-read", () => {
+		expect(compileExpr({ kind: "local-read", name: "todo" })).toBe("todo");
+	});
+
+	it("compiles let", () => {
+		const expr = {
+			kind: "let",
+			name: "x",
+			value: { kind: "binary", op: "+", left: { kind: "literal", value: 1 }, right: { kind: "literal", value: 2 } },
+		};
+		expect(compileExpr(expr)).toBe("let x = 1 + 2");
 	});
 
 	it("compiles closure with block body", () => {
@@ -83,7 +92,7 @@ describe("compileExpr", () => {
 			body: {
 				kind: "state-write",
 				name: "draft",
-				value: { kind: "member", object: { kind: "member", object: { kind: "param-read", name: "e" }, property: "target" }, property: "value" },
+				value: { kind: "member", object: { kind: "member", object: { kind: "local-read", name: "e" }, property: "target" }, property: "value" },
 			},
 		};
 		const result = compileExpr(expr, { isInlineHandler: true });
@@ -96,7 +105,7 @@ describe("compileExpr", () => {
 			kind: "object",
 			properties: [
 				{ kind: "property", key: "id", value: { kind: "literal", value: 1 } },
-				{ kind: "spread", argument: { kind: "param-read", name: "t" } },
+				{ kind: "spread", argument: { kind: "local-read", name: "t" } },
 			],
 		};
 		expect(compileExpr(expr)).toBe("{ id: 1, ...t }");

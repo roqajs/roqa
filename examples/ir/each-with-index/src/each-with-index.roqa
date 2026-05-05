@@ -1,0 +1,285 @@
+{
+    "version": 1,
+    "tagName": "each-index-demo",
+    "name": "EachIndexDemo",
+    "state": [
+        {
+            "kind": "collection",
+            "name": "tasks",
+            "key": "id",
+            "initial": [
+                {
+                    "id": 1,
+                    "name": "Buy groceries"
+                },
+                {
+                    "id": 2,
+                    "name": "Walk the dog"
+                },
+                {
+                    "id": 3,
+                    "name": "Reply to emails"
+                },
+                {
+                    "id": 4,
+                    "name": "Read for 30 minutes"
+                }
+            ]
+        },
+        {
+            "kind": "value",
+            "name": "nextId",
+            "initial": 5
+        }
+    ],
+    "actions": [
+        {
+            "kind": "action",
+            "name": "addTask",
+            "params": [],
+            "body": {
+                "kind": "block",
+                "body": [
+                    {
+                        "kind": "collection-op",
+                        "op": "insert",
+                        "name": "tasks",
+                        "args": [
+                            {
+                                "kind": "object",
+                                "properties": [
+                                    {
+                                        "kind": "property",
+                                        "key": "id",
+                                        "value": {
+                                            "kind": "state-read",
+                                            "name": "nextId"
+                                        }
+                                    },
+                                    {
+                                        "kind": "property",
+                                        "key": "name",
+                                        "value": {
+                                            "kind": "template-literal",
+                                            "parts": [
+                                                "New task ",
+                                                {
+                                                    "kind": "state-read",
+                                                    "name": "nextId"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "kind": "state-write",
+                        "name": "nextId",
+                        "value": {
+                            "kind": "binary",
+                            "op": "+",
+                            "left": {
+                                "kind": "state-read",
+                                "name": "nextId"
+                            },
+                            "right": {
+                                "kind": "literal",
+                                "value": 1
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "kind": "action",
+            "name": "removeTask",
+            "params": [
+                "id"
+            ],
+            "body": {
+                "kind": "collection-op",
+                "op": "remove",
+                "name": "tasks",
+                "args": [
+                    {
+                        "kind": "local-read",
+                        "name": "id"
+                    }
+                ]
+            }
+        }
+    ],
+    "props": [],
+    "attrs": [],
+    "emits": [],
+    "lifecycle": {},
+    "render": [
+        {
+            "kind": "element",
+            "tag": "section",
+            "attributes": {},
+            "events": [],
+            "children": [
+                {
+                    "kind": "element",
+                    "tag": "h2",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "text",
+                            "value": "EachIR.indexAlias — bind iteration index"
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "div",
+                    "attributes": {
+                        "class": {
+                            "kind": "literal",
+                            "value": "buttons"
+                        }
+                    },
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "element",
+                            "tag": "button",
+                            "attributes": {},
+                            "events": [
+                                {
+                                    "event": "click",
+                                    "handler": {
+                                        "kind": "action-call",
+                                        "name": "addTask",
+                                        "args": []
+                                    }
+                                }
+                            ],
+                            "children": [
+                                {
+                                    "kind": "text",
+                                    "value": "Add task"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "ol",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "each",
+                            "source": {
+                                "kind": "cell-ref",
+                                "name": "tasks"
+                            },
+                            "itemAlias": "task",
+                            "indexAlias": "i",
+                            "key": "id",
+                            "render": [
+                                {
+                                    "kind": "element",
+                                    "tag": "li",
+                                    "attributes": {},
+                                    "events": [],
+                                    "children": [
+                                        {
+                                            "kind": "element",
+                                            "tag": "span",
+                                            "attributes": {
+                                                "class": {
+                                                    "kind": "literal",
+                                                    "value": "rank"
+                                                }
+                                            },
+                                            "events": [],
+                                            "children": [
+                                                {
+                                                    "kind": "reactive-text",
+                                                    "source": {
+                                                        "kind": "binary",
+                                                        "op": "+",
+                                                        "left": {
+                                                            "kind": "local-read",
+                                                            "name": "i"
+                                                        },
+                                                        "right": {
+                                                            "kind": "literal",
+                                                            "value": 1
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "kind": "text",
+                                            "value": " "
+                                        },
+                                        {
+                                            "kind": "reactive-text",
+                                            "source": {
+                                                "kind": "member",
+                                                "object": {
+                                                    "kind": "local-read",
+                                                    "name": "task"
+                                                },
+                                                "property": "name"
+                                            }
+                                        },
+                                        {
+                                            "kind": "text",
+                                            "value": " "
+                                        },
+                                        {
+                                            "kind": "element",
+                                            "tag": "button",
+                                            "attributes": {
+                                                "class": {
+                                                    "kind": "literal",
+                                                    "value": "remove"
+                                                }
+                                            },
+                                            "events": [
+                                                {
+                                                    "event": "click",
+                                                    "handler": {
+                                                        "kind": "action-call",
+                                                        "name": "removeTask",
+                                                        "args": [
+                                                            {
+                                                                "kind": "member",
+                                                                "object": {
+                                                                    "kind": "local-read",
+                                                                    "name": "task"
+                                                                },
+                                                                "property": "id"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            ],
+                                            "children": [
+                                                {
+                                                    "kind": "text",
+                                                    "value": "✕"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

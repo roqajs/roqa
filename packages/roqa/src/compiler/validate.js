@@ -209,12 +209,14 @@ export function validate(mir) {
 					validateExpr(expr.detail, [...path, "detail"]);
 				}
 				break;
+			case "let":
+				validateExpr(expr.value, [...path, "value"]);
+				break;
 			// Leaf nodes that need no further validation
 			case "literal":
 			case "prop-read":
 			case "attr-read":
-			case "param-read":
-			case "item-field-read":
+			case "local-read":
 			case "imported-ref":
 			case "external-ref":
 			case "opaque":
@@ -238,7 +240,7 @@ export function validate(mir) {
 		for (let i = 0; i < nodes.length; i++) {
 			const node = nodes[i];
 			const nodePath = [...path, String(i)];
-			if (node.kind === "show" || node.kind === "each") {
+			if (node.kind === "show" || node.kind === "each" || node.kind === "switch") {
 				diagnostics.push({
 					code: "unsupported-nested-block",
 					severity: "warning",
@@ -268,6 +270,23 @@ export function validate(mir) {
 			const nodePath = [...path, String(i)];
 			switch (node.kind) {
 				case "element":
+					// Reject unsupported ref kinds. Only the `name` kind is
+					// honored by the backend today; `callback` / `binding`
+					// are reserved for v2.
+					if (node.refs) {
+						for (let r = 0; r < node.refs.length; r++) {
+							const ref = node.refs[r];
+							if (ref.kind !== "name") {
+								diagnostics.push({
+									code: "unsupported-ir-node",
+									severity: "error",
+									message: `RefIR kind "${ref.kind}" is reserved for a future release and not yet supported by the compiler.`,
+									component,
+									path: [...nodePath, "refs", String(r)],
+								});
+							}
+						}
+					}
 					for (const [key, val] of Object.entries(node.attributes)) {
 						validateExpr(val, [...nodePath, "attributes", key]);
 					}
@@ -291,6 +310,35 @@ export function validate(mir) {
 								node.styles.properties[j].value,
 								[...nodePath, "styles", "properties", String(j), "value"],
 							);
+						}
+					}
+					// RawHtmlIR sole-child constraint: when an element has any
+					// `raw-html` child, it must be the *only* child of that
+					// parent. Mixing innerHTML with sibling DOM children is a
+					// compile error because the runtime replaces the parent's
+					// entire subtree on every update.
+					{
+						const rawHtmlIndices = [];
+						for (let c = 0; c < node.children.length; c++) {
+							if (node.children[c].kind === "raw-html") rawHtmlIndices.push(c);
+						}
+						if (rawHtmlIndices.length > 0 && node.children.length > 1) {
+							diagnostics.push({
+								code: "raw-html-not-sole-child",
+								severity: "error",
+								message: `RawHtmlIR must be the sole child of its parent element. Found ${node.children.length} children alongside raw-html.`,
+								component,
+								path: [...nodePath, "children", String(rawHtmlIndices[0])],
+							});
+						}
+						if (rawHtmlIndices.length > 1) {
+							diagnostics.push({
+								code: "duplicate-raw-html",
+								severity: "error",
+								message: `Multiple RawHtmlIR children on a single element are not allowed.`,
+								component,
+								path: [...nodePath, "children"],
+							});
 						}
 					}
 					validateNodes(node.children, [...nodePath, "children"]);
@@ -325,6 +373,47 @@ export function validate(mir) {
 						validateNodes(node.fallback, [...nodePath, "fallback"]);
 					}
 					break;
+				case "switch":
+					// At least one arm required.
+					if (!node.arms || node.arms.length === 0) {
+						diagnostics.push({
+							code: "invalid-switch",
+							severity: "error",
+							message: `SwitchIR must declare at least one arm.`,
+							component,
+							path: nodePath,
+						});
+					}
+					if (node.discriminant) {
+						validateExpr(node.discriminant, [...nodePath, "discriminant"]);
+					}
+					if (node.arms) {
+						for (let a = 0; a < node.arms.length; a++) {
+							const arm = node.arms[a];
+							validateExpr(arm.test, [...nodePath, "arms", String(a), "test"]);
+							checkNestedBlocks(arm.render, [...nodePath, "arms", String(a), "render"], "switch");
+							validateNodes(arm.render, [...nodePath, "arms", String(a), "render"]);
+						}
+					}
+					if (node.deps) {
+						for (let d = 0; d < node.deps.length; d++) {
+							const dep = node.deps[d];
+							if (dep.kind !== "cell-ref" || !allCellNames.has(dep.name)) {
+								diagnostics.push({
+									code: "dangling-cell-ref",
+									severity: "error",
+									message: `SwitchIR.deps[${d}] references undeclared state "${dep.name}"`,
+									component,
+									path: [...nodePath, "deps", String(d)],
+								});
+							}
+						}
+					}
+					if (node.fallback) {
+						checkNestedBlocks(node.fallback, [...nodePath, "fallback"], "switch");
+						validateNodes(node.fallback, [...nodePath, "fallback"]);
+					}
+					break;
 				case "each":
 					if (node.source.kind === "cell-ref") {
 						if (!allCellNames.has(node.source.name)) {
@@ -342,6 +431,41 @@ export function validate(mir) {
 					}
 					checkNestedBlocks(node.render, [...nodePath, "render"], "each");
 					validateNodes(node.render, [...nodePath, "render"]);
+					if (node.empty) {
+						checkNestedBlocks(node.empty, [...nodePath, "empty"], "each");
+						validateNodes(node.empty, [...nodePath, "empty"]);
+					}
+					break;
+				case "dynamic-element":
+					diagnostics.push({
+						code: "unsupported-ir-node",
+						severity: "error",
+						message: `DynamicElementIR ("dynamic-element") is reserved for a future release and not yet supported by the compiler. Use a SwitchIR over the candidate tags as a workaround.`,
+						component,
+						path: nodePath,
+					});
+					break;
+				case "raw-html":
+					// Always emit a security advisory for raw-html usage —
+					// it's an XSS vector by design and frontends should
+					// promote this to an error in `strict` mode.
+					diagnostics.push({
+						code: "raw-html-used",
+						severity: "warning",
+						message: `RawHtmlIR inserts unsanitized HTML — only use with trusted input. Set \`trusted: true\` to acknowledge.`,
+						component,
+						path: nodePath,
+					});
+					validateExpr(node.source, [...nodePath, "source"]);
+					break;
+				case "try":
+					diagnostics.push({
+						code: "unsupported-ir-node",
+						severity: "error",
+						message: `TryIR ("try") is reserved for a future release and not yet supported by the compiler.`,
+						component,
+						path: nodePath,
+					});
 					break;
 			}
 		}

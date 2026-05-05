@@ -15,3 +15,6 @@ export { forBlock } from "./for-block.js";
 
 // Conditional rendering
 export { showBlock } from "./show-block.js";
+
+// Multi-branch rendering
+export { switchBlock } from "./switch-block.js";

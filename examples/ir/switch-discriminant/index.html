@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Roqa IR — switch (discriminant)</title>
+		<style>
+			body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+			h2 { margin-top: 0; }
+			.buttons { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+			.buttons button { padding: 0.5rem 0.75rem; cursor: pointer; }
+			.status { padding: 1rem; border-radius: 6px; margin: 0; }
+			.status.loading { background: #fff3cd; }
+			.status.success { background: #d1e7dd; }
+			.status.error { background: #f8d7da; }
+			.status.fallback { background: #e2e3e5; }
+		</style>
+	</head>
+	<body>
+		<switch-discriminant-demo></switch-discriminant-demo>
+		<script type="module" src="/src/main.js"></script>
+	</body>
+</html>

@@ -541,6 +541,15 @@ describe("forBlock reconciliation", () => {
 		container.remove();
 	});
 
+	function createSimpleRenderFn() {
+		return (anchor, item, _index) => {
+			const li = document.createElement("li");
+			li.textContent = String(item);
+			anchor.before(li);
+			return { start: li, end: li };
+		};
+	}
+
 	// Using objects to test reference equality reconciliation
 	it("reconciles by reference equality - keeps same objects", () => {
 		const objA = { id: "a" };
@@ -640,5 +649,101 @@ describe("forBlock reconciliation", () => {
 		expect(newNodes[2]).toBe(originalLastNode);
 
 		block.destroy();
+	});
+
+	describe("respects sibling DOM in the parent container", () => {
+		// Regression: forBlock used to call `parent.textContent = ""` when
+		// transitioning from non-empty → empty, which wiped sibling content
+		// (other anchors, static template nodes) sharing the same parent.
+		// The current implementation removes only its own items via a Range.
+
+		it("preserves a sibling element inserted before the anchor", () => {
+			const items = cell([1, 2, 3]);
+			const block = forBlock(container, items, createSimpleRenderFn());
+
+			// Insert a sibling at the top of the container (e.g. static
+			// template content rendered alongside the for-block).
+			const sibling = document.createElement("h2");
+			sibling.textContent = "Sticky Header";
+			container.prepend(sibling);
+
+			expect(container.querySelectorAll("li").length).toBe(3);
+			expect(container.querySelector("h2")).toBe(sibling);
+
+			// Clear all items.
+			items.v = [];
+			block.update();
+
+			// Items are gone, but the sibling header survives.
+			expect(container.querySelectorAll("li").length).toBe(0);
+			expect(container.querySelector("h2")).toBe(sibling);
+
+			block.destroy();
+		});
+
+		it("preserves a sibling anchor (e.g. each.empty's showBlock anchor)", () => {
+			const items = cell([1, 2]);
+			const block = forBlock(container, items, createSimpleRenderFn());
+
+			// Simulate another block's anchor as a sibling inside the
+			// same parent (this is exactly the each.empty layout).
+			const siblingAnchor = document.createTextNode("");
+			container.appendChild(siblingAnchor);
+
+			items.v = [];
+			block.update();
+
+			// The sibling anchor is still attached to the container.
+			expect(siblingAnchor.parentNode).toBe(container);
+
+			block.destroy();
+		});
+
+		it("renders new items correctly after a clear cycle that preserved siblings", () => {
+			const items = cell([1, 2]);
+			const block = forBlock(container, items, createSimpleRenderFn());
+
+			const sibling = document.createElement("h2");
+			sibling.textContent = "Header";
+			container.prepend(sibling);
+
+			items.v = [];
+			block.update();
+			items.v = [10, 20];
+			block.update();
+
+			expect(container.querySelector("h2")).toBe(sibling);
+			const lis = Array.from(container.querySelectorAll("li"));
+			expect(lis.map((li) => li.textContent)).toEqual(["10", "20"]);
+
+			block.destroy();
+		});
+
+		it("uses textContent fast path when the for-block owns its parent (anchor preserved + reusable)", () => {
+			// No siblings in the parent → fast clear path. The anchor must
+			// remain attached so subsequent inserts via `anchor.before()` work.
+			const items = cell([1, 2, 3]);
+			const block = forBlock(container, items, createSimpleRenderFn());
+
+			expect(container.querySelectorAll("li").length).toBe(3);
+			// Anchor is the last child of the container.
+			const anchorBeforeClear = container.lastChild;
+
+			items.v = [];
+			block.update();
+
+			// Container is empty except for the anchor itself.
+			expect(container.querySelectorAll("li").length).toBe(0);
+			expect(container.lastChild).toBe(anchorBeforeClear);
+			expect(anchorBeforeClear.parentNode).toBe(container);
+
+			// Subsequent renders must still work (anchor is reusable).
+			items.v = [7, 8];
+			block.update();
+			const lis = Array.from(container.querySelectorAll("li"));
+			expect(lis.map((li) => li.textContent)).toEqual(["7", "8"]);
+
+			block.destroy();
+		});
 	});
 });

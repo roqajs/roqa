@@ -126,12 +126,21 @@ function destroyItem(item, forState) {
 }
 
 /**
- * Fast path: clear all items when going from non-empty to empty
+ * Fast path: clear all items when going from non-empty to empty.
+ *
+ * When the for-block owns its parent exclusively (no sibling DOM before
+ * the items or after the anchor), uses the fastest possible bulk clear:
+ * `parent.textContent = ""` followed by re-attaching the anchor.
+ *
+ * Otherwise (e.g., when an `each.empty` showBlock anchor or other static
+ * template content shares the same parent), falls back to a `Range`-based
+ * delete that removes only the items' DOM nodes, leaving siblings intact.
  */
 function reconcileFastClear(anchor, forState, array) {
-	// Only run cleanup loop if there are items with cleanup functions
+	const items = forState.items;
+
+	// Run cleanups before tearing down DOM.
 	if (forState.cleanupCount > 0) {
-		const items = forState.items;
 		for (let i = 0; i < items.length; i++) {
 			const state = items[i].s;
 			if (state.cleanup) state.cleanup();
@@ -139,9 +148,39 @@ function reconcileFastClear(anchor, forState, array) {
 		forState.cleanupCount = 0;
 	}
 
-	const parent_node = anchor.parentNode;
-	parent_node.textContent = "";
-	parent_node.append(anchor);
+	if (items.length > 0) {
+		const parent = anchor.parentNode;
+		const firstStart = items[0].s.start;
+
+		// Fast path: the for-block owns its parent exclusively. Items occupy
+		// every position between firstChild and the anchor (which is the
+		// last child). `textContent = ""` is a single native bulk clear,
+		// the fastest possible empty operation in browsers.
+		if (
+			parent !== null &&
+			firstStart === parent.firstChild &&
+			anchor === parent.lastChild
+		) {
+			parent.textContent = "";
+			parent.appendChild(anchor);
+		} else {
+			// Slow path: siblings exist. Use a Range to remove only the
+			// items' DOM nodes without touching siblings (other anchors,
+			// static template content, etc.).
+			//
+			// TODO(perf): benchmark Range.deleteContents() against
+			// alternatives — e.g., a manual node.remove() loop from
+			// items[0].start to anchor.previousSibling, or a detach +
+			// textContent + reattach trick. Range is correct but its
+			// throughput here has not been thoroughly characterized.
+			// See spec/runtime.md → "Clear-to-empty fast path".
+			const range = document.createRange();
+			range.setStartBefore(firstStart);
+			range.setEndBefore(anchor);
+			range.deleteContents();
+		}
+	}
+
 	forState.array = array;
 	forState.items = [];
 }

@@ -1,0 +1,77 @@
+{
+    "version": 1,
+    "tagName": "todo-list-empty",
+    "name": "TodoListEmpty",
+    "state": [
+        {
+            "kind": "collection",
+            "name": "items",
+            "key": "id",
+            "initial": []
+        }
+    ],
+    "actions": [],
+    "props": [],
+    "attrs": [],
+    "emits": [],
+    "lifecycle": {},
+    "render": [
+        {
+            "kind": "element",
+            "tag": "ul",
+            "attributes": {},
+            "events": [],
+            "children": [
+                {
+                    "kind": "each",
+                    "source": {
+                        "kind": "cell-ref",
+                        "name": "items"
+                    },
+                    "itemAlias": "item",
+                    "key": "id",
+                    "render": [
+                        {
+                            "kind": "element",
+                            "tag": "li",
+                            "attributes": {},
+                            "events": [],
+                            "children": [
+                                {
+                                    "kind": "reactive-text",
+                                    "source": {
+                                        "kind": "member",
+                                        "object": {
+                                            "kind": "local-read",
+                                            "name": "item"
+                                        },
+                                        "property": "text"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "empty": [
+                        {
+                            "kind": "element",
+                            "tag": "li",
+                            "attributes": {
+                                "class": {
+                                    "kind": "literal",
+                                    "value": "empty-state"
+                                }
+                            },
+                            "events": [],
+                            "children": [
+                                {
+                                    "kind": "text",
+                                    "value": "No items yet."
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

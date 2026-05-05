@@ -102,7 +102,7 @@ class LoweringContext {
 		this.escapingCells = new Set();
 
 		// Track block associations: cellName → blockVar[]
-		/** @type {Map<string, { var: string, type: "show" | "each" | "fallback" }[]>} */
+		/** @type {Map<string, { var: string, type: "show" | "each" | "fallback" | "switch" | "empty" }[]>} */
 		this.cellBlocks = new Map();
 
 		// Collect imports from metadata
@@ -158,6 +158,10 @@ class LoweringContext {
 				case "member":
 					walkExpr(expr.object);
 					break;
+				case "index":
+					walkExpr(expr.object);
+					walkExpr(expr.index);
+					break;
 				case "call":
 					walkExpr(expr.callee);
 					expr.args.forEach(walkExpr);
@@ -168,6 +172,15 @@ class LoweringContext {
 					break;
 				case "closure":
 					walkExpr(expr.body);
+					break;
+				case "block":
+					expr.body.forEach(walkExpr);
+					break;
+				case "let":
+					walkExpr(expr.value);
+					break;
+				case "return":
+					if (expr.value) walkExpr(expr.value);
 					break;
 			}
 		};
@@ -198,8 +211,18 @@ class LoweringContext {
 				} else if (node.kind === "show") {
 					walkNodes(node.render);
 					if (node.fallback) walkNodes(node.fallback);
+				} else if (node.kind === "switch") {
+					if (node.discriminant) walkExpr(node.discriminant);
+					for (const arm of node.arms) {
+						walkExpr(arm.test);
+						walkNodes(arm.render);
+					}
+					if (node.fallback) walkNodes(node.fallback);
 				} else if (node.kind === "each") {
 					walkNodes(node.render);
+					if (node.empty) walkNodes(node.empty);
+				} else if (node.kind === "raw-html") {
+					walkExpr(node.source);
 				}
 			}
 		};
@@ -570,6 +593,9 @@ class LoweringContext {
 			} else if (child.kind === "show") {
 				this.lowerShowBlock(child, prevVar || "this");
 				i++;
+			} else if (child.kind === "switch") {
+				this.lowerSwitchBlock(child, prevVar || "this");
+				i++;
 			} else if (child.kind === "each") {
 				this.lowerEachBlock(child, prevVar || "this");
 				i++;
@@ -920,7 +946,9 @@ class LoweringContext {
 			}
 
 			case "show":
+			case "switch":
 			case "each":
+			case "raw-html":
 				// These don't produce template HTML
 				return "";
 
@@ -941,7 +969,7 @@ class LoweringContext {
 		for (const child of children) {
 			if (child.kind === "text") hasText = true;
 			else if (child.kind === "reactive-text") hasReactive = true;
-			else return false; // Element/show/each breaks coalescing
+			else return false; // Element/show/switch/each breaks coalescing
 		}
 		return hasText && hasReactive;
 	}
@@ -957,7 +985,7 @@ class LoweringContext {
 		let i = 0;
 		while (i < children.length) {
 			const child = children[i];
-			if (child.kind === "show" || child.kind === "each") {
+			if (child.kind === "show" || child.kind === "switch" || child.kind === "each") {
 				i++;
 				continue;
 			}
@@ -1056,6 +1084,14 @@ class LoweringContext {
 					isStyleProp: true,
 				});
 			}
+		}
+
+		// Raw HTML: a single `raw-html` child replaces the entire subtree
+		// content via `parentEl.innerHTML = <expr>`. Validation guarantees it
+		// is the sole child of the parent.
+		if (el.children.length === 1 && el.children[0].kind === "raw-html") {
+			this.lowerRawHtml(el.children[0], parentVar);
+			return;
 		}
 
 		// Check for coalesced text
@@ -1196,6 +1232,9 @@ class LoweringContext {
 			} else if (child.kind === "show") {
 				this.lowerShowBlock(child, parentVar);
 				i++;
+			} else if (child.kind === "switch") {
+				this.lowerSwitchBlock(child, parentVar);
+				i++;
 			} else if (child.kind === "each") {
 				this.lowerEachBlock(child, parentVar);
 				i++;
@@ -1230,6 +1269,8 @@ class LoweringContext {
 			} else if (child.kind === "show") {
 				// Show blocks inside coalesced text parents
 				this.lowerShowBlock(child, parentVar);
+			} else if (child.kind === "switch") {
+				this.lowerSwitchBlock(child, parentVar);
 			} else if (child.kind === "each") {
 				this.lowerEachBlock(child, parentVar);
 			}
@@ -1407,6 +1448,36 @@ class LoweringContext {
 	}
 
 	/**
+	 * Lower a `RawHtmlIR` child to a binding that writes `innerHTML` on the
+	 * parent element. Validation guarantees the raw-html node is the sole
+	 * child; this lowering replaces (rather than appends to) the parent's
+	 * subtree on every update.
+	 *
+	 * @param {import("./types.d.ts").RawHtmlIR} rawHtml
+	 * @param {string} parentVar
+	 */
+	lowerRawHtml(rawHtml, parentVar) {
+		const compiled = this.ce(rawHtml.source);
+		const cellName = this.findBindingCell(rawHtml.source);
+		const isReactive = !!(cellName && this.stateNames.has(cellName));
+		const refName = isReactive
+			? this.nextRefName(cellName)
+			: "";
+
+		this.bindings.push({
+			kind: "binding",
+			cellName: isReactive ? cellName : "",
+			refName,
+			target: parentVar,
+			property: "innerHTML",
+			expression: compiled,
+			initialValue: compiled,
+			inlined: false,
+			isInnerHTML: true,
+		});
+	}
+
+	/**
 	 * @param {import("./types.d.ts").ShowIR} show
 	 * @param {string} containerVar
 	 */
@@ -1506,7 +1577,7 @@ class LoweringContext {
 			svg: false,
 		});
 
-		const renderBody = this.buildBlockRenderBody(each.render, eachTemplateId, each.itemAlias);
+		const renderBody = this.buildBlockRenderBody(each.render, eachTemplateId);
 
 		this.blocks.push({
 			kind: "block",
@@ -1518,6 +1589,140 @@ class LoweringContext {
 			renderBody,
 			key: each.key || undefined,
 			itemAlias: each.itemAlias,
+			indexAlias: each.indexAlias,
+		});
+
+		// Empty fallback — a sibling controller that toggles the empty body
+		// in/out as the source's length crosses zero.
+		if (each.empty) {
+			this.runtimeImports.add("showBlock");
+			const emptyControllerVar = this.uniqueBlockVar(`${sourceCellName}_emptyBlock`);
+			this.blockVars.push({ name: emptyControllerVar, blockType: "empty" });
+
+			if (!this.cellBlocks.has(sourceCellName)) {
+				this.cellBlocks.set(sourceCellName, []);
+			}
+			this.cellBlocks.get(sourceCellName).push({ var: emptyControllerVar, type: "empty" });
+
+			const emptyTemplateId = this.nextTemplateId();
+			const emptyHtml = this.extractTemplateHtml(each.empty, false);
+			this.templates.push({
+				kind: "template",
+				id: emptyTemplateId,
+				html: emptyHtml,
+				svg: false,
+			});
+
+			const emptyBody = this.buildBlockRenderBody(each.empty, emptyTemplateId);
+
+			// Tag the most recently pushed each-block with empty info so
+			// the emitter can render the sibling controller adjacent to it.
+			const lastBlock = this.blocks[this.blocks.length - 1];
+			lastBlock.emptyBody = emptyBody;
+			lastBlock.emptyControllerVar = emptyControllerVar;
+		}
+	}
+
+	/**
+	 * Lower a `SwitchIR` to a `switchBlock(...)` controller. Each arm is
+	 * compiled as an independent template + render body with its own test
+	 * expression. The optional fallback is compiled the same way.
+	 *
+	 * Two modes:
+	 *   - **discriminant mode**: `switch (x)` — each arm test is folded into
+	 *     `<discriminant> === <armTest>` for the runtime.
+	 *   - **predicate mode**: `if/else if` — each arm test is its own
+	 *     boolean expression.
+	 *
+	 * Dependencies (cells the runtime should subscribe to) are derived by
+	 * walking the discriminant + arm tests for state/computed reads, unless
+	 * the frontend supplied an explicit `deps` list.
+	 *
+	 * @param {import("./types.d.ts").SwitchIR} switchNode
+	 * @param {string} containerVar
+	 */
+	lowerSwitchBlock(switchNode, containerVar) {
+		this.runtimeImports.add("switchBlock");
+
+		// Collect dependencies for runtime subscription.
+		/** @type {Set<string>} */
+		const depCells = new Set();
+		if (switchNode.deps && switchNode.deps.length > 0) {
+			for (const d of switchNode.deps) depCells.add(d.name);
+		} else {
+			if (switchNode.discriminant) {
+				collectStateDeps(switchNode.discriminant, depCells, this.stateNames, this.computedNames);
+			}
+			for (const arm of switchNode.arms) {
+				collectStateDeps(arm.test, depCells, this.stateNames, this.computedNames);
+			}
+		}
+
+		// Pick a stable, readable controller var name. Prefer the first
+		// dependency cell so it's discoverable in compiled output.
+		const namingHint = depCells.size > 0 ? [...depCells][0] : "switch";
+		const controllerVar = this.uniqueBlockVar(`${namingHint}_switchBlock`);
+		this.blockVars.push({ name: controllerVar, blockType: "switch" });
+
+		// Register the controller with each dep cell so action-driven cell
+		// writes can call `controllerVar.update()` reactively.
+		for (const cellName of depCells) {
+			if (!this.cellBlocks.has(cellName)) {
+				this.cellBlocks.set(cellName, []);
+			}
+			this.cellBlocks.get(cellName).push({ var: controllerVar, type: "switch" });
+		}
+
+		// Compile each arm.
+		const discriminantExpr = switchNode.discriminant
+			? this.ce(switchNode.discriminant)
+			: null;
+
+		/** @type {import("./types.d.ts").SwitchArmOp[]} */
+		const switchArms = switchNode.arms.map((arm) => {
+			const tmplId = this.nextTemplateId();
+			const html = this.extractTemplateHtml(arm.render, false);
+			this.templates.push({ kind: "template", id: tmplId, html, svg: false });
+
+			const renderBody = this.buildBlockRenderBody(arm.render, tmplId);
+
+			// Fold discriminant comparison into the test expression so the
+			// runtime sees a single boolean predicate per arm.
+			const armTestSrc = this.ce(arm.test);
+			const testExpr = discriminantExpr !== null
+				? `${discriminantExpr} === ${armTestSrc}`
+				: armTestSrc;
+
+			return {
+				templateId: tmplId,
+				rootElement: renderBody.rootElement,
+				traversals: renderBody.traversals,
+				events: renderBody.events,
+				bindings: renderBody.bindings,
+				classBindings: renderBody.classBindings,
+				testExpr,
+			};
+		});
+
+		// Optional fallback (default branch).
+		let fallbackBody;
+		if (switchNode.fallback) {
+			const fbId = this.nextTemplateId();
+			const fbHtml = this.extractTemplateHtml(switchNode.fallback, false);
+			this.templates.push({ kind: "template", id: fbId, html: fbHtml, svg: false });
+			fallbackBody = this.buildBlockRenderBody(switchNode.fallback, fbId);
+		}
+
+		this.blocks.push({
+			kind: "block",
+			blockType: "switch",
+			container: containerVar,
+			source: namingHint, // for optimizer’s cellBlockUpdates map keying; also used in fallback subscription emission for show/each
+			controllerVar,
+			fallbackBody,
+			switchArms,
+			switchHasDiscriminant: !!switchNode.discriminant,
+			switchDeps: [...depCells],
 		});
 	}
 
@@ -1559,13 +1764,12 @@ class LoweringContext {
 	}
 
 	/**
-	 * Build a render body for a block (show/each).
+	 * Build a render body for a block (show/each/switch arm/fallback).
 	 * @param {NodeIR[]} renderNodes
 	 * @param {string} templateId
-	 * @param {string} [itemAlias]
 	 * @returns {import("./types.d.ts").BlockRenderBody}
 	 */
-	buildBlockRenderBody(renderNodes, templateId, itemAlias) {
+	buildBlockRenderBody(renderNodes, templateId) {
 		// Save and reset counters
 		const savedElementCounters = new Map(this.elementCounters);
 		this.elementCounters.clear();
@@ -1587,7 +1791,6 @@ class LoweringContext {
 			this.processBlockElement(
 				el,
 				rootVar,
-				itemAlias,
 				traversals,
 				events,
 				bindings,
@@ -1627,14 +1830,13 @@ class LoweringContext {
 	 *
 	 * @param {import("./types.d.ts").ElementIR} el
 	 * @param {string} elVar
-	 * @param {string | undefined} itemAlias
 	 * @param {TraversalOp[]} traversals
 	 * @param {EventOp[]} events
 	 * @param {BindingOp[]} bindings
 	 * @param {import("./types.d.ts").ClassBinding[]} classBindings
 	 * @param {boolean} isRoot
 	 */
-	processBlockElement(el, elVar, itemAlias, traversals, events, bindings, classBindings, isRoot) {
+	processBlockElement(el, elVar, traversals, events, bindings, classBindings, isRoot) {
 		// Events on this element
 		for (const evt of el.events) {
 			const eventName = evt.event;
@@ -1643,14 +1845,13 @@ class LoweringContext {
 				if (evt.handler.args.length === 0) {
 					handler = evt.handler.name;
 				} else {
-					const ctx = { itemAlias };
-					const args = evt.handler.args.map((a) => this.ce(a, ctx));
+					const args = evt.handler.args.map((a) => this.ce(a));
 					handler = `[${evt.handler.name}, ${args.join(", ")}]`;
 				}
 			} else if (evt.handler.kind === "closure") {
-				handler = this.ce(evt.handler, { isInlineHandler: true, itemAlias });
+				handler = this.ce(evt.handler, { isInlineHandler: true });
 			} else {
-				handler = this.ce(evt.handler, { itemAlias });
+				handler = this.ce(evt.handler);
 			}
 			events.push({
 				kind: "event",
@@ -1674,8 +1875,8 @@ class LoweringContext {
 				refName: "",
 				target: elVar,
 				property: name,
-				expression: this.ce(expr, { itemAlias }),
-				initialValue: this.ce(expr, { itemAlias }),
+				expression: this.ce(expr),
+				initialValue: this.ce(expr),
 				inlined: false,
 				isSvgAttr,
 			});
@@ -1686,10 +1887,10 @@ class LoweringContext {
 			const parts = el.classes.items.map((item) => {
 				if (typeof item === "string") return JSON.stringify(item);
 				if ("kind" in item && item.kind === "dynamic") {
-					const inner = this.ce(item.value, { itemAlias });
+					const inner = this.ce(item.value);
 					return `((__c) => __c ? " " + __c : "")(${inner})`;
 				}
-				return `(${this.ce(item.condition, { itemAlias })} ? " ${item.name}" : "")`;
+				return `(${this.ce(item.condition)} ? " ${item.name}" : "")`;
 			});
 			classBindings.push({
 				target: elVar,
@@ -1707,48 +1908,22 @@ class LoweringContext {
 					refName: "",
 					target: elVar,
 					property: prop.property,
-					expression: this.ce(prop.value, { itemAlias }),
-					initialValue: this.ce(prop.value, { itemAlias }),
+					expression: this.ce(prop.value),
+					initialValue: this.ce(prop.value),
 					inlined: false,
 					isStyleProp: true,
 				});
 			}
 		}
 
-		// Children
-		const hasCoalescedText = this.hasAdjacentTextAndReactive(el.children);
-		if (hasCoalescedText) {
-			const textVar = `${elVar}_text`;
-			traversals.push({
-				kind: "traversal",
-				varName: textVar,
-				path: `${elVar}.firstChild`,
-			});
-			const parts = [];
-			for (const child of el.children) {
-				if (child.kind === "text") {
-					parts.push(JSON.stringify(child.value));
-				} else if (child.kind === "reactive-text") {
-					parts.push(this.ce(child.source, { itemAlias }));
-				}
-			}
-			bindings.push({
-				kind: "binding",
-				cellName: "",
-				refName: "",
-				target: textVar,
-				property: "nodeValue",
-				expression: parts.join(" + "),
-				initialValue: parts.join(" + "),
-				inlined: false,
-			});
-			return;
-		}
-
-		// Walk children: traverse each element child + bind text children
+		// Walk children. Adjacent text/reactive-text children are coalesced
+		// into a single DOM text node by the HTML parser, so we must emit a
+		// single binding for each such run (mirroring lowerElementChildren).
 		let prevSiblingVar = null;
 		let domChildIdx = 0;
-		for (const child of el.children) {
+		let i = 0;
+		while (i < el.children.length) {
+			const child = el.children[i];
 			if (child.kind === "element") {
 				const childVar = this.nextElementVar(child.tag);
 				let path;
@@ -1759,7 +1934,6 @@ class LoweringContext {
 				this.processBlockElement(
 					child,
 					childVar,
-					itemAlias,
 					traversals,
 					events,
 					bindings,
@@ -1768,28 +1942,71 @@ class LoweringContext {
 				);
 				prevSiblingVar = childVar;
 				domChildIdx++;
-			} else if (child.kind === "reactive-text") {
-				const textVar = `${elVar}_text${domChildIdx === 0 ? "" : "_" + domChildIdx}`;
-				let path;
-				if (domChildIdx === 0) path = `${elVar}.firstChild`;
-				else if (prevSiblingVar) path = `${prevSiblingVar}.nextSibling`;
-				else path = `${elVar}.firstChild`;
-				traversals.push({ kind: "traversal", varName: textVar, path });
-				bindings.push({
-					kind: "binding",
-					cellName: "",
-					refName: "",
-					target: textVar,
-					property: "nodeValue",
-					expression: this.ce(child.source, { itemAlias }),
-					initialValue: this.ce(child.source, { itemAlias }),
-					inlined: false,
-				});
-				prevSiblingVar = textVar;
-				domChildIdx++;
-			} else if (child.kind === "text") {
-				domChildIdx++;
-				prevSiblingVar = null;
+				i++;
+			} else if (child.kind === "text" || child.kind === "reactive-text") {
+				// Detect a run of adjacent text + reactive-text children.
+				const runStart = i;
+				let runHasReactive = false;
+				while (
+					i < el.children.length &&
+					(el.children[i].kind === "text" || el.children[i].kind === "reactive-text")
+				) {
+					if (el.children[i].kind === "reactive-text") runHasReactive = true;
+					i++;
+				}
+				const runEnd = i;
+
+				const hasLaterSibling = runEnd < el.children.length;
+
+				if (runHasReactive) {
+					// Coalesced reactive text node: emit one traversal + one binding.
+					const textVar = `${elVar}_text${domChildIdx === 0 ? "" : "_" + domChildIdx}`;
+					let path;
+					if (domChildIdx === 0) path = `${elVar}.firstChild`;
+					else if (prevSiblingVar) path = `${prevSiblingVar}.nextSibling`;
+					else path = `${elVar}.firstChild`;
+					traversals.push({ kind: "traversal", varName: textVar, path });
+
+					/** @type {string[]} */
+					const parts = [];
+					for (let j = runStart; j < runEnd; j++) {
+						const c = el.children[j];
+						if (c.kind === "text") {
+							parts.push(JSON.stringify(c.value));
+						} else if (c.kind === "reactive-text") {
+							parts.push(this.ce(c.source));
+						}
+					}
+					const expression = parts.join(" + ");
+					bindings.push({
+						kind: "binding",
+						cellName: "",
+						refName: "",
+						target: textVar,
+						property: "nodeValue",
+						expression,
+						initialValue: expression,
+						inlined: false,
+					});
+					prevSiblingVar = textVar;
+					domChildIdx++;
+				} else if (hasLaterSibling) {
+					// Static-text-only run with later siblings: synthesize a
+					// traversal var so subsequent siblings can chain off it.
+					const stextVar = `${elVar}_stext_${domChildIdx}`;
+					let stextPath;
+					if (domChildIdx === 0) stextPath = `${elVar}.firstChild`;
+					else if (prevSiblingVar) stextPath = `${prevSiblingVar}.nextSibling`;
+					else stextPath = `${elVar}.firstChild`;
+					traversals.push({ kind: "traversal", varName: stextVar, path: stextPath });
+					prevSiblingVar = stextVar;
+					domChildIdx++;
+				} else {
+					// Trailing static-only run: no traversal needed.
+					domChildIdx++;
+				}
+			} else {
+				i++;
 			}
 		}
 	}
@@ -1941,6 +2158,10 @@ function collectStateDeps(expr, deps, stateNames, computedNames) {
 		case "computed-read":
 			if (computedNames.has(expr.name)) deps.add(expr.name);
 			break;
+		case "state-write":
+			if (stateNames.has(expr.name)) deps.add(expr.name);
+			collectStateDeps(expr.value, deps, stateNames, computedNames);
+			break;
 		case "binary":
 			collectStateDeps(expr.left, deps, stateNames, computedNames);
 			collectStateDeps(expr.right, deps, stateNames, computedNames);
@@ -1956,8 +2177,19 @@ function collectStateDeps(expr, deps, stateNames, computedNames) {
 			collectStateDeps(expr.object, deps, stateNames, computedNames);
 			for (const arg of expr.args) collectStateDeps(arg, deps, stateNames, computedNames);
 			break;
+		case "new":
+			collectStateDeps(expr.callee, deps, stateNames, computedNames);
+			for (const arg of expr.args) collectStateDeps(arg, deps, stateNames, computedNames);
+			break;
 		case "member":
 			collectStateDeps(expr.object, deps, stateNames, computedNames);
+			break;
+		case "index":
+			collectStateDeps(expr.object, deps, stateNames, computedNames);
+			collectStateDeps(expr.index, deps, stateNames, computedNames);
+			break;
+		case "spread":
+			collectStateDeps(expr.argument, deps, stateNames, computedNames);
 			break;
 		case "closure":
 			collectStateDeps(expr.body, deps, stateNames, computedNames);
@@ -1966,6 +2198,41 @@ function collectStateDeps(expr, deps, stateNames, computedNames) {
 			collectStateDeps(expr.test, deps, stateNames, computedNames);
 			collectStateDeps(expr.consequent, deps, stateNames, computedNames);
 			collectStateDeps(expr.alternate, deps, stateNames, computedNames);
+			break;
+		case "template-literal":
+			for (const part of expr.parts) {
+				if (typeof part !== "string") {
+					collectStateDeps(part, deps, stateNames, computedNames);
+				}
+			}
+			break;
+		case "array":
+			for (const el of expr.elements) collectStateDeps(el, deps, stateNames, computedNames);
+			break;
+		case "object":
+			for (const prop of expr.properties) {
+				if (prop.kind === "property") {
+					collectStateDeps(prop.value, deps, stateNames, computedNames);
+				} else {
+					collectStateDeps(prop.argument, deps, stateNames, computedNames);
+				}
+			}
+			break;
+		case "block":
+			for (const stmt of expr.body) collectStateDeps(stmt, deps, stateNames, computedNames);
+			break;
+		case "return":
+			if (expr.value) collectStateDeps(expr.value, deps, stateNames, computedNames);
+			break;
+		case "assign":
+			collectStateDeps(expr.target, deps, stateNames, computedNames);
+			collectStateDeps(expr.value, deps, stateNames, computedNames);
+			break;
+		case "update":
+			collectStateDeps(expr.target, deps, stateNames, computedNames);
+			break;
+		case "let":
+			collectStateDeps(expr.value, deps, stateNames, computedNames);
 			break;
 	}
 }
@@ -1986,6 +2253,8 @@ function collectStateWrites(expr) {
 		}
 	} else if (expr.kind === "collection-op") {
 		writes.push(expr.name);
+	} else if (expr.kind === "let") {
+		writes.push(...collectStateWrites(expr.value));
 	}
 	return writes;
 }
@@ -2004,6 +2273,8 @@ function collectEmits(expr) {
 		for (const stmt of expr.body) {
 			emits.push(...collectEmits(stmt));
 		}
+	} else if (expr.kind === "let") {
+		emits.push(...collectEmits(expr.value));
 	}
 	return emits;
 }

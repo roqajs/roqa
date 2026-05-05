@@ -71,6 +71,22 @@ function inlineBindings(lir, mir) {
 	/** @type {Map<string, import("./types.d.ts").InlinedBlockUpdate[]>} */
 	const cellBlockUpdates = new Map();
 	for (const block of lir.connected.blocks) {
+		// For switch blocks, register the controller against every dep cell
+		// so any state-write that touches a dep triggers `controller.update()`.
+		if (block.blockType === "switch") {
+			const deps = block.switchDeps || [];
+			for (const cellName of deps) {
+				if (!cellBlockUpdates.has(cellName)) {
+					cellBlockUpdates.set(cellName, []);
+				}
+				cellBlockUpdates.get(cellName).push({
+					blockVar: block.controllerVar,
+					method: "update",
+				});
+			}
+			continue;
+		}
+
 		if (!cellBlockUpdates.has(block.source)) {
 			cellBlockUpdates.set(block.source, []);
 		}
@@ -81,6 +97,12 @@ function inlineBindings(lir, mir) {
 		if (block.fallbackControllerVar) {
 			cellBlockUpdates.get(block.source).push({
 				blockVar: block.fallbackControllerVar,
+				method: "update",
+			});
+		}
+		if (block.emptyControllerVar) {
+			cellBlockUpdates.get(block.source).push({
+				blockVar: block.emptyControllerVar,
 				method: "update",
 			});
 		}

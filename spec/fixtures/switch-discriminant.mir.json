@@ -1,0 +1,76 @@
+{
+	"version": 1,
+	"tagName": "status-message",
+	"name": "StatusMessage",
+
+	"state": [
+		{
+			"kind": "value",
+			"name": "status",
+			"initial": "loading"
+		}
+	],
+	"actions": [],
+	"props": [],
+	"attrs": [],
+	"emits": [],
+	"lifecycle": {},
+
+	"render": [
+		{
+			"kind": "element",
+			"tag": "div",
+			"attributes": {},
+			"events": [],
+			"children": [
+				{
+					"kind": "switch",
+					"discriminant": { "kind": "state-read", "name": "status" },
+					"arms": [
+						{
+							"test": { "kind": "literal", "value": "loading" },
+							"render": [
+								{
+									"kind": "element",
+									"tag": "p",
+									"attributes": {},
+									"events": [],
+									"children": [
+										{ "kind": "text", "value": "Loading..." }
+									]
+								}
+							]
+						},
+						{
+							"test": { "kind": "literal", "value": "success" },
+							"render": [
+								{
+									"kind": "element",
+									"tag": "p",
+									"attributes": {
+										"class": { "kind": "literal", "value": "success" }
+									},
+									"events": [],
+									"children": [
+										{ "kind": "text", "value": "Done!" }
+									]
+								}
+							]
+						}
+					],
+					"fallback": [
+						{
+							"kind": "element",
+							"tag": "p",
+							"attributes": {},
+							"events": [],
+							"children": [
+								{ "kind": "text", "value": "Unknown status." }
+							]
+						}
+					]
+				}
+			]
+		}
+	]
+}

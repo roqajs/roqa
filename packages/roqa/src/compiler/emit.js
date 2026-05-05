@@ -208,9 +208,13 @@ function emitComponent(lir, lines) {
 		lines.push("");
 	}
 
-	// Block var declarations: show/fallback before functions, each after
-	const showBlockVars = lir.blockVars.filter((bv) => bv.blockType === "show" || bv.blockType === "fallback");
-	const eachBlockVars = lir.blockVars.filter((bv) => bv.blockType === "each");
+	// Block var declarations: show/switch/fallback before functions, each/empty after
+	const showBlockVars = lir.blockVars.filter(
+		(bv) => bv.blockType === "show" || bv.blockType === "fallback" || bv.blockType === "switch",
+	);
+	const eachBlockVars = lir.blockVars.filter(
+		(bv) => bv.blockType === "each" || bv.blockType === "empty",
+	);
 
 	for (const bv of showBlockVars) {
 		lines.push(`\tlet ${bv.name};`);
@@ -223,7 +227,7 @@ function emitComponent(lir, lines) {
 		lines.push("");
 	}
 
-	// Each block vars after functions
+	// Each / empty block vars after functions
 	for (const bv of eachBlockVars) {
 		lines.push(`\tlet ${bv.name};`);
 	}
@@ -465,6 +469,8 @@ function emitBlock(block, lir, lines) {
 		emitShowBlock(block, lir, lines);
 	} else if (block.blockType === "each") {
 		emitEachBlock(block, lir, lines);
+	} else if (block.blockType === "switch") {
+		emitSwitchBlock(block, lir, lines);
 	}
 }
 
@@ -526,7 +532,8 @@ function emitShowBlock(block, lir, lines) {
  */
 function emitEachBlock(block, lir, lines) {
 	const alias = block.itemAlias || "item";
-	lines.push(`\t\t${block.controllerVar} = forBlock(${block.container}, ${block.source}, (anchor, ${alias}, index) => {`);
+	const indexParam = block.indexAlias || "_index";
+	lines.push(`\t\t${block.controllerVar} = forBlock(${block.container}, ${block.source}, (anchor, ${alias}, ${indexParam}) => {`);
 
 	const rb = block.renderBody;
 	lines.push(`\t\t\tconst ${rb.rootElement} = ${rb.templateId}().firstChild;`);
@@ -566,6 +573,130 @@ function emitEachBlock(block, lir, lines) {
 	lines.push(`\t\t\tanchor.before(${rb.rootElement});`);
 	lines.push(`\t\t\treturn { start: ${rb.rootElement}, end: ${rb.rootElement} };`);
 	lines.push(`\t\t});`);
+
+	// Empty fallback (toggles in/out as the source crosses zero length).
+	if (block.emptyBody && block.emptyControllerVar) {
+		lines.push("");
+		lines.push(`\t\t${block.emptyControllerVar} = showBlock(${block.container}, () => ${block.source}.v == null || ${block.source}.v.length === 0, (anchor) => {`);
+
+		const eb = block.emptyBody;
+		lines.push(`\t\t\tconst ${eb.rootElement} = ${eb.templateId}().firstChild;`);
+
+		for (const t of eb.traversals) {
+			lines.push(`\t\t\tconst ${t.varName} = ${t.path};`);
+		}
+
+		if (eb.events.length > 0) {
+			lines.push("");
+			for (const evt of eb.events) {
+				lines.push(`\t\t\t${evt.target}.__${evt.event} = ${evt.handler};`);
+			}
+		}
+
+		lines.push("");
+		lines.push(`\t\t\tanchor.before(${eb.rootElement});`);
+		lines.push(`\t\t\treturn { start: ${eb.rootElement}, end: ${eb.rootElement} };`);
+		lines.push(`\t\t}, [${block.source}]);`);
+	}
+}
+
+/**
+ * Emit a switch-block setup. Each arm is rendered through its own
+ * `(anchor) => ...` callback, and the runtime evaluates arm tests in
+ * declaration order on every update. The optional fallback runs when no
+ * arm matches.
+ *
+ * @param {import("./types.d.ts").BlockOp} block
+ * @param {ComponentLIR} lir
+ * @param {string[]} lines
+ */
+function emitSwitchBlock(block, lir, lines) {
+	const arms = block.switchArms || [];
+	const deps = block.switchDeps || [];
+
+	// Open switchBlock(...) call with the arms array literal.
+	lines.push(`\t\t${block.controllerVar} = switchBlock(${block.container}, [`);
+
+	for (let i = 0; i < arms.length; i++) {
+		const arm = arms[i];
+		lines.push("\t\t\t{");
+		lines.push(`\t\t\t\ttest: () => ${arm.testExpr},`);
+		lines.push(`\t\t\t\trender: (anchor) => {`);
+		lines.push(`\t\t\t\t\tconst ${arm.rootElement} = ${arm.templateId}().firstChild;`);
+
+		for (const t of arm.traversals) {
+			lines.push(`\t\t\t\t\tconst ${t.varName} = ${t.path};`);
+		}
+
+		if (arm.events.length > 0 || arm.classBindings.length > 0 || arm.bindings.length > 0) {
+			lines.push("");
+		}
+
+		for (const evt of arm.events) {
+			lines.push(`\t\t\t\t\t${evt.target}.__${evt.event} = ${evt.handler};`);
+		}
+		for (const cb of arm.classBindings) {
+			lines.push(`\t\t\t\t\t${cb.target}.className = ${cb.expression};`);
+		}
+		for (const b of arm.bindings) {
+			if (b.isStyleProp) {
+				lines.push(`\t\t\t\t\t${b.target}.style.setProperty(${JSON.stringify(b.property)}, ${b.expression});`);
+			} else if (b.isSvgAttr) {
+				lines.push(`\t\t\t\t\t${b.target}.setAttribute("${b.property}", ${b.expression});`);
+			} else {
+				lines.push(`\t\t\t\t\t${b.target}.${b.property} = ${b.expression};`);
+			}
+		}
+
+		lines.push("");
+		lines.push(`\t\t\t\t\tanchor.before(${arm.rootElement});`);
+		lines.push(`\t\t\t\t\treturn { start: ${arm.rootElement}, end: ${arm.rootElement} };`);
+		lines.push(`\t\t\t\t},`);
+		lines.push(i === arms.length - 1 ? "\t\t\t}" : "\t\t\t},");
+	}
+
+	lines.push("\t\t],");
+
+	// Fallback render fn, or `null`.
+	if (block.fallbackBody) {
+		const fb = block.fallbackBody;
+		lines.push(`\t\t(anchor) => {`);
+		lines.push(`\t\t\tconst ${fb.rootElement} = ${fb.templateId}().firstChild;`);
+
+		for (const t of fb.traversals) {
+			lines.push(`\t\t\tconst ${t.varName} = ${t.path};`);
+		}
+
+		if (fb.events.length > 0 || fb.classBindings.length > 0 || fb.bindings.length > 0) {
+			lines.push("");
+		}
+
+		for (const evt of fb.events) {
+			lines.push(`\t\t\t${evt.target}.__${evt.event} = ${evt.handler};`);
+		}
+		for (const cb of fb.classBindings) {
+			lines.push(`\t\t\t${cb.target}.className = ${cb.expression};`);
+		}
+		for (const b of fb.bindings) {
+			if (b.isStyleProp) {
+				lines.push(`\t\t\t${b.target}.style.setProperty(${JSON.stringify(b.property)}, ${b.expression});`);
+			} else if (b.isSvgAttr) {
+				lines.push(`\t\t\t${b.target}.setAttribute("${b.property}", ${b.expression});`);
+			} else {
+				lines.push(`\t\t\t${b.target}.${b.property} = ${b.expression};`);
+			}
+		}
+
+		lines.push("");
+		lines.push(`\t\t\tanchor.before(${fb.rootElement});`);
+		lines.push(`\t\t\treturn { start: ${fb.rootElement}, end: ${fb.rootElement} };`);
+
+		const depsArg = deps.length > 0 ? `, [${deps.join(", ")}]` : "";
+		lines.push(`\t\t}${depsArg});`);
+	} else {
+		const depsArg = deps.length > 0 ? `, [${deps.join(", ")}]` : "";
+		lines.push(`\t\tnull${depsArg});`);
+	}
 }
 
 /**
@@ -650,14 +781,22 @@ function renumberTemplates(lir, renames) {
 	const blocks = lir.connected.blocks.map((b) => ({
 		...b,
 		templateId: b.templateId ? (localRenames.get(b.templateId) || b.templateId) : b.templateId,
-		renderBody: {
+		renderBody: b.renderBody ? {
 			...b.renderBody,
 			templateId: localRenames.get(b.renderBody.templateId) || b.renderBody.templateId,
-		},
+		} : undefined,
 		fallbackBody: b.fallbackBody ? {
 			...b.fallbackBody,
 			templateId: localRenames.get(b.fallbackBody.templateId) || b.fallbackBody.templateId,
 		} : undefined,
+		emptyBody: b.emptyBody ? {
+			...b.emptyBody,
+			templateId: localRenames.get(b.emptyBody.templateId) || b.emptyBody.templateId,
+		} : undefined,
+		switchArms: b.switchArms ? b.switchArms.map((arm) => ({
+			...arm,
+			templateId: localRenames.get(arm.templateId) || arm.templateId,
+		})) : undefined,
 	}));
 
 	return {

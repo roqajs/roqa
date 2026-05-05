@@ -1,0 +1,229 @@
+{
+    "version": 1,
+    "tagName": "each-empty-demo",
+    "name": "EachEmptyDemo",
+    "state": [
+        {
+            "kind": "collection",
+            "name": "items",
+            "key": "id",
+            "initial": []
+        },
+        {
+            "kind": "value",
+            "name": "nextId",
+            "initial": 1
+        }
+    ],
+    "actions": [
+        {
+            "kind": "action",
+            "name": "addItem",
+            "params": [],
+            "body": {
+                "kind": "block",
+                "body": [
+                    {
+                        "kind": "collection-op",
+                        "op": "insert",
+                        "name": "items",
+                        "args": [
+                            {
+                                "kind": "object",
+                                "properties": [
+                                    {
+                                        "kind": "property",
+                                        "key": "id",
+                                        "value": {
+                                            "kind": "state-read",
+                                            "name": "nextId"
+                                        }
+                                    },
+                                    {
+                                        "kind": "property",
+                                        "key": "text",
+                                        "value": {
+                                            "kind": "template-literal",
+                                            "parts": [
+                                                "Item #",
+                                                {
+                                                    "kind": "state-read",
+                                                    "name": "nextId"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "kind": "state-write",
+                        "name": "nextId",
+                        "value": {
+                            "kind": "binary",
+                            "op": "+",
+                            "left": {
+                                "kind": "state-read",
+                                "name": "nextId"
+                            },
+                            "right": {
+                                "kind": "literal",
+                                "value": 1
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "kind": "action",
+            "name": "clearAll",
+            "params": [],
+            "body": {
+                "kind": "collection-op",
+                "op": "clear",
+                "name": "items",
+                "args": []
+            }
+        }
+    ],
+    "props": [],
+    "attrs": [],
+    "emits": [],
+    "lifecycle": {},
+    "render": [
+        {
+            "kind": "element",
+            "tag": "section",
+            "attributes": {},
+            "events": [],
+            "children": [
+                {
+                    "kind": "element",
+                    "tag": "h2",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "text",
+                            "value": "EachIR.empty — fallback for empty collections"
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "div",
+                    "attributes": {
+                        "class": {
+                            "kind": "literal",
+                            "value": "buttons"
+                        }
+                    },
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "element",
+                            "tag": "button",
+                            "attributes": {},
+                            "events": [
+                                {
+                                    "event": "click",
+                                    "handler": {
+                                        "kind": "action-call",
+                                        "name": "addItem",
+                                        "args": []
+                                    }
+                                }
+                            ],
+                            "children": [
+                                {
+                                    "kind": "text",
+                                    "value": "Add item"
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "element",
+                            "tag": "button",
+                            "attributes": {},
+                            "events": [
+                                {
+                                    "event": "click",
+                                    "handler": {
+                                        "kind": "action-call",
+                                        "name": "clearAll",
+                                        "args": []
+                                    }
+                                }
+                            ],
+                            "children": [
+                                {
+                                    "kind": "text",
+                                    "value": "Clear all"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "ul",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "each",
+                            "source": {
+                                "kind": "cell-ref",
+                                "name": "items"
+                            },
+                            "itemAlias": "item",
+                            "key": "id",
+                            "render": [
+                                {
+                                    "kind": "element",
+                                    "tag": "li",
+                                    "attributes": {},
+                                    "events": [],
+                                    "children": [
+                                        {
+                                            "kind": "reactive-text",
+                                            "source": {
+                                                "kind": "member",
+                                                "object": {
+                                                    "kind": "local-read",
+                                                    "name": "item"
+                                                },
+                                                "property": "text"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "empty": [
+                                {
+                                    "kind": "element",
+                                    "tag": "li",
+                                    "attributes": {
+                                        "class": {
+                                            "kind": "literal",
+                                            "value": "empty-state"
+                                        }
+                                    },
+                                    "events": [],
+                                    "children": [
+                                        {
+                                            "kind": "text",
+                                            "value": "✨ Nothing here yet — click \"Add item\" to begin."
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

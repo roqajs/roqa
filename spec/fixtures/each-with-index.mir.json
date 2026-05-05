@@ -1,0 +1,78 @@
+{
+    "version": 1,
+    "tagName": "indexed-list",
+    "name": "IndexedList",
+    "state": [
+        {
+            "kind": "collection",
+            "name": "items",
+            "key": "id",
+            "initial": []
+        }
+    ],
+    "actions": [],
+    "props": [],
+    "attrs": [],
+    "emits": [],
+    "lifecycle": {},
+    "render": [
+        {
+            "kind": "element",
+            "tag": "ol",
+            "attributes": {},
+            "events": [],
+            "children": [
+                {
+                    "kind": "each",
+                    "source": {
+                        "kind": "cell-ref",
+                        "name": "items"
+                    },
+                    "itemAlias": "item",
+                    "indexAlias": "i",
+                    "key": "id",
+                    "render": [
+                        {
+                            "kind": "element",
+                            "tag": "li",
+                            "attributes": {},
+                            "events": [],
+                            "children": [
+                                {
+                                    "kind": "reactive-text",
+                                    "source": {
+                                        "kind": "binary",
+                                        "op": "+",
+                                        "left": {
+                                            "kind": "local-read",
+                                            "name": "i"
+                                        },
+                                        "right": {
+                                            "kind": "literal",
+                                            "value": 1
+                                        }
+                                    }
+                                },
+                                {
+                                    "kind": "text",
+                                    "value": ". "
+                                },
+                                {
+                                    "kind": "reactive-text",
+                                    "source": {
+                                        "kind": "member",
+                                        "object": {
+                                            "kind": "local-read",
+                                            "name": "item"
+                                        },
+                                        "property": "name"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

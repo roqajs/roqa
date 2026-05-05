@@ -37,7 +37,7 @@ describe("IR feedback fixes", () => {
 							kind: "collection-op",
 							op: "remove",
 							name: "tasks",
-							args: [{ kind: "param-read", name: "slug" }],
+							args: [{ kind: "local-read", name: "slug" }],
 						},
 					},
 				],
@@ -62,15 +62,15 @@ describe("IR feedback fixes", () => {
 							op: "update",
 							name: "users",
 							args: [
-								{ kind: "param-read", name: "uuid" },
+								{ kind: "local-read", name: "uuid" },
 								{
 									kind: "closure",
 									params: ["u"],
 									body: {
 										kind: "object",
 										properties: [
-											{ kind: "spread", argument: { kind: "param-read", name: "u" } },
-											{ kind: "property", key: "name", value: { kind: "param-read", name: "name" } },
+											{ kind: "spread", argument: { kind: "local-read", name: "u" } },
+											{ kind: "property", key: "name", value: { kind: "local-read", name: "name" } },
 										],
 									},
 								},
@@ -98,7 +98,7 @@ describe("IR feedback fixes", () => {
 							kind: "collection-op",
 							op: "remove",
 							name: "items",
-							args: [{ kind: "param-read", name: "id" }],
+							args: [{ kind: "local-read", name: "id" }],
 						},
 					},
 				],
@@ -329,7 +329,7 @@ describe("IR feedback fixes", () => {
 										attributes: {},
 										events: [],
 										children: [
-											{ kind: "reactive-text", source: { kind: "param-read", name: "label" } },
+											{ kind: "reactive-text", source: { kind: "local-read", name: "label" } },
 										],
 									},
 								],
@@ -365,7 +365,7 @@ describe("IR feedback fixes", () => {
 										attributes: {},
 										events: [],
 										children: [
-											{ kind: "reactive-text", source: { kind: "param-read", name: "x" } },
+											{ kind: "reactive-text", source: { kind: "local-read", name: "x" } },
 										],
 									},
 								],
@@ -418,7 +418,7 @@ tag: "li",
 attributes: {},
 events: [],
 children: [
-{ kind: "reactive-text", source: { kind: "item-field-read", field: "text" } },
+{ kind: "reactive-text", source: { kind: "member", object: { kind: "local-read", name: "todo" }, property: "text" } },
 ],
 },
 ],
