@@ -339,7 +339,9 @@ type ExprIR =
     | SpreadExpr
     | CallExpr
     | MethodCallExpr
+    | NewExpr
     | BlockExpr
+    | ReturnExpr
     | CollectionOpExpr
     | EmitExpr
     | ActionCallExpr
@@ -532,6 +534,15 @@ type MethodCallExpr = {
     method: string;
     args: ExprIR[];
 };
+
+// Constructor call: `new Constructor(args)` (e.g. `new Date()`, `new URL(s)`)
+// Frontends should prefer this over OpaqueExpr for instantiation so the
+// backend can analyze the arguments.
+type NewExpr = {
+    kind: "new";
+    callee: ExprIR;
+    args: ExprIR[];
+};
 ```
 
 ### Statement and control flow expressions
@@ -541,6 +552,15 @@ type MethodCallExpr = {
 type BlockExpr = {
     kind: "block";
     body: ExprIR[];
+};
+
+// `return <value>` — used inside ClosureExpr.body and BlockExpr to produce a
+// JavaScript `return` statement. Without this, frontends are forced through
+// OpaqueExpr to preserve the `return` keyword (e.g. for `return { x, y }`
+// patterns inside a callback).
+type ReturnExpr = {
+    kind: "return";
+    value?: ExprIR;             // Omit for bare `return`
 };
 
 // A closure / callback function
@@ -960,11 +980,18 @@ passes the cell directly to `showBlock()` for subscription.
 ```ts
 type EachIR = {
     kind: "each";
-    source: CellRef;              // Cell containing the array
+    source: EachSourceIR;         // Cell or arbitrary expression (auto-lifted)
     key?: string | null;          // Key field name or null for identity
     itemAlias: string;            // Variable name for the current item (e.g., "todo")
     render: NodeIR[];             // View tree for each item
 };
+
+// `each` accepts either a cell-ref or any ExprIR. Non-cell sources (constant
+// arrays, prop reads, derived expressions) are auto-lifted to a synthetic
+// computed cell during lowering, so the runtime always sees a cell. This lets
+// frontends render static lists (toolbar buttons, filter chips, unit
+// selectors) without inventing an unused `state` cell.
+type EachSourceIR = CellRef | ExprIR;
 ```
 
 Lowered to `forBlock(container, sourceCell, renderFn)`.
@@ -988,13 +1015,33 @@ type CellRef = {
 };
 ```
 
-Used by `ShowIR` and `EachIR` to pass the cell directly to `showBlock()` and
-`forBlock()` for subscription. The `name` can reference any state-kind entry
-(value, collection, or computed) — all become cells at runtime.
+Used by `ShowIR` to pass the cell directly to `showBlock()` for subscription,
+and accepted (alongside arbitrary `ExprIR`) by `EachIR.source`. The `name` can
+reference any state-kind entry (value, collection, or computed) — all become
+cells at runtime.
 
 Distinct from `StateReadExpr` (`kind: "state-read"`) — a `CellRef` says "I
 need the cell object itself" while a `StateReadExpr` says "I need the current
 value (`.v`)."
+
+#### When to emit `cell-ref` vs `state-read`
+
+- **Emit `cell-ref`** when the consumer needs the cell *handle* (so it can
+  subscribe to or write to the cell over time):
+  - `ShowIR.condition`
+  - `EachIR.source` (when the source is a state cell)
+  - When passing the cell as an argument to runtime helpers that take a cell
+    by reference: `bind`, `subscribe`, `notify`, `put`. (See
+    [`runtime.md`](./runtime.md) for the canonical list.)
+
+- **Emit `state-read`** everywhere else — attribute values, class conditions,
+  reactive text, action bodies. The compiler reads `.v` and tracks the cell
+  as a dependency automatically.
+
+Frontends with a "JS-expression" surface language (JSX, DSLs) typically resolve
+this in their identifier lookup table: an identifier that names a cell becomes
+`state-read` by default, and switches to `cell-ref` only at the small list of
+known cell-handle sites above.
 
 ---
 
@@ -1051,8 +1098,27 @@ type ClassListIR = {
 
 type ClassItemIR =
     | string                                          // Static class name
-    | { name: string; condition: ExprIR };            // Conditional class
+    | { name: string; condition: ExprIR }             // Conditional class
+    | { kind: "dynamic"; value: ExprIR };             // Arbitrary expression
+                                                      // resolving to a class-name string
+                                                      // (e.g., `class={fn(x)}`)
 ```
+
+The three forms compose freely:
+
+```ts
+{
+    kind: "class-list",
+    items: [
+        "todo",                                                 // always present
+        { name: "completed", condition: <ExprIR> },             // toggled by predicate
+        { kind: "dynamic", value: <ExprIR> }                    // computed string
+    ]
+}
+```
+
+A `dynamic` item's value is wrapped at runtime so an empty/falsy result
+contributes nothing to the className.
 
 Normalization — all of these source forms produce the same MIR:
 
@@ -1111,6 +1177,18 @@ type StylePropertyIR = {
 All style property names are normalized to kebab-case in the MIR, regardless of
 how the frontend expressed them (camelCase `fontSize` or kebab-case
 `font-size`). This ensures the code generator only handles one form.
+
+**Lowering rules.** The compiler splits `StyleMapIR` into two paths:
+
+- Properties with `LiteralExpr` values are folded into the template's inline
+  `style="..."` attribute (one allocation, zero runtime cost).
+- Properties with any other expression become `el.style.setProperty(prop, val)`
+  bindings that update reactively.
+
+Because `setProperty` is used for the dynamic path, kebab-case property names,
+vendor prefixes (`-webkit-...`), and CSS custom properties (`--accent-color`)
+all work uniformly. Frontends should *not* rewrite custom-property names to
+camelCase.
 
 ---
 

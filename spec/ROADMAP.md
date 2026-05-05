@@ -53,6 +53,23 @@ Create a guide for building custom frontends:
 
 ## Compiler enhancements
 
+### Nested block support
+
+`ShowIR` and `EachIR` only render correctly at the top level of a component's
+`render` array, or as direct children of an element at the top level. When
+nested inside another block's render body (e.g. `<show>` wrapping an
+`<each>`), the inner block is silently dropped from the output.
+
+The compiler currently emits an `unsupported-nested-block` warning so
+frontends fail loudly. A proper fix needs:
+
+1. A `blocks: BlockOp[]` field on `BlockRenderBody`.
+2. `processBlockElement` to recognize child `show` / `each` and collect them
+   into the parent's `nestedBlocks`.
+3. `emitBlock` to emit nested block setup inside the parent's render
+   callback (anchors / controllers must be created per-mount, not once at
+   `connected()` time).
+
 ### Advanced optimization passes
 
 The current compiler implements two optimization passes (inline cells, inline
@@ -126,6 +143,32 @@ Profile the runtime with large-list benchmarks (`forBlock` reconciliation,
 - `roqa compile <file.roqa>` — compile a `.roqa` file to JS from the command
   line (useful for CI, debugging, non-Vite workflows)
 - `roqa validate <file.roqa>` — run validation without compilation
+
+### Deferred items from agent feedback
+
+Items from `spec/AGENT-FEEDBACK.md` that were considered but not implemented
+in the post-feedback pass. Each has a low-friction workaround today
+(`OpaqueExpr` or status-quo) and is tracked here for the next pass.
+
+- **`StateValueIR.initial: ExprIR`.** Drop `initial: unknown` + `initialExpr:
+  string` in favor of a single `initial: ExprIR`. Cleaner pipeline but breaks
+  every existing fixture; bundle with an IR version bump.
+- **`inlinedSets` as a single ordered op stream.** The current
+  `body` + `inlinedSets[].prelude` split works but can break source ordering
+  in pathological cases. Optimizer-internal refactor.
+- **Structured control-flow expressions.** `IfExpr`, `ForExpr`, `WhileExpr`,
+  `TryCatchExpr`. `OpaqueExpr` is acceptable interim; promote to structured
+  forms when real-world frontends start hitting them. (`NewExpr` and
+  `ReturnExpr` were promoted.)
+- **Unify `param-read` / `item-field-read` into `LocalReadExpr`.** Renaming
+  shuffle without behavior change; revisit only if frontends repeatedly trip
+  on the distinction.
+- **Rename `cell-ref`.** Considered `subscribe-target` / `cell-handle`. Held
+  back — the docs section "When to emit `cell-ref` vs `state-read`" addresses
+  the discoverability concern at lower cost.
+- **Auto-lift `state-read` predicates inside `ShowIR.condition`** (the same
+  treatment `EachIR.source` now gets). Less common than `each` constants;
+  defer until requested.
 
 ---
 

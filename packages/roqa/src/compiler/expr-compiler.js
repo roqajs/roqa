@@ -6,6 +6,9 @@
  * @property {string} [itemAlias] - Current iteration variable name
  * @property {boolean} [isInlineHandler] - Inside an inline event handler
  * @property {string} [componentName] - Component function name
+ * @property {Map<string, string>} [collectionKeys] - Collection name → key field.
+ *   When a collection-op (`remove`, `update`) targets a name in this map, the
+ *   compiler uses the declared key field instead of the default `id`.
  */
 
 /**
@@ -86,8 +89,14 @@ export function compileExpr(expr, ctx = {}) {
 		case "method-call":
 			return `${compileReceiver(expr.object, ctx)}.${expr.method}(${expr.args.map((a) => compileExpr(a, ctx)).join(", ")})`;
 
+		case "new":
+			return `new ${compileReceiver(expr.callee, ctx)}(${expr.args.map((a) => compileExpr(a, ctx)).join(", ")})`;
+
 		case "block":
 			return expr.body.map((e) => compileExpr(e, ctx)).join(";\n");
+
+		case "return":
+			return expr.value === undefined ? "return" : `return ${compileExpr(expr.value, ctx)}`;
 
 		case "closure":
 			return compileClosure(expr, ctx);
@@ -346,11 +355,12 @@ function compileClosureParam(param) {
  */
 function compileCollectionOp(expr, ctx) {
 	const name = expr.name;
+	const keyField = ctx.collectionKeys?.get(name) ?? "id";
 	switch (expr.op) {
 		case "insert":
 			return `${name}.v = [...${name}.v, ${compileExpr(expr.args[0], ctx)}]`;
 		case "remove":
-			return `${name}.v = ${name}.v.filter((t) => t.id !== ${compileExpr(expr.args[0], ctx)})`;
+			return `${name}.v = ${name}.v.filter((t) => t.${keyField} !== ${compileExpr(expr.args[0], ctx)})`;
 		case "update": {
 			const id = compileExpr(expr.args[0], ctx);
 			const closureArg = expr.args[1];
@@ -358,10 +368,10 @@ function compileCollectionOp(expr, ctx) {
 				// Inline the closure: (param) => body becomes the map callback body
 				const param = typeof closureArg.params[0] === "string" ? closureArg.params[0] : "t";
 				const body = compileExpr(closureArg.body, ctx);
-				return `${name}.v = ${name}.v.map((${param}) => ${param}.id === ${id} ? ${body} : ${param})`;
+				return `${name}.v = ${name}.v.map((${param}) => ${param}.${keyField} === ${id} ? ${body} : ${param})`;
 			}
 			const fn = compileExpr(closureArg, ctx);
-			return `${name}.v = ${name}.v.map((t) => t.id === ${id} ? ${fn}(t) : t)`;
+			return `${name}.v = ${name}.v.map((t) => t.${keyField} === ${id} ? ${fn}(t) : t)`;
 		}
 		case "remove-where": {
 			const fn = compileExpr(expr.args[0], ctx);

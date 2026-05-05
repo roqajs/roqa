@@ -317,7 +317,9 @@ function emitComponent(lir, lines) {
 		lines.push("");
 		for (const binding of lir.connected.bindings) {
 			if (binding.inlined || !binding.cellName) {
-				if (binding.isSvgAttr) {
+				if (binding.isStyleProp) {
+					lines.push(`\t\t${binding.target}.style.setProperty(${JSON.stringify(binding.property)}, ${binding.initialValue});`);
+				} else if (binding.isSvgAttr) {
 					lines.push(`\t\t${binding.target}.setAttribute("${binding.property}", ${binding.initialValue});`);
 				} else {
 					lines.push(`\t\t${binding.target}.${binding.property} = ${binding.initialValue};`);
@@ -394,6 +396,11 @@ function emitFunction(fn, lines) {
 				const refName = parts[1];
 				const attrName = parts[2];
 				lines.push(`\t\t${refName}.setAttribute("${attrName}", ${update.expression});`);
+			} else if (update.target.startsWith("__style:")) {
+				const parts = update.target.split(":");
+				const refName = parts[1];
+				const propName = parts[2];
+				lines.push(`\t\t${refName}.style.setProperty(${JSON.stringify(propName)}, ${update.expression});`);
 			} else {
 				lines.push(`\t\t${update.target} = ${update.expression};`);
 			}
@@ -545,7 +552,13 @@ function emitEachBlock(block, lir, lines) {
 
 	// Bindings
 	for (const b of rb.bindings) {
-		lines.push(`\t\t\t${b.target}.${b.property} = ${b.expression};`);
+		if (b.isStyleProp) {
+			lines.push(`\t\t\t${b.target}.style.setProperty(${JSON.stringify(b.property)}, ${b.expression});`);
+		} else if (b.isSvgAttr) {
+			lines.push(`\t\t\t${b.target}.setAttribute("${b.property}", ${b.expression});`);
+		} else {
+			lines.push(`\t\t\t${b.target}.${b.property} = ${b.expression};`);
+		}
 	}
 
 	// Mount

@@ -138,9 +138,20 @@ export function validate(mir) {
 					validateExpr(expr.args[i], [...path, "args", String(i)]);
 				}
 				break;
+			case "new":
+				validateExpr(expr.callee, [...path, "callee"]);
+				for (let i = 0; i < expr.args.length; i++) {
+					validateExpr(expr.args[i], [...path, "args", String(i)]);
+				}
+				break;
 			case "block":
 				for (let i = 0; i < expr.body.length; i++) {
 					validateExpr(expr.body[i], [...path, "body", String(i)]);
+				}
+				break;
+			case "return":
+				if (expr.value) {
+					validateExpr(expr.value, [...path, "value"]);
 				}
 				break;
 			case "closure":
@@ -212,6 +223,42 @@ export function validate(mir) {
 	}
 
 	/**
+	 * Walk a render subtree looking for nested `show` / `each` blocks. The
+	 * current backend only handles `show` / `each` at the top level of a
+	 * component's render or as direct children of an element at the top
+	 * level — nested inside another block's render they are silently
+	 * dropped. Emit a warning so frontends fail loudly until proper nested
+	 * block support lands.
+	 *
+	 * @param {NodeIR[]} nodes
+	 * @param {string[]} path
+	 * @param {string} parentBlockKind  "show" | "each"
+	 */
+	function checkNestedBlocks(nodes, path, parentBlockKind) {
+		for (let i = 0; i < nodes.length; i++) {
+			const node = nodes[i];
+			const nodePath = [...path, String(i)];
+			if (node.kind === "show" || node.kind === "each") {
+				diagnostics.push({
+					code: "unsupported-nested-block",
+					severity: "warning",
+					message:
+						`Nested block (\`${node.kind}\`) inside another \`${parentBlockKind}\` block is not yet supported by the compiler — the inner block will be dropped from the output. ` +
+						`Workaround: hoist the inner block to the top level (or wait for nested-block support — tracked in ROADMAP.md).`,
+					component,
+					path: nodePath,
+				});
+				// Don't descend further — the warning already fires for this
+				// subtree's outermost nested block.
+				continue;
+			}
+			if (node.kind === "element") {
+				checkNestedBlocks(node.children, [...nodePath, "children"], parentBlockKind);
+			}
+		}
+	}
+
+	/**
 	 * @param {NodeIR[]} nodes
 	 * @param {string[]} path
 	 */
@@ -230,9 +277,20 @@ export function validate(mir) {
 					if (node.classes && node.classes.kind === "class-list") {
 						for (let j = 0; j < node.classes.items.length; j++) {
 							const item = node.classes.items[j];
-							if (typeof item !== "string") {
+							if (typeof item === "string") continue;
+							if ("kind" in item && item.kind === "dynamic") {
+								validateExpr(item.value, [...nodePath, "classes", "items", String(j), "value"]);
+							} else {
 								validateExpr(item.condition, [...nodePath, "classes", "items", String(j), "condition"]);
 							}
+						}
+					}
+					if (node.styles && node.styles.kind === "style-map") {
+						for (let j = 0; j < node.styles.properties.length; j++) {
+							validateExpr(
+								node.styles.properties[j].value,
+								[...nodePath, "styles", "properties", String(j), "value"],
+							);
 						}
 					}
 					validateNodes(node.children, [...nodePath, "children"]);
@@ -258,29 +316,31 @@ export function validate(mir) {
 							path: nodePath,
 						});
 					}
+					checkNestedBlocks(node.render, [...nodePath, "render"], "show");
+					if (node.fallback) {
+						checkNestedBlocks(node.fallback, [...nodePath, "fallback"], "show");
+					}
 					validateNodes(node.render, [...nodePath, "render"]);
 					if (node.fallback) {
 						validateNodes(node.fallback, [...nodePath, "fallback"]);
 					}
 					break;
 				case "each":
-					if (node.source.kind !== "cell-ref") {
-						diagnostics.push({
-							code: "invalid-each-source",
-							severity: "error",
-							message: `EachIR source must be a cell-ref`,
-							component,
-							path: nodePath,
-						});
-					} else if (!allCellNames.has(node.source.name)) {
-						diagnostics.push({
-							code: "dangling-cell-ref",
-							severity: "error",
-							message: `Each source references undeclared state "${node.source.name}"`,
-							component,
-							path: nodePath,
-						});
+					if (node.source.kind === "cell-ref") {
+						if (!allCellNames.has(node.source.name)) {
+							diagnostics.push({
+								code: "dangling-cell-ref",
+								severity: "error",
+								message: `Each source references undeclared state "${node.source.name}"`,
+								component,
+								path: nodePath,
+							});
+						}
+					} else {
+						// Validate the lifted expression
+						validateExpr(node.source, [...nodePath, "source"]);
 					}
+					checkNestedBlocks(node.render, [...nodePath, "render"], "each");
 					validateNodes(node.render, [...nodePath, "render"]);
 					break;
 			}

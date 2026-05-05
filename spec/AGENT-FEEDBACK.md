@@ -1,4 +1,4 @@
-# Agent Feedback — Roqa MIR & Documentation
+# JSX Frontend – postmortem (`@roqajs/jsx`)
 
 Postmortem feedback from implementing the JSX frontend (`@roqajs/jsx`).
 
@@ -62,17 +62,16 @@ was learned. The 🟡 / 📝 items are the actionable backlog.
   Held back to avoid breaking existing IR fixtures.
 
 ### 🟡 8. `ReturnExpr`
-- Currently when a frontend hits `return { x, y }` in a block, it has to
-  fall back to `OpaqueExpr` with raw source. Otherwise the backend emits the
-  inner expression as a bare statement and loses the return value.
-- A `ReturnExpr { value: ExprIR }` would let the structured pipeline handle
-  it cleanly.
+- ✅ **Implemented.** `ReturnExpr { value?: ExprIR }` is now a first-class
+  `ExprIR` kind. Frontends can emit `return { x, y }` patterns inside
+  closures structurally instead of falling back to `OpaqueExpr`.
 
 ### 🟡 9. `IfExpr` / `ForExpr` / `WhileExpr` / `TryCatchExpr` / `NewExpr`
-- Currently every `if`, `for`, `while`, `try`, and `new` falls back to opaque.
-- `OpaqueExpr` with real source text works, but structured forms would let the
-  optimizer inline cell reads/writes that flow through these constructs.
-- Lower priority than the items above — opaque is a reasonable interim.
+- ✅ `NewExpr { callee, args }` was added — `new Date()`, `new URL(...)`,
+  etc. are now structured.
+- 🟡 **Deferred:** `IfExpr`, `ForExpr`, `WhileExpr`, `TryCatchExpr` remain
+  `OpaqueExpr` for now. Tracked in `spec/ROADMAP.md` under "Deferred items
+  from agent feedback".
 
 ### 🟡 10. Cell-arg helper convention
 - During JSX work I had to hardcode a list of runtime helpers that take a cell
@@ -207,3 +206,281 @@ highest leverage for future frontend authors:
    checklist and the opaque escape-hatch contract.
 2. **🟡 Add `ReturnExpr` to the IR.** Most missed structured kind in practice.
 3. **📝 Add the listed fixtures** so frontends can validate before shipping.
+
+# Loom Frontend — postmortem (`@roqajs/loom`) – Claude Opus 4.7
+
+Postmortem feedback from implementing a brand-new whitespace-significant
+DSL frontend for Roqa. Unlike the JSX postmortem above, this frontend was
+designed _around_ the MIR rather than mapping an existing language onto it,
+which surfaces a different set of friction points.
+
+## What went incredibly well
+
+- **`expr.js` was easier than I expected.** Pre-substituting `@name`
+  placeholders with synthetic identifiers and feeding the result to
+  `@babel/parser` worked on the first try and handled every JS construct I
+  needed (closures, destructuring, spread, template literals, ternaries,
+  member chains, method calls, object literals). I'd recommend this trick
+  in `frontend-guide.md` — any frontend that ends up needing to parse JS
+  expressions can use it without a custom parser.
+- **The MIR ExprIR is _genuinely_ frontend-independent.** I authored a
+  syntax that looks nothing like JSX (no closing tags, single sigil, sigil-
+  based reactivity resolution) and the lowering pass was still mostly a
+  linear walk of the HIR.
+- **The hint system in `LoomError` paid for itself immediately.** Every
+  diagnostic ships with line/column + a hint that points to the canonical
+  workaround (`use @item.field`, `wrap in derived`, etc.). The fact that
+  `compile()` emits clear backend errors means I didn't need to duplicate
+  validation in the frontend.
+- **`emit-decl` + `EmitExpr` separation is great.** The duality (declare at
+  the top of the component, fire inside an action) maps cleanly onto how
+  custom events work. The frontend just needs to validate that emitted
+  events are declared.
+
+## 🟡 Open MIR / IR feedback
+
+### 1. `cell-ref` vs `state-read` is still a footgun
+
+The spec is clear, but the asymmetry — "use `cell-ref` here, `state-read`
+there" — pushed me to hard-restrict `if`/`each` predicates to a single
+reactive name in the Loom syntax. That works, but a richer compiler could
+let frontends emit a `state-read` for the predicate and lift it to a
+synthetic computed during lowering (with a hint). It's mechanical work the
+compiler is well-positioned to do once and save every frontend from doing
+it themselves.
+
+If that's not on the table, the alternative would be to rename `cell-ref`
+to something more evocative — `subscribe-target` or `cell-handle`. The
+current name suggests "a reference to a cell" which sounds equivalent to
+a state-read until you read the spec carefully.
+
+> ✅ **Partially addressed via docs.** `spec/ir.md` now has a "When to emit
+> `cell-ref` vs `state-read`" subsection that lists the small set of
+> cell-handle sites and recommends the JS-frontend resolution pattern.
+> Auto-lift inside `ShowIR.condition` is deferred (tracked in `ROADMAP`).
+
+### 2. `each` source is locked to a `cell-ref`
+
+Iterating a constant array (e.g. tab labels, filter modes) requires
+declaring an unused `state` cell that's never written. There are two
+plausible fixes:
+
+- Allow `EachIR.source` to be a `LiteralExpr` (constant array) — emit a
+  static unrolled list at compile time.
+- Allow `EachIR.source` to be any `ExprIR` and require the lowering pass
+  to wrap non-cell sources in a synthetic computed.
+
+This came up repeatedly — toolbar buttons, filter chips, unit selectors are
+all common shapes that benefit from `each` but have no reactive dependency.
+
+> ✅ **Implemented (option 2).** `EachIR.source` is now `CellRef | ExprIR`.
+> Non-cell sources are auto-lifted to a synthetic computed cell during
+> lowering. Frontends can pass constant arrays, prop reads, or arbitrary
+> expressions directly.
+
+### 3. Multi-root rendering when sibling roots are mixed
+
+The spec says multi-root is fine, but mixing element + reactive-text +
+element at the root level isn't covered by any fixture. I had to verify
+behavior empirically by feeding samples through the compiler. Adding a
+fixture (`multi-root-mixed`) would close this gap.
+
+### 4. Conditional classes can't share an expression cleanly
+
+`ClassListIR.items` uses `string | { name, condition }`. If a frontend has
+"compute a className string from props" semantics (e.g. `class={computeCls(@x)}`),
+there's no IR slot for that — you have to enumerate every possible class
+as an `{ name, condition }`. A `dynamic-class` item kind whose value is an
+arbitrary `ExprIR` resolving to a string would fix this.
+
+Concretely:
+
+```ts
+type ClassItemIR =
+    | string
+    | { name: string; condition: ExprIR }
+    | { kind: "dynamic"; value: ExprIR };  // ← new
+```
+
+> ✅ **Implemented.** `ClassItemIR` accepts the proposed
+> `{ kind: "dynamic"; value: ExprIR }` variant. The compiler wraps the value
+> at runtime so an empty/falsy result contributes nothing to the className.
+
+### 5. Style bindings are missing from frontend-guide.md
+
+`StyleIR` and `StyleMapIR` are documented in `ir.md` but never appear in
+`frontend-guide.md`'s walkthrough or examples. I left style support out of
+Loom for v0 partly because I wasn't sure how the runtime expected the
+compiled output to look. A short section on `style="..."` vs
+`style:property={expr}` patterns would unblock that.
+
+### 6. `param-read` inside `each` overlaps with `item-field-read`
+
+Both forms mean "read something local". The Loom symbol-table resolution
+("is the name in `closureStack` → param-read; is it the active itemAlias →
+item-field-read") works, but it took thinking. A unified `LocalReadExpr`
+with a `kind` discriminator (`param`, `item`, `item-field`) might be
+clearer. As is, it's easy to accidentally emit `param-read` for an item
+field if you forget to track the `itemAlias` separately.
+
+### 7. `OpaqueExpr` should publish a "preferred replacement" registry
+
+Eliminating opaque was a goal of mine. Once I implemented closures, spread,
+template literals, and method calls, opaque essentially never fired. But
+new frontend authors will hit it. Linking from `OpaqueExpr` documentation
+to a "before you reach for opaque, try…" cheatsheet would help.
+
+### 8. JSON-serializable but no schema
+
+`spec/ir.md` mentions a JSON Schema is "coming". Right now I had to verify
+my output by feeding it through `compile()` and reading errors. A
+JSON Schema (or even a TypeScript-from-JSDoc declaration that's exposed as
+a type) would let frontends pre-flight their output.
+
+## 📝 Documentation feedback
+
+### 1. The "things you'll need to extract" checklist is gold
+
+Already added in `frontend-guide.md` (per the JSX postmortem). I used it as
+a literal todo list while building Loom. Keep this prominent.
+
+### 2. Add a "frontend authoring decisions" section
+
+Things I had to decide that aren't covered:
+
+- How to handle `@name` resolution when it could be multiple kinds
+  (state vs prop vs computed). The spec doesn't specify a precedence; I
+  picked computed > state > prop > attr for Loom but a recommended ordering
+  with rationale would be useful.
+- Whether to emit `metadata.frontend` (yes — it's free debugging value).
+- Whether to prune unused imports from `metadata.imports` (yes — the
+  backend doesn't tree-shake `import` statements based on usage).
+- How to spell "reactive collection" syntactically when the surface
+  language doesn't have a `cell()` constructor — Loom uses
+  `state x collection by id = []`.
+
+### 3. Examples should include a "stress-test" case
+
+The 13 reference examples are each minimal and focused. None combines
+many features. I added a `stress-test` example to my Loom examples that
+covers: collection state with computed filters, conditional classes via
+binary comparison, `if` nested inside `each`, bound actions with both
+string-literal and item-field arguments, multi-root render, and `emit`
+with payload. Recommending this pattern (or shipping a similar reference
+in `examples/ir/`) would catch corner-case regressions earlier.
+
+### 4. `examples/loom/` is now in the workspace
+
+For traceability — added to `pnpm-workspace.yaml` so the new examples
+participate in workspace tooling.
+
+## Top-3 priorities (Loom postmortem)
+
+1. **🟡 Allow `EachIR.source` to accept any `ExprIR`** (auto-lift to
+   computed when it's not a cell-ref). Removes the most common reason
+   frontends invent unused `state` cells.
+2. **🟡 Add `ClassItemIR.kind: "dynamic"`** so frontends can pass
+   `class={fn(@x)}` style expressions through cleanly.
+3. **📝 Document `StyleIR`** in `frontend-guide.md` with a worked example.
+   It's the only IR section the guide doesn't cover.
+
+# Reverie — postmortem (`@roqajs/reverie`) – GPT-5.5
+
+Postmortem feedback from implementing `@roqajs/reverie`, an indentation-based
+DSL frontend with JavaScript expressions normalized into MIR.
+
+### 🟡 1. Nested block nodes need fixture coverage
+
+Reverie naturally expresses nested control flow:
+
+```rvr
+show ready:
+  ul:
+    each todos as todo key id:
+      li:
+        {todo.text}
+```
+
+The frontend emits the expected nested `ShowIR` → `ElementIR(ul)` → `EachIR`
+shape, but the current backend output rendered the `show` template and dropped
+the nested `each` lowering. I moved the public sample to put `each` outside the
+`show` so it stays on a compiler-supported path.
+
+Suggested followups:
+
+- Add fixtures for `EachIR` nested inside `ShowIR`, `ShowIR` nested inside
+  `EachIR`, and block nodes nested under normal elements inside block render
+  bodies.
+- In `frontend-guide.md`, document whether nested block nodes are intended to be
+  fully supported today or are still a backend TODO.
+
+> 🟡 **Partially addressed.** Nested-block support is a meaty architectural
+> change (BlockRenderBody needs its own `blocks` field, emission has to be
+> recursive, anchors must live inside parent block render output). Not done
+> yet. As an interim, the validator now emits an `unsupported-nested-block`
+> warning so frontends fail loudly instead of silently shipping
+> empty-block output. Tracked in `spec/ROADMAP.md` under "Compiler
+> enhancements" → "Nested block support".
+
+### 🟡 2. `StateCollectionIR.key` is not honored by collection mutations
+
+`StateCollectionIR` has `key`, and `EachIR` has `key`, but `collection-op`
+codegen for `remove` and `update` currently compares `t.id` directly. That
+means frontend authors can emit `collection tasks key slug`, but action
+semantics still assume an `id` field.
+
+Suggested followups:
+
+- Either thread the declared collection key into `compileCollectionOp`, or make
+  the MIR contract explicit that collection mutation ops are currently
+  `id`-keyed regardless of `StateCollectionIR.key`.
+- Add fixtures for `collection-op:update` and `collection-op:remove` with a
+  non-`id` collection key.
+
+> ✅ **Implemented.** `compileCollectionOp` now reads
+> `StateCollectionIR.key` via `ExprContext.collectionKeys` (threaded by
+> `LoweringContext.ce`). `remove` and `update` use the declared key field;
+> the fallback is still `id` when no key is declared. Tests in
+> `tests/integration/feedback-fixes.test.js` cover both paths.
+
+### 📝 3. Attribute names vs expression aliases
+
+Declarative frontends often want DOM-friendly names like `user-name`, but
+JavaScript expression parsing cannot treat `user-name` as an identifier. In
+Reverie I used JS-friendly attr names in expressions (`username`) to avoid
+inventing an alias system.
+
+Suggested doc note: frontend authors should decide early whether hyphenated
+attrs need aliases in their source language, and `frontend-guide.md` could show
+one recommended mapping (`attr user-name as userName`, `attr userName`, etc.).
+
+### 🟡 4. `StyleMapIR` is specified but not lowered
+
+The MIR includes `StyleMapIR`, but the backend currently templates
+`StaticStyleIR` only. I kept Reverie to static `style "..."` syntax because a
+dynamic style map would produce MIR that looks valid but has no runtime effect.
+
+Suggested followups:
+
+- Lower `StyleMapIR` into style-property bindings.
+- Add a compiler fixture for static + reactive style properties.
+- Until then, call out in `frontend-guide.md` that dynamic `StyleMapIR` is not
+  a usable frontend target yet.
+
+> ✅ **Implemented.** Literal-valued style properties fold into the template
+> `style="..."` attribute; reactive properties become
+> `el.style.setProperty(<kebab-prop>, <value>)` bindings (so kebab-case,
+> vendor prefixes, and CSS custom properties all work). See `spec/ir.md`
+> §"Style IR" for the full lowering rules and the new tests in
+> `tests/integration/feedback-fixes.test.js`.
+
+### 📝 5. Expression parser guidance would help non-JSX frontends
+
+Reverie reused the JSX frontend's successful strategy: parse JavaScript
+expressions with Babel, resolve identifiers against frontend-owned symbol
+tables, and emit `OpaqueExpr` only for statements/control flow the MIR cannot
+represent. This pattern is broadly useful beyond JSX.
+
+Suggested docs addition: add a "JS-expression frontend recipe" to
+`frontend-guide.md` covering symbol tables for state/actions/props/attrs,
+`cell-ref` vs `state-read` sites, and recommended opaque fallback behavior.

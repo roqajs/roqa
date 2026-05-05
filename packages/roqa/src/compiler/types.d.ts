@@ -101,7 +101,9 @@ export type ExprIR =
 	| SpreadExpr
 	| CallExpr
 	| MethodCallExpr
+	| NewExpr
 	| BlockExpr
+	| ReturnExpr
 	| CollectionOpExpr
 	| EmitExpr
 	| ActionCallExpr
@@ -247,9 +249,26 @@ export type MethodCallExpr = {
 	args: ExprIR[];
 };
 
+/** `new Constructor(args)` — used for `new Date()`, `new URL(...)`,
+ *  custom class instantiation, etc. Frontends should emit this rather than
+ *  `OpaqueExpr` so the backend can analyze the arguments. */
+export type NewExpr = {
+	kind: "new";
+	callee: ExprIR;
+	args: ExprIR[];
+};
+
 export type BlockExpr = {
 	kind: "block";
 	body: ExprIR[];
+};
+
+/** `return <value>` — used inside `ClosureExpr.body` and `BlockExpr` to
+ *  produce a JavaScript `return` statement. Without this, `return { x, y }`
+ *  patterns are forced through `OpaqueExpr` to preserve the `return` keyword. */
+export type ReturnExpr = {
+	kind: "return";
+	value?: ExprIR;
 };
 
 export type CollectionOpExpr = {
@@ -350,9 +369,16 @@ export type ShowIR = {
 	fallback?: NodeIR[];
 };
 
+/** Source for `EachIR`. Most frontends emit a `cell-ref` so the runtime can
+ *  subscribe directly. The compiler also accepts an arbitrary `ExprIR` for
+ *  static or derived sources (constant arrays, `props.items`, etc.) — these are
+ *  auto-lifted to a synthetic computed cell during lowering so the same
+ *  `forBlock(...)` call shape is used. */
+export type EachSourceIR = CellRef | ExprIR;
+
 export type EachIR = {
 	kind: "each";
-	source: CellRef;
+	source: EachSourceIR;
 	key?: string | null;
 	itemAlias: string;
 	render: NodeIR[];
@@ -384,7 +410,15 @@ export type ClassListIR = {
 	items: ClassItemIR[];
 };
 
-export type ClassItemIR = string | { name: string; condition: ExprIR };
+export type ClassItemIR =
+	| string
+	| { name: string; condition: ExprIR }
+	/** Arbitrary expression resolving to a class-name string. The value is
+	 *  prepended with a leading space at runtime when non-empty so it composes
+	 *  with sibling items. Frontends should emit this for patterns like
+	 *  `class={computeCls(x)}` where the resulting class string isn't a fixed
+	 *  enumeration of names. */
+	| { kind: "dynamic"; value: ExprIR };
 
 // --- Styles ---
 
@@ -562,6 +596,11 @@ export type BindingOp = {
 	initialValue: string;
 	inlined: boolean;
 	isSvgAttr?: boolean;
+	/** When true, the binding writes to a style property via
+	 *  `target.style.setProperty("<property>", value)` instead of
+	 *  `target.<property> = value`. The `property` field holds the kebab-case
+	 *  CSS property name (e.g. `font-size`, `--my-var`). */
+	isStyleProp?: boolean;
 };
 
 export type EventOp = {

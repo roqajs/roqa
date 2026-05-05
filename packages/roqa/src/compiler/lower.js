@@ -77,6 +77,7 @@ class LoweringContext {
 		this.observedAttributes = [];
 
 		this.templateCounter = 0;
+		this.eachLiftCounter = 0;
 		/** @type {Map<string, number>} tag name → counter */
 		this.elementCounters = new Map();
 		/** @type {Map<string, number>} cell name → ref counter */
@@ -177,9 +178,17 @@ class LoweringContext {
 				if (node.kind === "element") {
 					if (node.classes && node.classes.kind === "class-list") {
 						for (const item of node.classes.items) {
-							if (typeof item !== "string") {
+							if (typeof item === "string") continue;
+							if ("kind" in item && item.kind === "dynamic") {
+								walkExpr(item.value);
+							} else {
 								walkExpr(item.condition);
 							}
+						}
+					}
+					if (node.styles && node.styles.kind === "style-map") {
+						for (const prop of node.styles.properties) {
+							walkExpr(prop.value);
 						}
 					}
 					for (const [, val] of Object.entries(node.attributes)) {
@@ -252,6 +261,18 @@ class LoweringContext {
 	 */
 	compileExprExpanded(expr, ctx) {
 		return compileExpandedExpr(expr, this.computedBodies);
+	}
+
+	/**
+	 * Compile an expression with the lowering context's defaults
+	 * (collection keys, etc.) merged in. Frontends call collection ops by name
+	 * and the compiler honors the declared `key` field via this context.
+	 * @param {ExprIR} expr
+	 * @param {import("./expr-compiler.js").ExprContext} [extraCtx]
+	 * @returns {string}
+	 */
+	ce(expr, extraCtx) {
+		return compileExpr(expr, { collectionKeys: this.collectionKeys, ...(extraCtx || {}) });
 	}
 
 	/**
@@ -358,7 +379,7 @@ class LoweringContext {
 				this.compileActionBody(stmt, inlinedSets, bodyParts);
 			}
 		} else if (expr.kind === "state-write") {
-			const valueExpr = compileExpr(expr.value);
+			const valueExpr = this.ce(expr.value);
 			/** @type {import("./types.d.ts").InlinedSet} */
 			const set = {
 				cellName: expr.name,
@@ -375,7 +396,7 @@ class LoweringContext {
 			}
 			inlinedSets.push(set);
 		} else if (expr.kind === "collection-op") {
-			const compiled = compileExpr(expr);
+			const compiled = this.ce(expr);
 			/** @type {import("./types.d.ts").InlinedSet} */
 			const set = {
 				cellName: expr.name,
@@ -390,7 +411,7 @@ class LoweringContext {
 			}
 			inlinedSets.push(set);
 		} else {
-			bodyParts.push(compileExpr(expr));
+			bodyParts.push(this.ce(expr));
 		}
 	}
 
@@ -644,7 +665,7 @@ class LoweringContext {
 				for (const [attrName, attrValue] of Object.entries(child.attributes)) {
 					propSetsForTarget.push({
 						name: attrName,
-						value: compileExpr(attrValue),
+						value: this.ce(attrValue),
 					});
 				}
 
@@ -862,6 +883,19 @@ class LoweringContext {
 				if (node.styles) {
 					if (node.styles.kind === "static-style") {
 						html += ` style="${escapeAttr(node.styles.value)}"`;
+					} else if (node.styles.kind === "style-map") {
+						// Fold literal-valued style properties into the
+						// inline style attribute. Reactive properties are
+						// emitted as runtime bindings.
+						const staticParts = [];
+						for (const prop of node.styles.properties) {
+							if (prop.value.kind === "literal") {
+								staticParts.push(`${prop.property}: ${String(prop.value.value)}`);
+							}
+						}
+						if (staticParts.length > 0) {
+							html += ` style="${escapeAttr(staticParts.join("; "))}"`;
+						}
 					}
 				}
 
@@ -977,7 +1011,7 @@ class LoweringContext {
 				// Skip custom element children — handled via setProp
 				if (el.tag.includes("-")) continue;
 
-				const compiled = compileExpr(expr);
+				const compiled = this.ce(expr);
 				const refName = this.nextRefName(this.findBindingCell(expr));
 				const cellName = this.findBindingCell(expr);
 
@@ -1001,6 +1035,27 @@ class LoweringContext {
 		// Process classes
 		if (el.classes && el.classes.kind === "class-list") {
 			this.lowerClassList(el.classes, parentVar);
+		}
+
+		// Process reactive style-map properties
+		if (el.styles && el.styles.kind === "style-map") {
+			for (const prop of el.styles.properties) {
+				if (prop.value.kind === "literal") continue;
+				const compiled = this.ce(prop.value);
+				const cellName = this.findBindingCell(prop.value);
+				const refName = this.nextRefName(cellName || parentVar.replace(/[^a-zA-Z0-9_]/g, "_"));
+				this.bindings.push({
+					kind: "binding",
+					cellName: cellName && this.stateNames.has(cellName) ? cellName : "",
+					refName: cellName && this.stateNames.has(cellName) ? refName : "",
+					target: parentVar,
+					property: prop.property,
+					expression: compiled,
+					initialValue: compiled,
+					inlined: false,
+					isStyleProp: true,
+				});
+			}
 		}
 
 		// Check for coalesced text
@@ -1242,7 +1297,12 @@ class LoweringContext {
 			if (typeof item === "string") {
 				return JSON.stringify(item);
 			}
-			return `(${compileExpr(item.condition)} ? " ${item.name}" : "")`;
+			if ("kind" in item && item.kind === "dynamic") {
+				// Wrap in helper to prepend a leading space when non-empty.
+				const inner = this.ce(item.value);
+				return `((__c) => __c ? " " + __c : "")(${inner})`;
+			}
+			return `(${this.ce(item.condition)} ? " ${item.name}" : "")`;
 		});
 
 		const expression = parts.join(" + ");
@@ -1250,10 +1310,10 @@ class LoweringContext {
 		// Find the binding cell
 		const cells = new Set();
 		for (const item of classList.items) {
-			if (typeof item !== "string") {
-				const cell = this.findBindingCell(item.condition);
-				if (cell) cells.add(cell);
-			}
+			if (typeof item === "string") continue;
+			const expr = "kind" in item && item.kind === "dynamic" ? item.value : item.condition;
+			const cell = this.findBindingCell(expr);
+			if (cell) cells.add(cell);
 		}
 
 		if (cells.size > 0) {
@@ -1272,9 +1332,11 @@ class LoweringContext {
 		} else {
 			// No reactive state cell, but may have attr-read conditions
 			// Still need a className binding for initial value + attrChanged
-			const hasAttrRead = classList.items.some(
-				(item) => typeof item !== "string" && this.hasAttrRead(item.condition),
-			);
+			const hasAttrRead = classList.items.some((item) => {
+				if (typeof item === "string") return false;
+				const expr = "kind" in item && item.kind === "dynamic" ? item.value : item.condition;
+				return this.hasAttrRead(expr);
+			});
 			if (hasAttrRead) {
 				this.bindings.push({
 					kind: "binding",
@@ -1321,14 +1383,14 @@ class LoweringContext {
 			if (evt.handler.args.length === 0) {
 				handler = evt.handler.name;
 			} else {
-				const args = evt.handler.args.map((a) => compileExpr(a));
+				const args = evt.handler.args.map((a) => this.ce(a));
 				handler = `[${evt.handler.name}, ${args.join(", ")}]`;
 			}
 		} else if (evt.handler.kind === "closure") {
-			handler = compileExpr(evt.handler, { isInlineHandler: true });
+			handler = this.ce(evt.handler, { isInlineHandler: true });
 			delegated = true;
 		} else {
-			handler = compileExpr(evt.handler);
+			handler = this.ce(evt.handler);
 		}
 
 		this.events.push({
@@ -1420,15 +1482,19 @@ class LoweringContext {
 	lowerEachBlock(each, containerVar) {
 		this.runtimeImports.add("forBlock");
 
-		const cellName = each.source.name;
-		const controllerVar = this.uniqueBlockVar(`${cellName}_forBlock`);
+		// Auto-lift non-cell-ref sources (e.g., constant arrays, prop reads,
+		// arbitrary expressions) into a synthetic computed cell so the same
+		// forBlock() call shape works regardless of frontend choice.
+		const sourceCellName = this.resolveEachSource(each.source);
+
+		const controllerVar = this.uniqueBlockVar(`${sourceCellName}_forBlock`);
 
 		this.blockVars.push({ name: controllerVar, blockType: "each" });
 
-		if (!this.cellBlocks.has(cellName)) {
-			this.cellBlocks.set(cellName, []);
+		if (!this.cellBlocks.has(sourceCellName)) {
+			this.cellBlocks.set(sourceCellName, []);
 		}
-		this.cellBlocks.get(cellName).push({ var: controllerVar, type: "each" });
+		this.cellBlocks.get(sourceCellName).push({ var: controllerVar, type: "each" });
 
 		// Create template for each item
 		const eachTemplateId = this.nextTemplateId();
@@ -1446,13 +1512,50 @@ class LoweringContext {
 			kind: "block",
 			blockType: "each",
 			container: containerVar,
-			source: cellName,
+			source: sourceCellName,
 			controllerVar,
 			templateId: eachTemplateId,
 			renderBody,
 			key: each.key || undefined,
 			itemAlias: each.itemAlias,
 		});
+	}
+
+	/**
+	 * Resolve an `EachIR.source` to a cell name. If the source is already a
+	 * `cell-ref`, use it directly; otherwise synthesize a computed cell whose
+	 * body is the source expression.
+	 * @param {import("./types.d.ts").EachSourceIR} source
+	 * @returns {string} the cell name to use as the forBlock source
+	 */
+	resolveEachSource(source) {
+		if (source.kind === "cell-ref") {
+			return source.name;
+		}
+		// Synthesize a computed cell. Name it `$each_<n>` so it doesn't
+		// collide with user state.
+		const name = `$each_${++this.eachLiftCounter}`;
+		this.computedBodies.set(name, source);
+		this.stateNames.add(name);
+		this.computedNames.add(name);
+		const deps = new Set();
+		collectStateDeps(source, deps, this.stateNames, this.computedNames);
+		this.computedDeps.set(name, deps);
+		const expandedBody = compileExpandedExpr(source, this.computedBodies);
+		this.cells.push({
+			kind: "cell",
+			varName: name,
+			initial: `() => ${expandedBody}`,
+			inlined: false,
+		});
+		// Inject a synthetic computed StateIR record into mir so the optimizer
+		// (which reads `mir.state`) picks up the synthesized computed.
+		this.mir.state.push({
+			kind: "computed",
+			name,
+			body: source,
+		});
+		return name;
 	}
 
 	/**
@@ -1541,13 +1644,13 @@ class LoweringContext {
 					handler = evt.handler.name;
 				} else {
 					const ctx = { itemAlias };
-					const args = evt.handler.args.map((a) => compileExpr(a, ctx));
+					const args = evt.handler.args.map((a) => this.ce(a, ctx));
 					handler = `[${evt.handler.name}, ${args.join(", ")}]`;
 				}
 			} else if (evt.handler.kind === "closure") {
-				handler = compileExpr(evt.handler, { isInlineHandler: true, itemAlias });
+				handler = this.ce(evt.handler, { isInlineHandler: true, itemAlias });
 			} else {
-				handler = compileExpr(evt.handler, { itemAlias });
+				handler = this.ce(evt.handler, { itemAlias });
 			}
 			events.push({
 				kind: "event",
@@ -1571,8 +1674,8 @@ class LoweringContext {
 				refName: "",
 				target: elVar,
 				property: name,
-				expression: compileExpr(expr, { itemAlias }),
-				initialValue: compileExpr(expr, { itemAlias }),
+				expression: this.ce(expr, { itemAlias }),
+				initialValue: this.ce(expr, { itemAlias }),
 				inlined: false,
 				isSvgAttr,
 			});
@@ -1582,12 +1685,34 @@ class LoweringContext {
 		if (el.classes && el.classes.kind === "class-list") {
 			const parts = el.classes.items.map((item) => {
 				if (typeof item === "string") return JSON.stringify(item);
-				return `(${compileExpr(item.condition, { itemAlias })} ? " ${item.name}" : "")`;
+				if ("kind" in item && item.kind === "dynamic") {
+					const inner = this.ce(item.value, { itemAlias });
+					return `((__c) => __c ? " " + __c : "")(${inner})`;
+				}
+				return `(${this.ce(item.condition, { itemAlias })} ? " ${item.name}" : "")`;
 			});
 			classBindings.push({
 				target: elVar,
 				expression: parts.join(" + "),
 			});
+		}
+
+		// Reactive style-map properties
+		if (el.styles && el.styles.kind === "style-map") {
+			for (const prop of el.styles.properties) {
+				if (prop.value.kind === "literal") continue;
+				bindings.push({
+					kind: "binding",
+					cellName: "",
+					refName: "",
+					target: elVar,
+					property: prop.property,
+					expression: this.ce(prop.value, { itemAlias }),
+					initialValue: this.ce(prop.value, { itemAlias }),
+					inlined: false,
+					isStyleProp: true,
+				});
+			}
 		}
 
 		// Children
@@ -1604,7 +1729,7 @@ class LoweringContext {
 				if (child.kind === "text") {
 					parts.push(JSON.stringify(child.value));
 				} else if (child.kind === "reactive-text") {
-					parts.push(compileExpr(child.source, { itemAlias }));
+					parts.push(this.ce(child.source, { itemAlias }));
 				}
 			}
 			bindings.push({
@@ -1656,8 +1781,8 @@ class LoweringContext {
 					refName: "",
 					target: textVar,
 					property: "nodeValue",
-					expression: compileExpr(child.source, { itemAlias }),
-					initialValue: compileExpr(child.source, { itemAlias }),
+					expression: this.ce(child.source, { itemAlias }),
+					initialValue: this.ce(child.source, { itemAlias }),
 					inlined: false,
 				});
 				prevSiblingVar = textVar;

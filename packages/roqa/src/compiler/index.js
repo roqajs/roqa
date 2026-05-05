@@ -25,6 +25,15 @@ export function compile(mir) {
 		throw new Error(`Compilation failed:\n${msg}`);
 	}
 
+	// Surface warnings on stderr so frontends fail loudly rather than
+	// shipping silently-broken output. (Errors above already throw.)
+	const warnings = diagnostics.filter((d) => d.severity === "warning");
+	if (warnings.length > 0 && typeof console !== "undefined" && console.warn) {
+		for (const w of warnings) {
+			console.warn(`[roqa][${w.code}] ${w.message} (${w.component})`);
+		}
+	}
+
 	// Phase 2: Lower (MIR → LIR)
 	const lirs = components.map((c) => lower(c));
 

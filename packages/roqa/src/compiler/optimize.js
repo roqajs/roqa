@@ -112,10 +112,16 @@ function inlineBindings(lir, mir) {
 			// Direct bindings for this cell
 			const directBindings = cellBindings.get(set.cellName) || [];
 			for (const binding of directBindings) {
+				let target;
+				if (binding.isSvgAttr) {
+					target = `__svg:${binding.refName}:${binding.property}`;
+				} else if (binding.isStyleProp) {
+					target = `__style:${binding.refName}:${binding.property}`;
+				} else {
+					target = binding.refName + "." + binding.property;
+				}
 				updates.push({
-					target: binding.isSvgAttr
-						? `__svg:${binding.refName}:${binding.property}`
-						: binding.refName + "." + binding.property,
+					target,
 					expression: binding.expression,
 				});
 			}
