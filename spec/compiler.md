@@ -57,7 +57,7 @@ to rely on them without compensating in their own output.
 ```txt
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Any frontend                                                       │
-│  (JSX, DSL, GUI builder, AI-built authoring tools, other PLs, etc.)           │
+│  (JSX, DSL, GUI builder, AI-built authoring tools, other PLs, etc.) │
 │           │                                                         │
 │           │  produces                                               │
 │           ▼                                                         │
