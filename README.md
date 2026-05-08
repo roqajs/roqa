@@ -9,39 +9,143 @@
 
 ## What is Roqa?
 
-Roqa is a compile-time reactive web framework for building user interfaces.
+Roqa is a universal compiler backend that turns UI component definitions into hyper-optimized vanilla JavaScript Web Components. Think of it as the LLVM of web UI.
 
-A play on the word "baroque" –– a term to describe the ornate and elaborate style of art, architecture, and music from 17th and 18th century Europe –– Roqa is crafted to be small and fast, so *you* have the headroom to build grand, beautiful, and rich web experiences and applications.
+Named for the intricate creations of the *Baroque* era, Roqa provides a deliberately minimal, ruthlessly fast base layer so *you* have the headroom to build grand, beautiful, and rich web experiences. You design the authoring experience –– whether it's JSX for humans, a deterministic DSL for AI coding agents, or a drag-and-drop GUI builder. As long as your tool can output Roqa MIR, the backend compiler will handle the rest.
+
+**Bring your own syntax. Roqa writes the DOM.**
 
 ## At a glance
 
-Roqa ships a familiar API and syntax for writing component based web UIs, with a few unique differences.
+Roqa is structured like a native compiler:
 
-Under the hood every Roqa component is transformed into unbelievably optimized and performant custom elements & vanilla JavaScript. This means a compiled Roqa component is extremely portable and can be used in any other web framework or web-based environment. Additionally, Roqa does not use Shadow DOM, so you won't have to have to fight the styling gods to create beautiful web pages and applications –– you can use any of your favorite styling solutions out of the box.
+```
+Frontend (JSX, DSL, GUI, AI agent) → MIR (.roqa) → Backend Compiler → Optimized JS
+```
 
-The reactive primitive of Roqa is a `cell`. It can roughly be thought of as a signal, but at compile time, this "signal" is compiled to an ultra-lightweight plain JavaScript object. A handful of functions (i.e. `get`, `set`, `put`) are provided to manipulate the data in this object and reactive updates are automatically applied after a change is made.
+1. **The frontend** is any authoring tool that produces component definitions.
+2. **Roqa MIR** is a deterministic, JSON-serializable blueprint of a component –– the view tree, state, bindings, events, and lifecycle. This is the contract between frontends and the backend.
+3. **The backend compiler** validates, lowers, optimizes, and emits the final vanilla JavaScript.
+
+Here's the pipeline in action. A component authored using the reference JSX frontend:
 
 ```jsx
 import { defineComponent, cell, get, set } from "roqa";
 
 function App() {
 	const count = cell(0);
-	const doubled = cell(() => get(count) * 2);
 
 	const increment = () => {
 		set(count, get(count) + 1);
 	};
 
-	return (
-		<>
-			<button onclick={increment}>Count is {get(count)}</button>
-			<p>Doubled: {get(doubled)}</p>
-		</>
-	);
+	return <button onclick={increment}>Count is {get(count)}</button>;
 }
 
 defineComponent("counter-button", App);
 ```
+
+The JSX frontend compiles this into MIR –– a normalized, frontend-independent IR:
+
+```json
+{
+	"version": 1,
+	"tagName": "counter-button",
+	"name": "CounterButton",
+	"state": [{ "kind": "value", "name": "count", "initial": 0 }],
+	"actions": [{
+		"kind": "action",
+		"name": "increment",
+		"params": [],
+		"body": {
+			"kind": "state-write",
+			"name": "count",
+			"value": {
+				"kind": "binary",
+				"op": "+",
+				"left": { "kind": "state-read", "name": "count" },
+				"right": { "kind": "literal", "value": 1 }
+			}
+		}
+	}],
+	"render": [{
+		"kind": "element",
+		"tag": "button",
+		"events": [{ "event": "click", "handler": { "kind": "action-call", "name": "increment", "args": [] } }],
+		"children": [
+			{ "kind": "text", "value": "Count: " },
+			{ "kind": "reactive-text", "source": { "kind": "state-read", "name": "count" } }
+		]
+	}]
+}
+```
+
+The backend compiler consumes this MIR and emits a hyper-optimized Web Component:
+
+```js
+import { defineComponent, delegate, template } from "roqa";
+
+const $tmpl_1 = template("<button> </button>");
+
+defineComponent("counter-button", function CounterButton() {
+	const count = { v: 0, e: [] };
+
+	const increment = () => {
+		count.v = count.v + 1;
+		count.ref_1.nodeValue = "Count: " + count.v;
+	};
+
+	this.connected(() => {
+		const $root_1 = $tmpl_1();
+		this.appendChild($root_1);
+
+		const button_1 = this.firstChild;
+		const button_1_text = button_1.firstChild;
+
+		button_1.__click = increment;
+
+		button_1_text.nodeValue = "Count: " + count.v;
+		count.ref_1 = button_1_text;
+	});
+});
+
+delegate(["click"]);
+```
+
+Reactivity is compiled away. `cell()` becomes a plain object `{ v: 0, e: [] }`. DOM updates are inlined directly at the write site –– no virtual DOM, no runtime graph walk, no subscription overhead. Just straight-line JavaScript.
+
+## World-class performance, for free
+
+When you build a custom frontend or DSL, you usually have to write a custom rendering engine. With Roqa, you get an elite rendering engine out of the box.
+
+Using the reference JSX frontend, **Roqa is currently the #2 fastest fully declarative framework in the [JS Framework Benchmark](https://krausest.github.io/js-framework-benchmark/)** –– surpassing Svelte, Solid, and Vue.
+
+## The agent-first web foundation
+
+For years, we've forced AI models to scaffold web apps using frameworks built for human ergonomics. Syntactic sugar like React Hooks and Svelte runes is great for developers, but it creates unnecessary complexity and hallucination risks for coding agents.
+
+Roqa decouples *authoring syntax* from *execution*. An AI researcher can design whatever structured format best suits their model –– a Python-like DSL, a YAML schema, raw JSON –– and as long as it produces valid MIR, the output is production-grade. This makes it possible to benchmark different AI authoring formats against one another structurally, all while guaranteeing the output is optimized and correct.
+
+## Output characteristics
+
+- **Standard Web Components:** Every compiled component is a real custom element. Drop it into React, Vue, plain HTML –– it just works.
+- **No Shadow DOM:** Global CSS, Tailwind classes, and design systems apply normally.
+- **Tiny runtime:** Only minimal primitives survive compilation (`template`, `defineComponent`, `delegate`, and list/conditional helpers). Everything else is compiled away.
+
+## Getting Started
+
+To try Roqa with the reference JSX frontend, bootstrap a new Vite project:
+
+```bash
+npm create roqa@latest my-app
+cd my-app
+npm install
+npm run dev
+```
+
+### Writing custom frontends
+
+If you're building a custom frontend targeting the Roqa compiler, see the [Frontend Author Guide](spec/frontend-guide.md) and the [MIR Spec](spec/ir.md).
 
 ## License
 

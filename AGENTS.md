@@ -29,10 +29,11 @@ Frontend (JSX, DSL, etc.)  →  MIR (.roqa files)  →  Backend compiler  →  O
 ```
 packages/roqa/src/compiler/   — the MIR-based backend compiler
 packages/roqa/src/runtime/    — runtime primitives (cell, template, forBlock, etc.)
-packages/roqa/tests/          — test suite (36 tests)
+packages/roqa/tests/          — test suite
 packages/vite-plugin/         — Vite plugin (@roqajs/vite-plugin)
-examples/ir/                  — IR-based examples (13 working apps)
-examples/jsx/                 — JSX-based examples (require JSX frontend — not yet built)
+packages/roqa-jsx/            - a canonical JSX frontend implementation (@roqajs/jsx)
+examples/ir/                  — IR-based examples
+examples/jsx/                 — JSX-based examples
 spec/                         — specifications and implementation history
 ```
 
@@ -45,7 +46,7 @@ spec/                         — specifications and implementation history
 ## Rules
 
 - **Do NOT modify the compiler** (`packages/roqa/src/compiler/`) without
-  running the test suite (`cd packages/roqa && pnpm test`). All 36 tests
+  running the test suite (`cd packages/roqa && pnpm test`). All tests
   must pass.
 - **Do NOT modify the runtime** (`packages/roqa/src/runtime/`) unless the
   task explicitly requires it.
