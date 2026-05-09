@@ -34,3 +34,5 @@ debug
 tmp/
 temp/
 _temp/
+.smoke-*
+.last-smoke-*
