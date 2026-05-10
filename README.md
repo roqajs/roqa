@@ -27,11 +27,9 @@ If you're building a custom authoring format for Roqa, make use of the Vite and 
 npm create roqa@latest my-roqa-frontend
 ```
 
-The template provides an agent skill that includes a detailed overview of the [Roqa IR](packages/create-roqa/template/.agents/skills/create-roqa-frontend/SKILL.md) and a [frontend author guide](packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md). It's a great reference for both agents and humans who want a more plain speak overview of this topic.
-
 ## Try it out
 
-Want to build stuff with a Roqa-based authoring format? We ship canonical JSX and TSRX (coming soon!) implementations that you can use to build regular ol' web apps.
+Want to build stuff with a Roqa-based authoring format? We ship canonical JSX and TSRX (coming soon) implementations that you can use to build regular ol' web apps.
 
 Create a Roqa + JSX starter app with the following commands:
 
