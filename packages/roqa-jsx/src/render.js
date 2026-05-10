@@ -1,5 +1,5 @@
 /** @import {JSXElement, JSXFragment, JSXExpressionContainer, JSXText, JSXSpreadChild, Expression} from '@babel/types' */
-/** @import {NodeIR, ElementIR, ExprIR, EventBindingIR, ClassIR, CellRef} from 'roqa/compiler' */
+/** @import {NodeIR, ElementIR, ExprIR, EventBindingIR, ClassIR, CellRef} from 'roqa/ir' */
 /** @import {ExprContext} from './expressions.js' */
 
 import * as t from "@babel/types";
@@ -312,7 +312,7 @@ function convertForElement(node, ctx) {
 		renderNodes = convertJSXToNodes(renderExpr.body, childCtx);
 	}
 
-	/** @type {import('roqa/compiler').EachIR} */
+	/** @type {import('roqa/ir').EachIR} */
 	const each = {
 		kind: "each",
 		source: /** @type {CellRef} */ (sourceRef),

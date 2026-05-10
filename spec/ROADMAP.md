@@ -1,7 +1,8 @@
 # Roqa Roadmap
 
-Future work items for the Roqa framework, organized by workstream. The
-MIR-based backend compiler is complete — these are the next chapters.
+Status snapshot for the Roqa framework, organized by workstream. This file
+tracks both remaining work and roadmap items that have already landed so it
+stays aligned with the current repository state.
 
 ---
 
@@ -11,26 +12,9 @@ Build frontends that convert authoring syntaxes into MIR (`.roqa` files or
 in-memory `ComponentIR` objects). Each frontend implements the `RoqaFrontend`
 interface: `handles(id)` and `toMIR(code, id)`.
 
-### JSX frontend (highest priority)
+### Other frontends
 
-Adapt the original JSX-based compiler pipeline to produce MIR instead of
-direct JavaScript output. This restores the `roqa()` Vite plugin for `.jsx`
-/ `.tsx` files.
-
-- **Input:** JSX source code (the syntax existing examples use)
-- **Output:** `ComponentIR` (passed to the backend compiler)
-- **Scope:** Parse JSX → Babel AST → walk AST → produce MIR. The existing
-  `spec/archive/reference-algorithms.md` documents the old compiler's patterns for
-  template extraction, traversal, bindings, etc. — these inform the JSX→MIR
-  translation.
-- **Key design question:** Should the JSX frontend produce `.roqa` files on
-  disk (for caching / inspection) or pass MIR objects in-memory only? The
-  in-memory path is simpler for v1.
-- **Spec:** [`spec/jsx-frontend.md`](./jsx-frontend.md) — translation rules,
-  package structure, reference translations
-- **Package:** `packages/roqa-jsx/` (`@roqajs/jsx`)
-
-### Other frontends (future)
+**Status:** Open.
 
 - Custom DSL frontend
 - GUI / visual builder frontend
@@ -39,15 +23,14 @@ direct JavaScript output. This restores the `roqa()` Vite plugin for `.jsx`
 
 ### Frontend author documentation
 
-Create a guide for building custom frontends:
+**Status:** Implemented.
 
-- The `ComponentIR` contract (what fields are required, normalization rules)
-- How to implement `handles()` and `toMIR()`
-- How to wire into the Vite plugin via the `frontend` option
-- Common patterns: mapping source syntax to MIR nodes
-- Validation: what the backend checks and how to test frontends independently
-- Reference: the `spec/ir.md` type definitions
+The frontend guide now exists and covers the `ComponentIR` contract,
+`handles()` / `toMIR()`, Vite plugin wiring, normalization rules, and
+validation expectations.
+
 - **Spec:** [`spec/frontend-guide.md`](./frontend-guide.md)
+- **Reference:** [`spec/ir.md`](./ir.md)
 
 ---
 
@@ -55,13 +38,15 @@ Create a guide for building custom frontends:
 
 ### Nested block support
 
+**Status:** Open.
+
 `ShowIR` and `EachIR` only render correctly at the top level of a component's
 `render` array, or as direct children of an element at the top level. When
 nested inside another block's render body (e.g. `<show>` wrapping an
 `<each>`), the inner block is silently dropped from the output.
 
-The compiler currently emits an `unsupported-nested-block` warning so
-frontends fail loudly. A proper fix needs:
+The compiler still emits an `unsupported-nested-block` warning so frontends
+fail loudly instead of shipping silently broken output. A proper fix needs:
 
 1. A `blocks: BlockOp[]` field on `BlockRenderBody`.
 2. `processBlockElement` to recognize child `show` / `each` and collect them
@@ -72,8 +57,12 @@ frontends fail loudly. A proper fix needs:
 
 ### Advanced optimization passes
 
-The current compiler implements two optimization passes (inline cells, inline
-bindings). The remaining passes from `spec/compiler.md`:
+**Status:** Partial.
+
+The current optimizer still consists of two core passes: inline cells and
+inline bindings. Several targeted fixes have landed around block cleanup and
+reactive binding correctness, but the broader passes from
+`spec/compiler.md` remain open:
 
 - **Dead binding elimination** — remove bindings for cells that are declared
   but never read in the render tree
@@ -85,7 +74,14 @@ bindings). The remaining passes from `spec/compiler.md`:
 
 ### Source maps
 
-The compiler currently returns `map: null`. Implementing source maps requires:
+**Status:** Partial.
+
+JSX MIR extraction now records component metadata such as `sourceFile` and
+`frontend`, which covers part of the data plumbing needed for source maps.
+The compiler still returns `map: null`, so end-to-end source map generation
+has not landed yet.
+
+Finishing this requires:
 
 1. Frontend provides source position metadata in the MIR (via `ComponentMetadata`)
 2. LIR ops carry positions from lowering
@@ -96,19 +92,27 @@ data get precise maps; frontends that don't get coarser component-level maps.
 
 ### Incremental compilation
 
-For large applications, only recompile changed components. Requires MIR
-caching (keyed by content hash + compiler version) and MIR diffing. Outlined
-in `spec/compiler.md` §Incremental compilation.
+**Status:** Open.
+
+For large applications, only recompile changed components. This still needs
+MIR caching (keyed by content hash + compiler version) and MIR diffing as
+outlined in `spec/compiler.md` §Incremental compilation.
 
 ### JSON Schema for MIR
 
+**Status:** Open.
+
 Publish a JSON Schema for `.roqa` files so frontend authors can validate
-their output independently. Enables editor autocomplete and linting for
-hand-authored `.roqa` files.
+their output independently. This is still not present in the repository.
 
 ### Security strict mode
 
-The compiler supports `standard` mode (default). A `strict` mode would:
+**Status:** Open.
+
+The validator already emits security-oriented diagnostics such as
+`raw-html-used`, but there is not yet a real compiler mode surface for
+`strict`. A strict mode would:
+
 - Reject `OpaqueExpr` entirely
 - Validate import paths against an allowlist
 - Promote security-related warnings to errors
@@ -119,14 +123,21 @@ The compiler supports `standard` mode (default). A `strict` mode would:
 
 ### `subscribe()` integration
 
-The `subscribe()` helper is implemented in the runtime but not yet used by
-the compiler output. It's needed for the hybrid reactive model when cells
-escape component scope (passed to child custom elements, emitted as events).
+**Status:** Open.
+
+The `subscribe()` helper is implemented and exported by the runtime, but the
+compiler does not yet emit it. It's still needed for the hybrid reactive
+model when cells escape component scope (passed to child custom elements,
+emitted as events).
 
 ### Performance profiling
 
-Profile the runtime with large-list benchmarks (`forBlock` reconciliation,
-`showBlock` toggles) to identify optimization opportunities.
+**Status:** Partial.
+
+The repo now includes a `js-benchmark` example and the main README tracks JS
+Framework Benchmark results using the JSX frontend. That said, the specific
+runtime profiling work for `forBlock` reconciliation, `showBlock` toggles,
+and related hotspots is still ongoing.
 
 ---
 
@@ -134,11 +145,19 @@ Profile the runtime with large-list benchmarks (`forBlock` reconciliation,
 
 ### Editor support for `.roqa` files
 
+**Status:** Open.
+
 - VS Code extension: syntax highlighting, JSON validation, autocomplete
   (leveraging the JSON Schema)
 - Language server: diagnostics, go-to-definition for state/action refs
 
 ### CLI tooling
+
+**Status:** Open.
+
+Roqa has package entrypoints for the runtime, compiler, JSX frontend, and
+Vite plugin, and the project now offers `npm create roqa@latest` for app
+bootstrap. It still does not ship dedicated CLI commands such as:
 
 - `roqa compile <file.roqa>` — compile a `.roqa` file to JS from the command
   line (useful for CI, debugging, non-Vite workflows)
@@ -146,29 +165,25 @@ Profile the runtime with large-list benchmarks (`forBlock` reconciliation,
 
 ### Deferred items from agent feedback
 
-Items from `spec/AGENT-FEEDBACK.md` that were considered but not implemented
-in the post-feedback pass. Each has a low-friction workaround today
-(`OpaqueExpr` or status-quo) and is tracked here for the next pass.
+**Status:** Mixed.
 
-- **`StateValueIR.initial: ExprIR`.** Drop `initial: unknown` + `initialExpr:
-  string` in favor of a single `initial: ExprIR`. Cleaner pipeline but breaks
-  every existing fixture; bundle with an IR version bump.
-- **`inlinedSets` as a single ordered op stream.** The current
-  `body` + `inlinedSets[].prelude` split works but can break source ordering
-  in pathological cases. Optimizer-internal refactor.
-- **Structured control-flow expressions.** `IfExpr`, `ForExpr`, `WhileExpr`,
-  `TryCatchExpr`. `OpaqueExpr` is acceptable interim; promote to structured
-  forms when real-world frontends start hitting them. (`NewExpr` and
-  `ReturnExpr` were promoted.)
-- **Unify `param-read` / `item-field-read` into `LocalReadExpr`.** Renaming
-  shuffle without behavior change; revisit only if frontends repeatedly trip
-  on the distinction.
-- **Rename `cell-ref`.** Considered `subscribe-target` / `cell-handle`. Held
-  back — the docs section "When to emit `cell-ref` vs `state-read`" addresses
-  the discoverability concern at lower cost.
-- **Auto-lift `state-read` predicates inside `ShowIR.condition`** (the same
-  treatment `EachIR.source` now gets). Less common than `each` constants;
-  defer until requested.
+Most of the items from `spec/AGENT-FEEDBACK.md` are still deferred, but this
+section is no longer entirely untouched.
+
+- **`StateValueIR.initial: ExprIR`.** Still deferred. The IR still uses
+  `initial: unknown` plus optional `initialExpr: string`.
+- **`inlinedSets` as a single ordered op stream.** Still deferred. The
+  `body` + `inlinedSets` split remains in the lowering / emitter pipeline.
+- **Structured control-flow expressions.** Still partial. `NewExpr` and
+  `ReturnExpr` are now implemented, but `IfExpr`, `ForExpr`, `WhileExpr`, and
+  a real `TryCatchExpr` path are still future work.
+- **Unify `param-read` / `item-field-read` into `LocalReadExpr`.** Implemented.
+  The compiler now has `LocalReadExpr` (`kind: "local-read"`), so this no
+  longer belongs in the active deferred queue.
+- **Rename `cell-ref`.** Still deferred.
+- **Auto-lift `state-read` predicates inside `ShowIR.condition`.** Still
+  deferred. `EachIR.source` auto-lifting exists, but `ShowIR.condition` still
+  requires a `cell-ref`.
 
 ---
 
@@ -176,11 +191,23 @@ in the post-feedback pass. Each has a low-friction workaround today
 
 ### User-facing docs
 
+**Status:** Partial.
+
+The top-level README now covers the framework overview, JSX-based getting
+started, and custom frontend entry points. The following docs are still open
+or incomplete as dedicated guides:
+
 - Getting started guide (using `.roqa` files directly)
 - MIR authoring guide (hand-writing components in MIR)
-- Migration guide (JSX → MIR, once the JSX frontend is ready)
+- Migration guide (JSX → MIR, now that the JSX frontend exists)
 
 ### Contributor docs
+
+**Status:** Partial.
+
+The architecture is documented across `spec/compiler.md` and the archived
+implementation guide, but the more task-oriented contributor docs are still
+missing as dedicated guides:
 
 - Compiler architecture overview (the 4-phase pipeline)
 - How to add a new `ExprIR` node type

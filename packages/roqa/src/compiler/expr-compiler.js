@@ -1,5 +1,5 @@
-/** @typedef {import("./types.d.ts").ExprIR} ExprIR */
-/** @typedef {import("./types.d.ts").ClosureParam} ClosureParam */
+/** @typedef {import("../../types/compiler.d.ts").ExprIR} ExprIR */
+/** @typedef {import("../../types/compiler.d.ts").ClosureParam} ClosureParam */
 
 /**
  * @typedef {Object} ExprContext
@@ -189,7 +189,7 @@ function compileLiteral(value) {
 }
 
 /**
- * @param {import("./types.d.ts").TemplateLiteralExpr} expr
+ * @param {import("../../types/compiler.d.ts").TemplateLiteralExpr} expr
  * @param {ExprContext} ctx
  * @returns {string}
  */
@@ -204,7 +204,7 @@ function compileTemplateLiteral(expr, ctx) {
 }
 
 /**
- * @param {import("./types.d.ts").ObjectExpr} expr
+ * @param {import("../../types/compiler.d.ts").ObjectExpr} expr
  * @param {ExprContext} ctx
  * @returns {string}
  */
@@ -219,7 +219,7 @@ function compileObject(expr, ctx) {
 }
 
 /**
- * @param {import("./types.d.ts").BinaryExpr} expr
+ * @param {import("../../types/compiler.d.ts").BinaryExpr} expr
  * @param {ExprContext} ctx
  * @returns {string}
  */
@@ -289,7 +289,7 @@ function binaryPrecedence(op) {
 }
 
 /**
- * @param {import("./types.d.ts").UnaryExpr} expr
+ * @param {import("../../types/compiler.d.ts").UnaryExpr} expr
  * @param {ExprContext} ctx
  * @returns {string}
  */
@@ -302,7 +302,7 @@ function compileUnary(expr, ctx) {
 }
 
 /**
- * @param {import("./types.d.ts").ClosureExpr} expr
+ * @param {import("../../types/compiler.d.ts").ClosureExpr} expr
  * @param {ExprContext} ctx
  * @returns {string}
  */
@@ -348,7 +348,7 @@ function compileClosureParam(param) {
 }
 
 /**
- * @param {import("./types.d.ts").CollectionOpExpr} expr
+ * @param {import("../../types/compiler.d.ts").CollectionOpExpr} expr
  * @param {ExprContext} ctx
  * @returns {string}
  */

@@ -1,6 +1,6 @@
-/** @typedef {import("./types.d.ts").ComponentIR} ComponentIR */
-/** @typedef {import("./types.d.ts").CompileResult} CompileResult */
-/** @typedef {import("./types.d.ts").Diagnostic} Diagnostic */
+/** @typedef {import("../../types/compiler.d.ts").ComponentIR} ComponentIR */
+/** @typedef {import("../../types/compiler.d.ts").CompileResult} CompileResult */
+/** @typedef {import("../../types/compiler.d.ts").Diagnostic} Diagnostic */
 
 import { validate } from "./validate.js";
 import { lower } from "./lower.js";

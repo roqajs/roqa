@@ -1,5 +1,5 @@
 /** @import {Statement, VariableDeclaration, CallExpression, Expression} from '@babel/types' */
-/** @import {StateIR} from 'roqa/compiler' */
+/** @import {StateIR} from 'roqa/ir' */
 /** @import {ExprContext} from './expressions.js' */
 
 import * as t from "@babel/types";
@@ -86,7 +86,7 @@ export function extractState(body, ctx, forSources) {
 				});
 				cellMap.set(varName, "collection");
 			} else {
-				/** @type {import('roqa/compiler').StateValueIR} */
+				/** @type {import('roqa/ir').StateValueIR} */
 				const state = { kind: "value", name: varName, initial };
 				if (initialExpr) state.initialExpr = initialExpr;
 				states.push(state);

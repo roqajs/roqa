@@ -1,4 +1,4 @@
-import type { ComponentIR } from "roqa/compiler";
+import type { ComponentIR } from "roqa/ir";
 
 export interface RoqaFrontend {
 	handles(id: string): boolean;

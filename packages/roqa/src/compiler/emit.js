@@ -1,5 +1,5 @@
-/** @typedef {import("./types.d.ts").ComponentLIR} ComponentLIR */
-/** @typedef {import("./types.d.ts").CompileResult} CompileResult */
+/** @typedef {import("../../types/compiler.d.ts").ComponentLIR} ComponentLIR */
+/** @typedef {import("../../types/compiler.d.ts").CompileResult} CompileResult */
 
 import { compileExpr } from "./expr-compiler.js";
 
@@ -367,7 +367,7 @@ function emitComponent(lir, lines) {
 }
 
 /**
- * @param {import("./types.d.ts").FunctionOp} fn
+ * @param {import("../../types/compiler.d.ts").FunctionOp} fn
  * @param {string[]} lines
  */
 function emitFunction(fn, lines) {
@@ -460,7 +460,7 @@ function emitBodyLines(body, lines, indent) {
 }
 
 /**
- * @param {import("./types.d.ts").BlockOp} block
+ * @param {import("../../types/compiler.d.ts").BlockOp} block
  * @param {ComponentLIR} lir
  * @param {string[]} lines
  */
@@ -475,7 +475,7 @@ function emitBlock(block, lir, lines) {
 }
 
 /**
- * @param {import("./types.d.ts").BlockOp} block
+ * @param {import("../../types/compiler.d.ts").BlockOp} block
  * @param {ComponentLIR} lir
  * @param {string[]} lines
  */
@@ -526,7 +526,7 @@ function emitShowBlock(block, lir, lines) {
 }
 
 /**
- * @param {import("./types.d.ts").BlockOp} block
+ * @param {import("../../types/compiler.d.ts").BlockOp} block
  * @param {ComponentLIR} lir
  * @param {string[]} lines
  */
@@ -606,7 +606,7 @@ function emitEachBlock(block, lir, lines) {
  * declaration order on every update. The optional fallback runs when no
  * arm matches.
  *
- * @param {import("./types.d.ts").BlockOp} block
+ * @param {import("../../types/compiler.d.ts").BlockOp} block
  * @param {ComponentLIR} lir
  * @param {string[]} lines
  */
@@ -727,7 +727,7 @@ function extractAttrName(expr) {
 }
 
 /**
- * @param {import("./types.d.ts").PropIR[]} props
+ * @param {import("../../types/compiler.d.ts").PropIR[]} props
  * @returns {string}
  */
 function formatPropsParam(props) {
@@ -813,7 +813,7 @@ function renumberTemplates(lir, renames) {
  * Filter traversals to only include vars that are actually used by
  * bindings, events, blocks, propSets, or are dependencies of used vars.
  * @param {ComponentLIR} lir
- * @returns {import("./types.d.ts").TraversalOp[]}
+ * @returns {import("../../types/compiler.d.ts").TraversalOp[]}
  */
 function filterTraversals(lir) {
 	// Collect directly used vars

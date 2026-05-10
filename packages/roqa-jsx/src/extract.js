@@ -1,5 +1,5 @@
 /** @import {File, Statement, Expression} from '@babel/types' */
-/** @import {ComponentIR, PropIR, LifecycleIR, ImportIR} from 'roqa/compiler' */
+/** @import {ComponentIR, PropIR, LifecycleIR, ImportIR} from 'roqa/ir' */
 
 import _traverse from "@babel/traverse";
 import * as t from "@babel/types";
@@ -358,10 +358,10 @@ function collectActionNames(body, cellMap) {
  * @param {Statement[]} body
  * @param {import('./expressions.js').ExprContext} ctx
  * @param {Map<string, 'value' | 'computed' | 'collection'>} cellMap
- * @returns {import('roqa/compiler').LocalDeclIR[]}
+ * @returns {import('roqa/ir').LocalDeclIR[]}
  */
 function extractLocals(body, ctx, cellMap) {
-	/** @type {import('roqa/compiler').LocalDeclIR[]} */
+	/** @type {import('roqa/ir').LocalDeclIR[]} */
 	const locals = [];
 
 	for (const stmt of body) {
@@ -381,7 +381,7 @@ function extractLocals(body, ctx, cellMap) {
 				continue;
 			}
 
-			/** @type {import('roqa/compiler').LocalDeclIR} */
+			/** @type {import('roqa/ir').LocalDeclIR} */
 			const local = { kind: stmt.kind, name };
 			if (decl.init) {
 				local.init = convertExpr(decl.init, ctx);
@@ -401,10 +401,10 @@ function extractLocals(body, ctx, cellMap) {
  *
  * @param {Statement[]} body
  * @param {import('./expressions.js').ExprContext} ctx
- * @returns {import('roqa/compiler').ExprIR[]}
+ * @returns {import('roqa/ir').ExprIR[]}
  */
 function extractTopLevelStatements(body, ctx) {
-	/** @type {import('roqa/compiler').ExprIR[]} */
+	/** @type {import('roqa/ir').ExprIR[]} */
 	const statements = [];
 
 	for (const stmt of body) {

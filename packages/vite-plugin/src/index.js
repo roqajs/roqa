@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 /**
  * @typedef {Object} RoqaFrontend
  * @property {(id: string) => boolean} handles - Whether this frontend handles the given file
- * @property {(code: string, id: string) => import("roqa/compiler").ComponentIR | import("roqa/compiler").ComponentIR[]} toMIR - Convert source code to MIR
+ * @property {(code: string, id: string) => import("roqa/ir").ComponentIR | import("roqa/ir").ComponentIR[]} toMIR - Convert source code to MIR
  */
 
 /**

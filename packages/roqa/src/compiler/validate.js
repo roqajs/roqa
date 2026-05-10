@@ -1,7 +1,7 @@
-/** @typedef {import("./types.d.ts").ComponentIR} ComponentIR */
-/** @typedef {import("./types.d.ts").Diagnostic} Diagnostic */
-/** @typedef {import("./types.d.ts").ExprIR} ExprIR */
-/** @typedef {import("./types.d.ts").NodeIR} NodeIR */
+/** @typedef {import("../../types/compiler.d.ts").ComponentIR} ComponentIR */
+/** @typedef {import("../../types/compiler.d.ts").Diagnostic} Diagnostic */
+/** @typedef {import("../../types/compiler.d.ts").ExprIR} ExprIR */
+/** @typedef {import("../../types/compiler.d.ts").NodeIR} NodeIR */
 
 /**
  * Validate a ComponentIR for structural correctness.
@@ -479,7 +479,7 @@ export function validate(mir) {
 	// Validate computed bodies
 	for (let i = 0; i < mir.state.length; i++) {
 		if (mir.state[i].kind === "computed") {
-			validateExpr(/** @type {import("./types.d.ts").StateComputedIR} */ (mir.state[i]).body, ["state", String(i), "body"]);
+			validateExpr(/** @type {import("../../types/compiler.d.ts").StateComputedIR} */ (mir.state[i]).body, ["state", String(i), "body"]);
 		}
 	}
 

@@ -1,6 +1,6 @@
-/** @typedef {import("./types.d.ts").ComponentLIR} ComponentLIR */
-/** @typedef {import("./types.d.ts").ComponentIR} ComponentIR */
-/** @typedef {import("./types.d.ts").ExprIR} ExprIR */
+/** @typedef {import("../../types/compiler.d.ts").ComponentLIR} ComponentLIR */
+/** @typedef {import("../../types/compiler.d.ts").ComponentIR} ComponentIR */
+/** @typedef {import("../../types/compiler.d.ts").ExprIR} ExprIR */
 
 import { compileExpr, compileExpandedExpr } from "./expr-compiler.js";
 
@@ -57,7 +57,7 @@ function inlineBindings(lir, mir) {
 	}
 
 	// Build a map: cellName → bindings that reference it
-	/** @type {Map<string, import("./types.d.ts").BindingOp[]>} */
+	/** @type {Map<string, import("../../types/compiler.d.ts").BindingOp[]>} */
 	const cellBindings = new Map();
 	for (const binding of lir.connected.bindings) {
 		if (!binding.cellName) continue;
@@ -68,7 +68,7 @@ function inlineBindings(lir, mir) {
 	}
 
 	// Build block controller map: cellName → block controller updates
-	/** @type {Map<string, import("./types.d.ts").InlinedBlockUpdate[]>} */
+	/** @type {Map<string, import("../../types/compiler.d.ts").InlinedBlockUpdate[]>} */
 	const cellBlockUpdates = new Map();
 	for (const block of lir.connected.blocks) {
 		// For switch blocks, register the controller against every dep cell
@@ -126,9 +126,9 @@ function inlineBindings(lir, mir) {
 	// Now populate inlinedSets for each function
 	const functions = lir.functions.map((fn) => {
 		const inlinedSets = fn.inlinedSets.map((set) => {
-			/** @type {import("./types.d.ts").InlinedUpdate[]} */
+			/** @type {import("../../types/compiler.d.ts").InlinedUpdate[]} */
 			const updates = [];
-			/** @type {import("./types.d.ts").InlinedBlockUpdate[]} */
+			/** @type {import("../../types/compiler.d.ts").InlinedBlockUpdate[]} */
 			const blockUpdates = [];
 
 			// Direct bindings for this cell

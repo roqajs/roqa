@@ -1,5 +1,5 @@
 /** @import {Statement} from '@babel/types' */
-/** @import {ActionIR} from 'roqa/compiler' */
+/** @import {ActionIR} from 'roqa/ir' */
 /** @import {ExprContext} from './expressions.js' */
 
 import * as t from "@babel/types";

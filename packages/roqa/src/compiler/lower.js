@@ -1,17 +1,17 @@
-/** @typedef {import("./types.d.ts").ComponentIR} ComponentIR */
-/** @typedef {import("./types.d.ts").ComponentLIR} ComponentLIR */
-/** @typedef {import("./types.d.ts").TemplateOp} TemplateOp */
-/** @typedef {import("./types.d.ts").TraversalOp} TraversalOp */
-/** @typedef {import("./types.d.ts").CellOp} CellOp */
-/** @typedef {import("./types.d.ts").FunctionOp} FunctionOp */
-/** @typedef {import("./types.d.ts").BindingOp} BindingOp */
-/** @typedef {import("./types.d.ts").EventOp} EventOp */
-/** @typedef {import("./types.d.ts").BlockOp} BlockOp */
-/** @typedef {import("./types.d.ts").BlockVar} BlockVar */
-/** @typedef {import("./types.d.ts").PropSetOp} PropSetOp */
-/** @typedef {import("./types.d.ts").NodeIR} NodeIR */
-/** @typedef {import("./types.d.ts").ExprIR} ExprIR */
-/** @typedef {import("./types.d.ts").UserImport} UserImport */
+/** @typedef {import("../../types/compiler.d.ts").ComponentIR} ComponentIR */
+/** @typedef {import("../../types/compiler.d.ts").ComponentLIR} ComponentLIR */
+/** @typedef {import("../../types/compiler.d.ts").TemplateOp} TemplateOp */
+/** @typedef {import("../../types/compiler.d.ts").TraversalOp} TraversalOp */
+/** @typedef {import("../../types/compiler.d.ts").CellOp} CellOp */
+/** @typedef {import("../../types/compiler.d.ts").FunctionOp} FunctionOp */
+/** @typedef {import("../../types/compiler.d.ts").BindingOp} BindingOp */
+/** @typedef {import("../../types/compiler.d.ts").EventOp} EventOp */
+/** @typedef {import("../../types/compiler.d.ts").BlockOp} BlockOp */
+/** @typedef {import("../../types/compiler.d.ts").BlockVar} BlockVar */
+/** @typedef {import("../../types/compiler.d.ts").PropSetOp} PropSetOp */
+/** @typedef {import("../../types/compiler.d.ts").NodeIR} NodeIR */
+/** @typedef {import("../../types/compiler.d.ts").ExprIR} ExprIR */
+/** @typedef {import("../../types/compiler.d.ts").UserImport} UserImport */
 
 import { compileExpr, compileComputedBody, compileExpandedExpr } from "./expr-compiler.js";
 
@@ -368,10 +368,10 @@ class LoweringContext {
 	}
 
 	/**
-	 * @param {import("./types.d.ts").ActionIR} action
+	 * @param {import("../../types/compiler.d.ts").ActionIR} action
 	 */
 	lowerAction(action) {
-		/** @type {import("./types.d.ts").InlinedSet[]} */
+		/** @type {import("../../types/compiler.d.ts").InlinedSet[]} */
 		const inlinedSets = [];
 		/** @type {string[]} */
 		const bodyParts = [];
@@ -393,7 +393,7 @@ class LoweringContext {
 
 	/**
 	 * @param {ExprIR} expr
-	 * @param {import("./types.d.ts").InlinedSet[]} inlinedSets
+	 * @param {import("../../types/compiler.d.ts").InlinedSet[]} inlinedSets
 	 * @param {string[]} bodyParts
 	 */
 	compileActionBody(expr, inlinedSets, bodyParts) {
@@ -403,7 +403,7 @@ class LoweringContext {
 			}
 		} else if (expr.kind === "state-write") {
 			const valueExpr = this.ce(expr.value);
-			/** @type {import("./types.d.ts").InlinedSet} */
+			/** @type {import("../../types/compiler.d.ts").InlinedSet} */
 			const set = {
 				cellName: expr.name,
 				valueExpr,
@@ -420,7 +420,7 @@ class LoweringContext {
 			inlinedSets.push(set);
 		} else if (expr.kind === "collection-op") {
 			const compiled = this.ce(expr);
-			/** @type {import("./types.d.ts").InlinedSet} */
+			/** @type {import("../../types/compiler.d.ts").InlinedSet} */
 			const set = {
 				cellName: expr.name,
 				valueExpr: compiled.replace(`${expr.name}.v = `, ""),
@@ -469,7 +469,7 @@ class LoweringContext {
 		// Walk the render tree to generate traversals/bindings/events
 		const rootElements = this.mir.render.filter((n) => n.kind === "element");
 		if (rootElements.length === 1) {
-			const rootEl = /** @type {import("./types.d.ts").ElementIR} */ (rootElements[0]);
+			const rootEl = /** @type {import("../../types/compiler.d.ts").ElementIR} */ (rootElements[0]);
 			const rootVar = this.nextElementVar(rootEl.tag);
 
 			// Check for two-phase traversal (child props)
@@ -622,7 +622,7 @@ class LoweringContext {
 	}
 
 	/**
-	 * @param {import("./types.d.ts").ElementIR} el
+	 * @param {import("../../types/compiler.d.ts").ElementIR} el
 	 * @param {string} rootVar
 	 * @param {string} templateId
 	 */
@@ -794,7 +794,7 @@ class LoweringContext {
 	}
 
 	/**
-	 * @param {import("./types.d.ts").ElementIR} el
+	 * @param {import("../../types/compiler.d.ts").ElementIR} el
 	 * @param {string} basePath
 	 * @param {{ varName: string, path: string, attrs: Record<string, ExprIR> }[]} targets
 	 */
@@ -1020,7 +1020,7 @@ class LoweringContext {
 
 	/**
 	 * Lower children of an element, generating traversals, bindings, events, blocks.
-	 * @param {import("./types.d.ts").ElementIR} el
+	 * @param {import("../../types/compiler.d.ts").ElementIR} el
 	 * @param {string} parentVar
 	 * @param {boolean} isSvg
 	 * @param {Set<string>} [skipVars] - Vars already declared in phase 1
@@ -1329,7 +1329,7 @@ class LoweringContext {
 	}
 
 	/**
-	 * @param {import("./types.d.ts").ClassListIR} classList
+	 * @param {import("../../types/compiler.d.ts").ClassListIR} classList
 	 * @param {string} targetVar
 	 */
 	lowerClassList(classList, targetVar) {
@@ -1412,7 +1412,7 @@ class LoweringContext {
 	}
 
 	/**
-	 * @param {import("./types.d.ts").EventBindingIR} evt
+	 * @param {import("../../types/compiler.d.ts").EventBindingIR} evt
 	 * @param {string} targetVar
 	 */
 	lowerEvent(evt, targetVar) {
@@ -1453,7 +1453,7 @@ class LoweringContext {
 	 * child; this lowering replaces (rather than appends to) the parent's
 	 * subtree on every update.
 	 *
-	 * @param {import("./types.d.ts").RawHtmlIR} rawHtml
+	 * @param {import("../../types/compiler.d.ts").RawHtmlIR} rawHtml
 	 * @param {string} parentVar
 	 */
 	lowerRawHtml(rawHtml, parentVar) {
@@ -1478,7 +1478,7 @@ class LoweringContext {
 	}
 
 	/**
-	 * @param {import("./types.d.ts").ShowIR} show
+	 * @param {import("../../types/compiler.d.ts").ShowIR} show
 	 * @param {string} containerVar
 	 */
 	lowerShowBlock(show, containerVar) {
@@ -1547,7 +1547,7 @@ class LoweringContext {
 	}
 
 	/**
-	 * @param {import("./types.d.ts").EachIR} each
+	 * @param {import("../../types/compiler.d.ts").EachIR} each
 	 * @param {string} containerVar
 	 */
 	lowerEachBlock(each, containerVar) {
@@ -1638,7 +1638,7 @@ class LoweringContext {
 	 * walking the discriminant + arm tests for state/computed reads, unless
 	 * the frontend supplied an explicit `deps` list.
 	 *
-	 * @param {import("./types.d.ts").SwitchIR} switchNode
+	 * @param {import("../../types/compiler.d.ts").SwitchIR} switchNode
 	 * @param {string} containerVar
 	 */
 	lowerSwitchBlock(switchNode, containerVar) {
@@ -1678,7 +1678,7 @@ class LoweringContext {
 			? this.ce(switchNode.discriminant)
 			: null;
 
-		/** @type {import("./types.d.ts").SwitchArmOp[]} */
+		/** @type {import("../../types/compiler.d.ts").SwitchArmOp[]} */
 		const switchArms = switchNode.arms.map((arm) => {
 			const tmplId = this.nextTemplateId();
 			const html = this.extractTemplateHtml(arm.render, false);
@@ -1730,7 +1730,7 @@ class LoweringContext {
 	 * Resolve an `EachIR.source` to a cell name. If the source is already a
 	 * `cell-ref`, use it directly; otherwise synthesize a computed cell whose
 	 * body is the source expression.
-	 * @param {import("./types.d.ts").EachSourceIR} source
+	 * @param {import("../../types/compiler.d.ts").EachSourceIR} source
 	 * @returns {string} the cell name to use as the forBlock source
 	 */
 	resolveEachSource(source) {
@@ -1767,7 +1767,7 @@ class LoweringContext {
 	 * Build a render body for a block (show/each/switch arm/fallback).
 	 * @param {NodeIR[]} renderNodes
 	 * @param {string} templateId
-	 * @returns {import("./types.d.ts").BlockRenderBody}
+	 * @returns {import("../../types/compiler.d.ts").BlockRenderBody}
 	 */
 	buildBlockRenderBody(renderNodes, templateId) {
 		// Save and reset counters
@@ -1780,12 +1780,12 @@ class LoweringContext {
 		const events = [];
 		/** @type {BindingOp[]} */
 		const bindings = [];
-		/** @type {import("./types.d.ts").ClassBinding[]} */
+		/** @type {import("../../types/compiler.d.ts").ClassBinding[]} */
 		const classBindings = [];
 
 		// Walk the render nodes for the block
 		if (renderNodes.length === 1 && renderNodes[0].kind === "element") {
-			const el = /** @type {import("./types.d.ts").ElementIR} */ (renderNodes[0]);
+			const el = /** @type {import("../../types/compiler.d.ts").ElementIR} */ (renderNodes[0]);
 			const rootVar = this.nextElementVar(el.tag);
 
 			this.processBlockElement(
@@ -1828,12 +1828,12 @@ class LoweringContext {
 	 * Recursively walk an element inside a block render body, generating
 	 * traversals/events/bindings/classes for it and its descendants.
 	 *
-	 * @param {import("./types.d.ts").ElementIR} el
+	 * @param {import("../../types/compiler.d.ts").ElementIR} el
 	 * @param {string} elVar
 	 * @param {TraversalOp[]} traversals
 	 * @param {EventOp[]} events
 	 * @param {BindingOp[]} bindings
-	 * @param {import("./types.d.ts").ClassBinding[]} classBindings
+	 * @param {import("../../types/compiler.d.ts").ClassBinding[]} classBindings
 	 * @param {boolean} isRoot
 	 */
 	processBlockElement(el, elVar, traversals, events, bindings, classBindings, isRoot) {
@@ -2261,10 +2261,10 @@ function collectStateWrites(expr) {
 
 /**
  * @param {ExprIR} expr
- * @returns {import("./types.d.ts").EmitExpr[]}
+ * @returns {import("../../types/compiler.d.ts").EmitExpr[]}
  */
 function collectEmits(expr) {
-	/** @type {import("./types.d.ts").EmitExpr[]} */
+	/** @type {import("../../types/compiler.d.ts").EmitExpr[]} */
 	const emits = [];
 	if (!expr) return emits;
 	if (expr.kind === "emit") {

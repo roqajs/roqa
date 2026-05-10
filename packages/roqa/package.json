@@ -1,7 +1,7 @@
 {
 	"name": "roqa",
 	"version": "0.0.7",
-	"description": "Roqa is a reactive UI framework",
+	"description": "A universal rendering engine for the next generation of web frameworks.",
 	"keywords": [
 		"UI",
 		"framework",
@@ -10,6 +10,7 @@
 		"web components",
 		"custom elements",
 		"jsx",
+		"tsrx",
 		"compiler"
 	],
 	"homepage": "https://roqa.dev",
@@ -44,6 +45,11 @@
 			"types": "./types/compiler.d.ts",
 			"import": "./src/compiler/index.js",
 			"default": "./src/compiler/index.js"
+		},
+		"./ir": {
+			"types": "./types/ir.d.ts",
+			"import": "./src/ir.js",
+			"default": "./src/ir.js"
 		},
 		"./jsx-runtime": {
 			"types": "./src/jsx-runtime.d.ts",

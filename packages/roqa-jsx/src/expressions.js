@@ -1,5 +1,5 @@
 /** @import {Node, Expression, SpreadElement, PrivateName} from '@babel/types' */
-/** @import {ExprIR, ClosureParam, DestructuredParam, DestructuredBinding, ObjectPropertyIR} from 'roqa/compiler' */
+/** @import {ExprIR, ClosureParam, DestructuredParam, DestructuredBinding, ObjectPropertyIR} from 'roqa/ir' */
 
 import * as t from "@babel/types";
 import { compileExpr } from "roqa/compiler";

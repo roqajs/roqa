@@ -18,6 +18,14 @@ Convert the project's custom source format into valid Roqa `ComponentIR` objects
 
 ## Roqa interface walkthrough
 
+For Roqa IR schema types, prefer the dedicated `roqa/ir` import path:
+
+```ts
+import type { ComponentIR, ExprIR, NodeIR } from "roqa/ir";
+```
+
+Use `roqa/compiler` for executable compiler APIs like `compile()`, not for the frontend-facing IR contract.
+
 The custom frontend must expose an object with this shape:
 
 ```ts
