@@ -1,0 +1,165 @@
+{
+    "version": 1,
+    "tagName": "multi-action",
+    "name": "MultiAction",
+
+    "state": [
+        {
+            "kind": "value",
+            "name": "count",
+            "initial": 0
+        },
+        {
+            "kind": "value",
+            "name": "label",
+            "initial": "Counter"
+        }
+    ],
+    "actions": [
+        {
+            "kind": "action",
+            "name": "increment",
+            "params": [],
+            "body": {
+                "kind": "block",
+                "body": [
+                    {
+                        "kind": "state-write",
+                        "name": "count",
+                        "value": {
+                            "kind": "binary",
+                            "op": "+",
+                            "left": { "kind": "state-read", "name": "count" },
+                            "right": { "kind": "literal", "value": 1 }
+                        }
+                    },
+                    {
+                        "kind": "emit",
+                        "event": "count-changed",
+                        "detail": { "kind": "state-read", "name": "count" }
+                    }
+                ]
+            }
+        },
+        {
+            "kind": "action",
+            "name": "decrement",
+            "params": [],
+            "body": {
+                "kind": "state-write",
+                "name": "count",
+                "value": {
+                    "kind": "binary",
+                    "op": "-",
+                    "left": { "kind": "state-read", "name": "count" },
+                    "right": { "kind": "literal", "value": 1 }
+                }
+            }
+        },
+        {
+            "kind": "action",
+            "name": "reset",
+            "params": [],
+            "body": {
+                "kind": "block",
+                "body": [
+                    {
+                        "kind": "state-write",
+                        "name": "count",
+                        "value": { "kind": "literal", "value": 0 }
+                    },
+                    {
+                        "kind": "state-write",
+                        "name": "label",
+                        "value": { "kind": "literal", "value": "Counter (reset)" }
+                    }
+                ]
+            }
+        }
+    ],
+    "props": [],
+    "attrs": [],
+    "emits": [
+        {
+            "kind": "emit-decl",
+            "name": "countChanged",
+            "eventName": "count-changed"
+        }
+    ],
+    "lifecycle": {
+        "onConnect": {
+            "kind": "call",
+            "callee": {
+                "kind": "external-ref",
+                "name": "console",
+                "path": ["log"]
+            },
+            "args": [
+                { "kind": "literal", "value": "MultiAction connected" }
+            ]
+        }
+    },
+
+    "render": [
+        {
+            "kind": "element",
+            "tag": "div",
+            "attributes": {},
+            "events": [],
+            "children": [
+                {
+                    "kind": "element",
+                    "tag": "h2",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "reactive-text",
+                            "source": { "kind": "state-read", "name": "label" }
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "p",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        { "kind": "text", "value": "Value: " },
+                        {
+                            "kind": "reactive-text",
+                            "source": { "kind": "state-read", "name": "count" }
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "button",
+                    "attributes": {},
+                    "events": [
+                        { "event": "click", "handler": { "kind": "action-call", "name": "decrement", "args": [] } }
+                    ],
+                    "children": [{ "kind": "text", "value": "-" }]
+                },
+                {
+                    "kind": "element",
+                    "tag": "button",
+                    "attributes": {},
+                    "events": [
+                        { "event": "click", "handler": { "kind": "action-call", "name": "increment", "args": [] } }
+                    ],
+                    "children": [{ "kind": "text", "value": "+" }]
+                },
+                {
+                    "kind": "element",
+                    "tag": "button",
+                    "attributes": {},
+                    "events": [
+                        { "event": "click", "handler": { "kind": "action-call", "name": "reset", "args": [] } }
+                    ],
+                    "children": [{ "kind": "text", "value": "Reset" }]
+                }
+            ]
+        }
+    ]
+}

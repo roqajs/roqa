@@ -1,0 +1,90 @@
+[
+	{
+		"version": 1,
+		"tagName": "click-counter",
+		"name": "ClickCounter",
+
+		"state": [
+			{
+				"kind": "value",
+				"name": "count",
+				"initial": 0
+			}
+		],
+		"actions": [
+			{
+				"kind": "action",
+				"name": "increment",
+				"params": [],
+				"body": {
+					"kind": "state-write",
+					"name": "count",
+					"value": {
+						"kind": "binary",
+						"op": "+",
+						"left": { "kind": "state-read", "name": "count" },
+						"right": { "kind": "literal", "value": 1 }
+					}
+				}
+			}
+		],
+		"props": [],
+		"attrs": [],
+		"emits": [],
+		"lifecycle": {},
+
+		"render": [
+			{
+				"kind": "element",
+				"tag": "button",
+				"attributes": {},
+				"events": [
+					{
+						"event": "click",
+						"handler": { "kind": "action-call", "name": "increment", "args": [] }
+					}
+				],
+				"children": [
+					{ "kind": "text", "value": "Clicks: " },
+					{
+						"kind": "reactive-text",
+						"source": { "kind": "state-read", "name": "count" }
+					}
+				]
+			}
+		]
+	},
+	{
+		"version": 1,
+		"tagName": "text-display",
+		"name": "TextDisplay",
+
+		"state": [],
+		"actions": [],
+		"props": [
+			{
+				"kind": "prop",
+				"name": "text",
+				"required": true
+			}
+		],
+		"attrs": [],
+		"emits": [],
+		"lifecycle": {},
+
+		"render": [
+			{
+				"kind": "element",
+				"tag": "span",
+				"attributes": {},
+				"events": [],
+				"children": [
+					{
+						"kind": "reactive-text",
+						"source": { "kind": "prop-read", "name": "text" }
+					}
+				]
+			}
+		]
+	}
+]

@@ -1,0 +1,118 @@
+{
+	"version": 1,
+	"tagName": "raw-html-demo",
+	"name": "RawHtmlDemo",
+
+	"state": [
+		{
+			"kind": "value",
+			"name": "markup",
+			"initial": "<strong>Hello</strong> from <em>raw HTML</em>!"
+		}
+	],
+	"actions": [
+		{
+			"kind": "action",
+			"name": "swapToList",
+			"params": [],
+			"body": {
+				"kind": "state-write",
+				"name": "markup",
+				"value": {
+					"kind": "literal",
+					"value": "<ul><li>Item one</li><li>Item two</li><li>Item three</li></ul>"
+				}
+			}
+		},
+		{
+			"kind": "action",
+			"name": "swapToParagraph",
+			"params": [],
+			"body": {
+				"kind": "state-write",
+				"name": "markup",
+				"value": {
+					"kind": "literal",
+					"value": "<p>This is a fresh <code>&lt;p&gt;</code> tag with <a href=\"#\">a link</a>.</p>"
+				}
+			}
+		},
+		{
+			"kind": "action",
+			"name": "reset",
+			"params": [],
+			"body": {
+				"kind": "state-write",
+				"name": "markup",
+				"value": {
+					"kind": "literal",
+					"value": "<strong>Hello</strong> from <em>raw HTML</em>!"
+				}
+			}
+		}
+	],
+	"props": [],
+	"attrs": [],
+	"emits": [],
+	"lifecycle": {},
+
+	"render": [
+		{
+			"kind": "element",
+			"tag": "section",
+			"attributes": {},
+			"events": [],
+			"children": [
+				{
+					"kind": "element",
+					"tag": "h2",
+					"attributes": {},
+					"events": [],
+					"children": [{ "kind": "text", "value": "RawHtmlIR — innerHTML insertion" }]
+				},
+				{
+					"kind": "element",
+					"tag": "div",
+					"attributes": { "class": { "kind": "literal", "value": "buttons" } },
+					"events": [],
+					"children": [
+						{
+							"kind": "element",
+							"tag": "button",
+							"attributes": {},
+							"events": [{ "event": "click", "handler": { "kind": "action-call", "name": "reset", "args": [] } }],
+							"children": [{ "kind": "text", "value": "Reset" }]
+						},
+						{
+							"kind": "element",
+							"tag": "button",
+							"attributes": {},
+							"events": [{ "event": "click", "handler": { "kind": "action-call", "name": "swapToList", "args": [] } }],
+							"children": [{ "kind": "text", "value": "Show list" }]
+						},
+						{
+							"kind": "element",
+							"tag": "button",
+							"attributes": {},
+							"events": [{ "event": "click", "handler": { "kind": "action-call", "name": "swapToParagraph", "args": [] } }],
+							"children": [{ "kind": "text", "value": "Show paragraph" }]
+						}
+					]
+				},
+				{
+					"kind": "element",
+					"tag": "article",
+					"attributes": { "class": { "kind": "literal", "value": "rendered" } },
+					"events": [],
+					"children": [
+						{
+							"kind": "raw-html",
+							"source": { "kind": "state-read", "name": "markup" },
+							"trusted": true
+						}
+					]
+				}
+			]
+		}
+	]
+}

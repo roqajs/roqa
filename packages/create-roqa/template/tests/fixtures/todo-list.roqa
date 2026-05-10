@@ -1,0 +1,336 @@
+{
+    "version": 1,
+    "tagName": "todo-list",
+    "name": "TodoList",
+    "state": [
+        {
+            "kind": "collection",
+            "name": "todos",
+            "key": "id",
+            "initial": []
+        },
+        {
+            "kind": "value",
+            "name": "draft",
+            "initial": ""
+        },
+        {
+            "kind": "computed",
+            "name": "remaining",
+            "body": {
+                "kind": "member",
+                "object": {
+                    "kind": "method-call",
+                    "object": {
+                        "kind": "state-read",
+                        "name": "todos"
+                    },
+                    "method": "filter",
+                    "args": [
+                        {
+                            "kind": "closure",
+                            "params": [
+                                "t"
+                            ],
+                            "body": {
+                                "kind": "unary",
+                                "op": "!",
+                                "operand": {
+                                    "kind": "member",
+                                    "object": {
+                                        "kind": "local-read",
+                                        "name": "t"
+                                    },
+                                    "property": "completed"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "property": "length"
+            }
+        }
+    ],
+    "actions": [
+        {
+            "kind": "action",
+            "name": "addTodo",
+            "params": [],
+            "body": {
+                "kind": "block",
+                "body": [
+                    {
+                        "kind": "collection-op",
+                        "op": "insert",
+                        "name": "todos",
+                        "args": [
+                            {
+                                "kind": "object",
+                                "properties": [
+                                    {
+                                        "kind": "property",
+                                        "key": "id",
+                                        "value": {
+                                            "kind": "call",
+                                            "callee": {
+                                                "kind": "external-ref",
+                                                "name": "Date",
+                                                "path": [
+                                                    "now"
+                                                ]
+                                            },
+                                            "args": []
+                                        }
+                                    },
+                                    {
+                                        "kind": "property",
+                                        "key": "text",
+                                        "value": {
+                                            "kind": "state-read",
+                                            "name": "draft"
+                                        }
+                                    },
+                                    {
+                                        "kind": "property",
+                                        "key": "completed",
+                                        "value": {
+                                            "kind": "literal",
+                                            "value": false
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "kind": "state-write",
+                        "name": "draft",
+                        "value": {
+                            "kind": "literal",
+                            "value": ""
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "kind": "action",
+            "name": "toggleTodo",
+            "params": [
+                "id"
+            ],
+            "body": {
+                "kind": "collection-op",
+                "op": "update",
+                "name": "todos",
+                "args": [
+                    {
+                        "kind": "local-read",
+                        "name": "id"
+                    },
+                    {
+                        "kind": "closure",
+                        "params": [
+                            "t"
+                        ],
+                        "body": {
+                            "kind": "object",
+                            "properties": [
+                                {
+                                    "kind": "spread",
+                                    "argument": {
+                                        "kind": "local-read",
+                                        "name": "t"
+                                    }
+                                },
+                                {
+                                    "kind": "property",
+                                    "key": "completed",
+                                    "value": {
+                                        "kind": "unary",
+                                        "op": "!",
+                                        "operand": {
+                                            "kind": "member",
+                                            "object": {
+                                                "kind": "local-read",
+                                                "name": "t"
+                                            },
+                                            "property": "completed"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "props": [],
+    "attrs": [],
+    "emits": [],
+    "lifecycle": {},
+    "render": [
+        {
+            "kind": "element",
+            "tag": "div",
+            "attributes": {},
+            "events": [],
+            "children": [
+                {
+                    "kind": "element",
+                    "tag": "input",
+                    "attributes": {
+                        "value": {
+                            "kind": "state-read",
+                            "name": "draft"
+                        }
+                    },
+                    "events": [
+                        {
+                            "event": "input",
+                            "handler": {
+                                "kind": "closure",
+                                "params": [
+                                    "e"
+                                ],
+                                "body": {
+                                    "kind": "state-write",
+                                    "name": "draft",
+                                    "value": {
+                                        "kind": "member",
+                                        "object": {
+                                            "kind": "member",
+                                            "object": {
+                                                "kind": "local-read",
+                                                "name": "e"
+                                            },
+                                            "property": "target"
+                                        },
+                                        "property": "value"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "children": []
+                },
+                {
+                    "kind": "element",
+                    "tag": "button",
+                    "attributes": {},
+                    "events": [
+                        {
+                            "event": "click",
+                            "handler": {
+                                "kind": "action-call",
+                                "name": "addTodo",
+                                "args": []
+                            }
+                        }
+                    ],
+                    "children": [
+                        {
+                            "kind": "text",
+                            "value": "Add"
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "ul",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "each",
+                            "source": {
+                                "kind": "cell-ref",
+                                "name": "todos"
+                            },
+                            "key": "id",
+                            "itemAlias": "todo",
+                            "render": [
+                                {
+                                    "kind": "element",
+                                    "tag": "li",
+                                    "attributes": {},
+                                    "events": [
+                                        {
+                                            "event": "click",
+                                            "handler": {
+                                                "kind": "action-call",
+                                                "name": "toggleTodo",
+                                                "args": [
+                                                    {
+                                                        "kind": "member",
+                                                        "object": {
+                                                            "kind": "local-read",
+                                                            "name": "todo"
+                                                        },
+                                                        "property": "id"
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ],
+                                    "classes": {
+                                        "kind": "class-list",
+                                        "items": [
+                                            "todo",
+                                            {
+                                                "name": "completed",
+                                                "condition": {
+                                                    "kind": "member",
+                                                    "object": {
+                                                        "kind": "local-read",
+                                                        "name": "todo"
+                                                    },
+                                                    "property": "completed"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "children": [
+                                        {
+                                            "kind": "reactive-text",
+                                            "source": {
+                                                "kind": "member",
+                                                "object": {
+                                                    "kind": "local-read",
+                                                    "name": "todo"
+                                                },
+                                                "property": "text"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "p",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "reactive-text",
+                            "source": {
+                                "kind": "template-literal",
+                                "parts": [
+                                    "Remaining: ",
+                                    {
+                                        "kind": "computed-read",
+                                        "name": "remaining"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

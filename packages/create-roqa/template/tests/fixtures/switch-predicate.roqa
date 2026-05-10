@@ -1,0 +1,173 @@
+{
+	"version": 1,
+	"tagName": "switch-predicate-demo",
+	"name": "SwitchPredicateDemo",
+
+	"state": [
+		{ "kind": "value", "name": "score", "initial": 50 }
+	],
+	"actions": [
+		{
+			"kind": "action",
+			"name": "increment",
+			"params": [],
+			"body": {
+				"kind": "state-write",
+				"name": "score",
+				"value": {
+					"kind": "binary",
+					"op": "+",
+					"left": { "kind": "state-read", "name": "score" },
+					"right": { "kind": "literal", "value": 5 }
+				}
+			}
+		},
+		{
+			"kind": "action",
+			"name": "decrement",
+			"params": [],
+			"body": {
+				"kind": "state-write",
+				"name": "score",
+				"value": {
+					"kind": "binary",
+					"op": "-",
+					"left": { "kind": "state-read", "name": "score" },
+					"right": { "kind": "literal", "value": 5 }
+				}
+			}
+		},
+		{
+			"kind": "action",
+			"name": "reset",
+			"params": [],
+			"body": { "kind": "state-write", "name": "score", "value": { "kind": "literal", "value": 0 } }
+		}
+	],
+	"props": [],
+	"attrs": [],
+	"emits": [],
+	"lifecycle": {},
+
+	"render": [
+		{
+			"kind": "element",
+			"tag": "section",
+			"attributes": {},
+			"events": [],
+			"children": [
+				{
+					"kind": "element",
+					"tag": "h2",
+					"attributes": {},
+					"events": [],
+					"children": [{ "kind": "text", "value": "SwitchIR (predicate mode — if/else if/else)" }]
+				},
+				{
+					"kind": "element",
+					"tag": "p",
+					"attributes": {},
+					"events": [],
+					"children": [
+						{ "kind": "text", "value": "Score: " },
+						{ "kind": "reactive-text", "source": { "kind": "state-read", "name": "score" } }
+					]
+				},
+				{
+					"kind": "element",
+					"tag": "div",
+					"attributes": { "class": { "kind": "literal", "value": "buttons" } },
+					"events": [],
+					"children": [
+						{
+							"kind": "element",
+							"tag": "button",
+							"attributes": {},
+							"events": [{ "event": "click", "handler": { "kind": "action-call", "name": "decrement", "args": [] } }],
+							"children": [{ "kind": "text", "value": "−5" }]
+						},
+						{
+							"kind": "element",
+							"tag": "button",
+							"attributes": {},
+							"events": [{ "event": "click", "handler": { "kind": "action-call", "name": "increment", "args": [] } }],
+							"children": [{ "kind": "text", "value": "+5" }]
+						},
+						{
+							"kind": "element",
+							"tag": "button",
+							"attributes": {},
+							"events": [{ "event": "click", "handler": { "kind": "action-call", "name": "reset", "args": [] } }],
+							"children": [{ "kind": "text", "value": "reset" }]
+						}
+					]
+				},
+				{
+					"kind": "switch",
+					"arms": [
+						{
+							"test": {
+								"kind": "binary",
+								"op": ">=",
+								"left": { "kind": "state-read", "name": "score" },
+								"right": { "kind": "literal", "value": 90 }
+							},
+							"render": [
+								{
+									"kind": "element",
+									"tag": "div",
+									"attributes": { "class": { "kind": "literal", "value": "badge gold" } },
+									"events": [],
+									"children": [{ "kind": "text", "value": "🥇 Gold tier" }]
+								}
+							]
+						},
+						{
+							"test": {
+								"kind": "binary",
+								"op": ">=",
+								"left": { "kind": "state-read", "name": "score" },
+								"right": { "kind": "literal", "value": 70 }
+							},
+							"render": [
+								{
+									"kind": "element",
+									"tag": "div",
+									"attributes": { "class": { "kind": "literal", "value": "badge silver" } },
+									"events": [],
+									"children": [{ "kind": "text", "value": "🥈 Silver tier" }]
+								}
+							]
+						},
+						{
+							"test": {
+								"kind": "binary",
+								"op": ">=",
+								"left": { "kind": "state-read", "name": "score" },
+								"right": { "kind": "literal", "value": 50 }
+							},
+							"render": [
+								{
+									"kind": "element",
+									"tag": "div",
+									"attributes": { "class": { "kind": "literal", "value": "badge bronze" } },
+									"events": [],
+									"children": [{ "kind": "text", "value": "🥉 Bronze tier" }]
+								}
+							]
+						}
+					],
+					"fallback": [
+						{
+							"kind": "element",
+							"tag": "div",
+							"attributes": { "class": { "kind": "literal", "value": "badge none" } },
+							"events": [],
+							"children": [{ "kind": "text", "value": "Keep trying!" }]
+						}
+					]
+				}
+			]
+		}
+	]
+}

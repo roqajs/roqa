@@ -1,0 +1,71 @@
+{
+	"version": 1,
+	"tagName": "auth-gate",
+	"name": "AuthGate",
+
+	"state": [
+		{
+			"kind": "value",
+			"name": "loggedIn",
+			"initial": false
+		}
+	],
+	"actions": [
+		{
+			"kind": "action",
+			"name": "login",
+			"params": [],
+			"body": {
+				"kind": "state-write",
+				"name": "loggedIn",
+				"value": { "kind": "literal", "value": true }
+			}
+		}
+	],
+	"props": [],
+	"attrs": [],
+	"emits": [],
+	"lifecycle": {},
+
+	"render": [
+		{
+			"kind": "element",
+			"tag": "div",
+			"attributes": {},
+			"events": [],
+			"children": [
+				{
+					"kind": "show",
+					"condition": { "kind": "cell-ref", "name": "loggedIn" },
+					"render": [
+						{
+							"kind": "element",
+							"tag": "p",
+							"attributes": {},
+							"events": [],
+							"children": [
+								{ "kind": "text", "value": "Welcome back!" }
+							]
+						}
+					],
+					"fallback": [
+						{
+							"kind": "element",
+							"tag": "button",
+							"attributes": {},
+							"events": [
+								{
+									"event": "click",
+									"handler": { "kind": "action-call", "name": "login", "args": [] }
+								}
+							],
+							"children": [
+								{ "kind": "text", "value": "Log in" }
+							]
+						}
+					]
+				}
+			]
+		}
+	]
+}

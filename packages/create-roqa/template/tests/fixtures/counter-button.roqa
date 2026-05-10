@@ -1,0 +1,55 @@
+{
+	"version": 1,
+	"tagName": "counter-button",
+	"name": "CounterButton",
+
+	"state": [
+		{
+			"kind": "value",
+			"name": "count",
+			"initial": 0
+		}
+	],
+	"actions": [
+		{
+			"kind": "action",
+			"name": "increment",
+			"params": [],
+			"body": {
+				"kind": "state-write",
+				"name": "count",
+				"value": {
+					"kind": "binary",
+					"op": "+",
+					"left": { "kind": "state-read", "name": "count" },
+					"right": { "kind": "literal", "value": 1 }
+				}
+			}
+		}
+	],
+	"props": [],
+	"attrs": [],
+	"emits": [],
+	"lifecycle": {},
+
+	"render": [
+		{
+			"kind": "element",
+			"tag": "button",
+			"attributes": {},
+			"events": [
+				{
+					"event": "click",
+					"handler": { "kind": "action-call", "name": "increment", "args": [] }
+				}
+			],
+			"children": [
+				{ "kind": "text", "value": "Count: " },
+				{
+					"kind": "reactive-text",
+					"source": { "kind": "state-read", "name": "count" }
+				}
+			]
+		}
+	]
+}

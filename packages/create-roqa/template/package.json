@@ -1,0 +1,49 @@
+{
+	"name": "%PACKAGE_NAME%",
+	"version": "0.0.1",
+	"description": "Custom frontend for the Roqa UI framework",
+	"keywords": [
+		"roqa",
+		"roqajs",
+		"frontend",
+		"typescript",
+		"compiler"
+	],
+	"homepage": "https://roqa.dev",
+	"bugs": {
+		"url": "https://github.com/roqajs/roqa/issues"
+	},
+	"license": "MIT",
+	"sideEffects": false,
+	"type": "module",
+	"files": [
+		"src",
+		"types",
+		"README.md",
+		"LICENSE"
+	],
+	"exports": {
+		".": {
+			"types": "./types/index.d.ts",
+			"import": "./src/index.ts"
+		}
+	},
+	"scripts": {
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"dependencies": {
+		"typescript": "^5.8.3"
+	},
+	"peerDependencies": {
+		"roqa": "^0.0.7"
+	},
+	"devDependencies": {
+		"@types/node": "^24.0.0",
+		"roqa": "^0.0.7",
+		"vitest": "^3.0.0"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	}
+}

@@ -1,0 +1,48 @@
+{
+	"name": "create-roqa",
+	"version": "0.0.7",
+	"description": "Scaffold a Roqa frontend-author workspace",
+	"keywords": [
+		"create-roqa",
+		"roqa",
+		"roqajs",
+		"scaffold",
+		"frontend"
+	],
+	"homepage": "https://roqa.dev",
+	"bugs": {
+		"url": "https://github.com/roqajs/roqa/issues"
+	},
+	"license": "MIT",
+	"author": "Hawk Ticehurst",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/roqajs/roqa.git",
+		"directory": "packages/create-roqa"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"type": "module",
+	"bin": {
+		"create-roqa": "./dist/index.js"
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"prepack": "npm run build"
+	},
+	"files": [
+		"dist",
+		"src",
+		"template",
+		"README.md",
+		"LICENSE"
+	],
+	"devDependencies": {
+		"@types/node": "^24.0.0",
+		"typescript": "^5.8.3"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	}
+}

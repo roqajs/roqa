@@ -1,0 +1,92 @@
+{
+    "version": 1,
+    "tagName": "deep-nesting",
+    "name": "DeepNesting",
+
+    "state": [
+        {
+            "kind": "value",
+            "name": "title",
+            "initial": "Hello"
+        },
+        {
+            "kind": "value",
+            "name": "active",
+            "initial": false
+        }
+    ],
+    "actions": [],
+    "props": [],
+    "attrs": [],
+    "emits": [],
+    "lifecycle": {},
+
+    "render": [
+        {
+            "kind": "element",
+            "tag": "div",
+            "attributes": {
+                "id": { "kind": "literal", "value": "container" }
+            },
+            "events": [],
+            "children": [
+                {
+                    "kind": "element",
+                    "tag": "header",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        {
+                            "kind": "element",
+                            "tag": "h1",
+                            "attributes": {},
+                            "events": [],
+                            "children": [
+                                {
+                                    "kind": "reactive-text",
+                                    "source": { "kind": "state-read", "name": "title" }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "main",
+                    "attributes": {},
+                    "events": [],
+                    "classes": {
+                        "kind": "class-list",
+                        "items": [
+                            "content",
+                            {
+                                "name": "active",
+                                "condition": { "kind": "state-read", "name": "active" }
+                            }
+                        ]
+                    },
+                    "children": [
+                        {
+                            "kind": "element",
+                            "tag": "p",
+                            "attributes": {},
+                            "events": [],
+                            "children": [
+                                { "kind": "text", "value": "Some content" }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "kind": "element",
+                    "tag": "footer",
+                    "attributes": {},
+                    "events": [],
+                    "children": [
+                        { "kind": "text", "value": "Footer text" }
+                    ]
+                }
+            ]
+        }
+    ]
+}
