@@ -28,21 +28,26 @@
 		"access": "public"
 	},
 	"type": "module",
-	"main": "src/index.js",
-	"module": "src/index.js",
+	"main": "dist/index.js",
+	"module": "dist/index.js",
+	"types": "dist/index.d.ts",
 	"files": [
+		"dist",
 		"src",
-		"types",
 		"README.md",
 		"LICENSE",
 		"CHANGELOG.md"
 	],
 	"exports": {
 		".": {
-			"types": "./types/index.d.ts",
-			"import": "./src/index.js",
-			"default": "./src/index.js"
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
 		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"prepack": "pnpm build"
 	},
 	"dependencies": {
 		"roqa": "workspace:*"
@@ -51,6 +56,8 @@
 		"vite": "^6.0.0 || ^7.0.0"
 	},
 	"devDependencies": {
+		"@types/node": "^24.0.0",
+		"typescript": "^5.8.3",
 		"vite": "catalog:default"
 	},
 	"engines": {
