@@ -142,7 +142,7 @@ Suggested contents:
 
 ### 📝 2. Frontend-author checklist
 
-Add to `spec/frontend-guide.md`:
+Add to `packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md`:
 
 ```
 ☐ module-level imports (default / named / namespace / side-effect)
@@ -160,7 +160,7 @@ Add to `spec/frontend-guide.md`:
 
 ### 📝 3. Roqa runtime API surface
 
-`spec/frontend-guide.md` should explicitly list which runtime helpers a
+`packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md` should explicitly list which runtime helpers a
 frontend forwards to the emitted output. During this work I learned
 empirically:
 
@@ -232,7 +232,7 @@ which surfaces a different set of friction points.
   `@babel/parser` worked on the first try and handled every JS construct I
   needed (closures, destructuring, spread, template literals, ternaries,
   member chains, method calls, object literals). I'd recommend this trick
-  in `frontend-guide.md` — any frontend that ends up needing to parse JS
+  in `packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md` — any frontend that ends up needing to parse JS
   expressions can use it without a custom parser.
 - **The IR ExprIR is _genuinely_ frontend-independent.** I authored a
   syntax that looks nothing like JSX (no closing tags, single sigil, sigil-
@@ -317,10 +317,10 @@ type ClassItemIR =
 > `{ kind: "dynamic"; value: ExprIR }` variant. The compiler wraps the value
 > at runtime so an empty/falsy result contributes nothing to the className.
 
-### 5. Style bindings are missing from frontend-guide.md
+### 5. Style bindings are missing from packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md
 
 `StyleIR` and `StyleMapIR` are documented in `ir.md` but never appear in
-`frontend-guide.md`'s walkthrough or examples. I left style support out of
+`packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md`'s walkthrough or examples. I left style support out of
 Loom for v0 partly because I wasn't sure how the runtime expected the
 compiled output to look. A short section on `style="..."` vs
 `style:property={expr}` patterns would unblock that.
@@ -352,7 +352,7 @@ a type) would let frontends pre-flight their output.
 
 ### 1. The "things you'll need to extract" checklist is gold
 
-Already added in `frontend-guide.md` (per the JSX postmortem). I used it as
+Already added in `packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md` (per the JSX postmortem). I used it as
 a literal todo list while building Loom. Keep this prominent.
 
 ### 2. Add a "frontend authoring decisions" section
@@ -392,7 +392,7 @@ participate in workspace tooling.
    frontends invent unused `state` cells.
 2. **🟡 Add `ClassItemIR.kind: "dynamic"`** so frontends can pass
    `class={fn(@x)}` style expressions through cleanly.
-3. **📝 Document `StyleIR`** in `frontend-guide.md` with a worked example.
+3. **📝 Document `StyleIR`** in `packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md` with a worked example.
    It's the only IR section the guide doesn't cover.
 
 # Reverie — postmortem (`@roqajs/reverie`) – GPT-5.5
@@ -422,7 +422,7 @@ Suggested followups:
 - Add fixtures for `EachIR` nested inside `ShowIR`, `ShowIR` nested inside
   `EachIR`, and block nodes nested under normal elements inside block render
   bodies.
-- In `frontend-guide.md`, document whether nested block nodes are intended to be
+- In `packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md`, document whether nested block nodes are intended to be
   fully supported today or are still a backend TODO.
 
 > 🟡 **Partially addressed.** Nested-block support is a meaty architectural
@@ -462,7 +462,7 @@ Reverie I used JS-friendly attr names in expressions (`username`) to avoid
 inventing an alias system.
 
 Suggested doc note: frontend authors should decide early whether hyphenated
-attrs need aliases in their source language, and `frontend-guide.md` could show
+attrs need aliases in their source language, and `packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md` could show
 one recommended mapping (`attr user-name as userName`, `attr userName`, etc.).
 
 ### 🟡 4. `StyleMapIR` is specified but not lowered
@@ -475,7 +475,7 @@ Suggested followups:
 
 - Lower `StyleMapIR` into style-property bindings.
 - Add a compiler fixture for static + reactive style properties.
-- Until then, call out in `frontend-guide.md` that dynamic `StyleMapIR` is not
+- Until then, call out in `packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md` that dynamic `StyleMapIR` is not
   a usable frontend target yet.
 
 > ✅ **Implemented.** Literal-valued style properties fold into the template
@@ -493,5 +493,5 @@ tables, and emit `OpaqueExpr` only for statements/control flow the MIR cannot
 represent. This pattern is broadly useful beyond JSX.
 
 Suggested docs addition: add a "JS-expression frontend recipe" to
-`frontend-guide.md` covering symbol tables for state/actions/props/attrs,
+`packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md` covering symbol tables for state/actions/props/attrs,
 `cell-ref` vs `state-read` sites, and recommended opaque fallback behavior.

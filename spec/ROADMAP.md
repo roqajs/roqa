@@ -21,17 +21,6 @@ interface: `handles(id)` and `toIR(code, id)`.
 - AI-assisted authoring frontend
 - Other programming language frontends
 
-### Frontend author documentation
-
-**Status:** Implemented.
-
-The frontend guide now exists and covers the `ComponentIR` contract,
-`handles()` / `toIR()`, Vite plugin wiring, normalization rules, and
-validation expectations.
-
-- **Spec:** [`spec/frontend-guide.md`](./frontend-guide.md)
-- **Reference:** [`spec/ir.md`](./ir.md)
-
 ---
 
 ## Compiler enhancements
@@ -98,20 +87,17 @@ For large applications, only recompile changed components. This still needs
 MIR caching (keyed by content hash + compiler version) and MIR diffing as
 outlined in `spec/compiler.md` §Incremental compilation.
 
-### JSON Schema for MIR
+### JSON Schema for Roqa IR
 
 **Status:** Open.
 
-Publish a JSON Schema for `.roqa` files so frontend authors can validate
-their output independently. This is still not present in the repository.
+Publish a JSON Schema for `.roqa` files so frontend authors can validate their output independently. This is still not present in the repository.
 
 ### Security strict mode
 
 **Status:** Open.
 
-The validator already emits security-oriented diagnostics such as
-`raw-html-used`, but there is not yet a real compiler mode surface for
-`strict`. A strict mode would:
+The validator already emits security-oriented diagnostics such as `raw-html-used`, but there is not yet a real compiler mode surface for `strict`. A strict mode would:
 
 - Reject `OpaqueExpr` entirely
 - Validate import paths against an allowlist
@@ -125,19 +111,13 @@ The validator already emits security-oriented diagnostics such as
 
 **Status:** Open.
 
-The `subscribe()` helper is implemented and exported by the runtime, but the
-compiler does not yet emit it. It's still needed for the hybrid reactive
-model when cells escape component scope (passed to child custom elements,
-emitted as events).
+The `subscribe()` helper is implemented and exported by the runtime, but the compiler does not yet emit it. It's still needed for the hybrid reactive model when cells escape component scope (passed to child custom elements, emitted as events).
 
 ### Performance profiling
 
 **Status:** Partial.
 
-The repo now includes a `js-benchmark` example and the main README tracks JS
-Framework Benchmark results using the JSX frontend. That said, the specific
-runtime profiling work for `forBlock` reconciliation, `showBlock` toggles,
-and related hotspots is still ongoing.
+The repo now includes a `js-benchmark` example and the main README tracks JS Framework Benchmark results using the JSX frontend. That said, the specific runtime profiling work for `forBlock` reconciliation, `showBlock` toggles, and related hotspots is still ongoing.
 
 ---
 
@@ -147,43 +127,30 @@ and related hotspots is still ongoing.
 
 **Status:** Open.
 
-- VS Code extension: syntax highlighting, JSON validation, autocomplete
-  (leveraging the JSON Schema)
+- VS Code extension: syntax highlighting, JSON validation, autocomplete (leveraging the JSON Schema)
 - Language server: diagnostics, go-to-definition for state/action refs
 
 ### CLI tooling
 
 **Status:** Open.
 
-Roqa has package entrypoints for the runtime, compiler, JSX frontend, and
-Vite plugin, and the project now offers `npm create roqa@latest` for app
-bootstrap. It still does not ship dedicated CLI commands such as:
+Roqa has package entrypoints for the runtime, compiler, JSX frontend, and Vite plugin, and the project now offers `npm create roqa@latest` for app bootstrap. It still does not ship dedicated CLI commands such as:
 
-- `roqa compile <file.roqa>` — compile a `.roqa` file to JS from the command
-  line (useful for CI, debugging, non-Vite workflows)
+- `roqa compile <file.roqa>` — compile a `.roqa` file to JS from the command line (useful for CI, debugging, non-Vite workflows)
 - `roqa validate <file.roqa>` — run validation without compilation
 
 ### Deferred items from agent feedback
 
 **Status:** Mixed.
 
-Most of the items from `spec/AGENT-FEEDBACK.md` are still deferred, but this
-section is no longer entirely untouched.
+Most of the items from `spec/AGENT-FEEDBACK.md` are still deferred, but this section is no longer entirely untouched.
 
-- **`StateValueIR.initial: ExprIR`.** Still deferred. The IR still uses
-  `initial: unknown` plus optional `initialExpr: string`.
-- **`inlinedSets` as a single ordered op stream.** Still deferred. The
-  `body` + `inlinedSets` split remains in the lowering / emitter pipeline.
-- **Structured control-flow expressions.** Still partial. `NewExpr` and
-  `ReturnExpr` are now implemented, but `IfExpr`, `ForExpr`, `WhileExpr`, and
-  a real `TryCatchExpr` path are still future work.
-- **Unify `param-read` / `item-field-read` into `LocalReadExpr`.** Implemented.
-  The compiler now has `LocalReadExpr` (`kind: "local-read"`), so this no
-  longer belongs in the active deferred queue.
+- **`StateValueIR.initial: ExprIR`.** Still deferred. The IR still uses `initial: unknown` plus optional `initialExpr: string`.
+- **`inlinedSets` as a single ordered op stream.** Still deferred. The `body` + `inlinedSets` split remains in the lowering / emitter pipeline.
+- **Structured control-flow expressions.** Still partial. `NewExpr` and `ReturnExpr` are now implemented, but `IfExpr`, `ForExpr`, `WhileExpr`, and a real `TryCatchExpr` path are still future work.
+- **Unify `param-read` / `item-field-read` into `LocalReadExpr`.** Implemented. The compiler now has `LocalReadExpr` (`kind: "local-read"`), so this no longer belongs in the active deferred queue.
 - **Rename `cell-ref`.** Still deferred.
-- **Auto-lift `state-read` predicates inside `ShowIR.condition`.** Still
-  deferred. `EachIR.source` auto-lifting exists, but `ShowIR.condition` still
-  requires a `cell-ref`.
+- **Auto-lift `state-read` predicates inside `ShowIR.condition`.** Still deferred. `EachIR.source` auto-lifting exists, but `ShowIR.condition` still requires a `cell-ref`.
 
 ---
 
@@ -193,9 +160,7 @@ section is no longer entirely untouched.
 
 **Status:** Partial.
 
-The top-level README now covers the framework overview, JSX-based getting
-started, and custom frontend entry points. The following docs are still open
-or incomplete as dedicated guides:
+The top-level README now covers the framework overview, JSX-based getting started, and custom frontend entry points. The following docs are still open or incomplete as dedicated guides:
 
 - Getting started guide (using `.roqa` files directly)
 - IR authoring guide (hand-writing components in MIR)
@@ -205,9 +170,7 @@ or incomplete as dedicated guides:
 
 **Status:** Partial.
 
-The architecture is documented across `spec/compiler.md` and the archived
-implementation guide, but the more task-oriented contributor docs are still
-missing as dedicated guides:
+The architecture is documented across `spec/compiler.md` and the archived implementation guide, but the more task-oriented contributor docs are still missing as dedicated guides:
 
 - Compiler architecture overview (the 4-phase pipeline)
 - How to add a new `ExprIR` node type

@@ -1,9 +1,6 @@
 # JSX Frontend Specification
 
-This document specifies how the Roqa JSX frontend translates JSX/TSX source
-code into Roqa IR (`ComponentIR`). The JSX frontend lives in `packages/roqa-jsx/`
-and implements the `RoqaFrontend` interface defined in
-[`spec/frontend-guide.md`](./frontend-guide.md).
+This document specifies how the Roqa JSX frontend translates JSX/TSX source code into Roqa IR (`ComponentIR`). The JSX frontend lives in `packages/roqa-jsx/` and implements the `RoqaFrontend` interface documented in [`packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md`](../packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md).
 
 ## Overview
 
@@ -1082,7 +1079,7 @@ named actions. This is correct and matches how the backend handles them.
 
 ## Reference
 
-- [`spec/frontend-guide.md`](./frontend-guide.md) — General frontend author
+- [`packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md`](../packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md) — General frontend author
   guide (the `ComponentIR` contract, `RoqaFrontend` interface, testing
   strategies)
 - [`spec/ir.md`](./ir.md) — Complete Roqa IR type definitions

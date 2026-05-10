@@ -1,39 +1,34 @@
 # Frontend Author Guide
 
-This document explains how to build a custom frontend for Roqa. A frontend
-converts an authoring syntax (JSX, a custom DSL, a visual builder, etc.) into
-Roqa IR — the intermediate representation that the Roqa backend compiles into
-optimized JavaScript.
+This document explains how to build a custom frontend for Roqa. A frontend converts an authoring syntax (JSX, a custom DSL, a visual builder, etc.) into Roqa IR, the intermediate representation that the Roqa backend compiles into optimized JavaScript.
 
-You do not need to understand the backend compiler to build a frontend. Your
-job is to produce valid `ComponentIR` objects; the backend handles everything
-from there.
+You do not need to understand the backend compiler to build a frontend. Your job is to produce valid `ComponentIR` objects; the backend handles everything from there.
 
 ## Architecture overview
 
 ```txt
 Your frontend                         Roqa backend
-─────────────                         ────────────
-Source code  →  parse  →  your frontend model  →  Roqa IR  →  compile()  →  Optimized JS
-    (.tsx)       (yours)        (yours)               │             │
-  (.dsl)                                         │    validate → lower → optimize → emit
-  (GUI)                                          │
-                                                 ▼
+-------------                         -----------
+Source code  ->  parse  ->  your frontend model  ->  Roqa IR  ->  compile()  ->  Optimized JS
+    (.tsx)       (yours)        (yours)               |             |
+  (.dsl)                                         |    validate -> lower -> optimize -> emit
+  (GUI)                                          |
+                                                 v
                                         ComponentIR (JSON-serializable)
 ```
 
 A frontend is responsible for:
 
-1. **Parsing** source code into whatever internal representation you want
-2. **Normalizing** that representation into valid `ComponentIR` objects
-3. **Returning** those objects from `toIR()`
+1. Parsing source code into whatever internal representation you want
+2. Normalizing that representation into valid `ComponentIR` objects
+3. Returning those objects from `toIR()`
 
 The backend is responsible for:
 
-1. **Validating** the IR (structural soundness, reference integrity)
-2. **Lowering** it into compiler-internal forms (template extraction, traversal, bindings)
-3. **Optimizing** those internal forms (cell inlining, binding inlining)
-4. **Emitting** JavaScript (the final output)
+1. Validating the IR (structural soundness, reference integrity)
+2. Lowering it into compiler-internal forms (template extraction, traversal, bindings)
+3. Optimizing those internal forms (cell inlining, binding inlining)
+4. Emitting JavaScript (the final output)
 
 ---
 
@@ -50,8 +45,7 @@ interface RoqaFrontend {
 
 ### `handles(id)`
 
-Returns `true` if this frontend should process the given file. The `id` is a
-fully-resolved file path (e.g., `/src/components/Counter.tsx`).
+Returns `true` if this frontend should process the given file. The `id` is a fully resolved file path (for example, `/src/components/Counter.tsx`).
 
 ```js
 // Example: a JSX frontend that handles .tsx and .jsx files
@@ -62,16 +56,14 @@ handles(id) {
 
 ### `toIR(code, id)`
 
-Accepts the raw source code and file path, returns one or more `ComponentIR`
-objects. A single file may define multiple components (return an array), or
-just one (return a single object).
+Accepts the raw source code and file path, returns one or more `ComponentIR` objects. A single file may define multiple components (return an array), or just one (return a single object).
 
 ```js
 // Example: parse JSX, walk AST, produce Roqa IR
 toIR(code, id) {
     const ast = parse(code);
     const components = extractComponents(ast);
-    return components.map(c => convertToMIR(c));
+    return components.map(c => convertToIR(c));
 }
 ```
 
@@ -89,19 +81,15 @@ export default {
 };
 ```
 
-The plugin calls `frontend.handles(id)` during Vite's `transform` hook. When
-it returns `true`, the plugin calls `frontend.toIR(code, id)` and passes the
-result to `compile()`.
+The plugin calls `frontend.handles(id)` during Vite's `transform` hook. When it returns `true`, the plugin calls `frontend.toIR(code, id)` and passes the result to `compile()`.
 
-`.roqa` files (raw Roqa IR JSON) are always handled by the plugin directly — they
-don't go through your frontend.
+`.roqa` files (raw Roqa IR JSON) are always handled by the plugin directly; they do not go through your frontend.
 
 ---
 
 ## The `ComponentIR` contract
 
-The full type definitions live in [`spec/ir.md`](./ir.md). This section is a
-practical summary of what your frontend must produce.
+The full frontend-facing IR outline lives in `SKILL.md` in this same folder. This section is a practical summary of what your frontend must produce.
 
 ### Root structure
 
@@ -110,24 +98,22 @@ Every component is a `ComponentIR` object:
 ```ts
 {
     version: 1,
-    tagName: string,              // Custom element name (hyphenated, lowercase)
-    name: string,                 // Export/identifier name (PascalCase)
+    tagName: string,
+    name: string,
 
-    state: StateIR[],             // Reactive state declarations
-    actions: ActionIR[],          // Named action functions
-    props: PropIR[],              // Props passed from parent components
-    attrs: AttrIR[],              // DOM attributes (reflected)
-    emits: EmitIR[],              // Custom events the component dispatches
-    lifecycle: LifecycleIR,       // onConnect / onDisconnect hooks
-    render: NodeIR[],             // The view tree (root-level children)
+    state: StateIR[],
+    actions: ActionIR[],
+    props: PropIR[],
+    attrs: AttrIR[],
+    emits: EmitIR[],
+    lifecycle: LifecycleIR,
+    render: NodeIR[],
 
-    metadata?: ComponentMetadata  // Optional: sourceFile, frontend name, imports
+    metadata?: ComponentMetadata
 }
 ```
 
-**Required fields:** All top-level fields except `metadata` are required.
-Empty sections use empty arrays (`[]`) or empty objects (`{}`), not absent
-keys:
+Required fields: all top-level fields except `metadata` are required. Empty sections use empty arrays (`[]`) or empty objects (`{}`), not absent keys:
 
 ```json
 {
@@ -158,32 +144,24 @@ The `tagName` must be a valid custom element name:
 
 - Contains a hyphen (`-`)
 - All lowercase
-- Doesn't start with a digit or hyphen
-- Not a reserved name (`annotation-xml`, `color-profile`, etc.)
+- Does not start with a digit or hyphen
+- Is not a reserved name (`annotation-xml`, `color-profile`, etc.)
 
-The backend validates this and produces a `invalid-tag-name` diagnostic on
-failure.
+The backend validates this and produces an `invalid-tag-name` diagnostic on failure.
 
 ### Version field
 
-Always `1` (the current IR version). The backend checks this first and
-rejects mismatched versions with a clear error. This ensures frontends built
-against older IR formats fail fast instead of producing subtly wrong output.
+Always `1` (the current IR version). The backend checks this first and rejects mismatched versions with a clear error. This ensures frontends built against older IR formats fail fast instead of producing subtly wrong output.
 
 ---
 
 ## Producing expressions: the `ExprIR` type
 
-The expression IR is the most important part of the Roqa IR to understand.
-Expressions appear in action bodies, computed values, event handlers, attribute
-bindings, class conditions, lifecycle hooks — everywhere the component performs
-computation.
+The expression IR is the most important part of Roqa IR to understand. Expressions appear in action bodies, computed values, event handlers, attribute bindings, class conditions, and lifecycle hooks, anywhere the component performs computation.
 
 ### Why structured expressions?
 
-The IR is frontend-independent. Instead of embedding JavaScript strings (which
-would tie the IR to JS syntax), expressions use a structured tree that any
-frontend can produce:
+The IR is frontend-independent. Instead of embedding JavaScript strings (which would tie the IR to JS syntax), expressions use a structured tree that any frontend can produce:
 
 ```json
 {
@@ -194,18 +172,17 @@ frontend can produce:
 }
 ```
 
-This is equivalent to `count + 1` but is unambiguous, serializable, and
-analyzable by the backend.
+This is equivalent to `count + 1` but is unambiguous, serializable, and analyzable by the backend.
 
 ### Common expression patterns
 
-**Read reactive state:**
+Read reactive state:
 
 ```json
 { "kind": "state-read", "name": "count" }
 ```
 
-**Write reactive state:**
+Write reactive state:
 
 ```json
 {
@@ -220,37 +197,37 @@ analyzable by the backend.
 }
 ```
 
-**Read a prop:**
+Read a prop:
 
 ```json
 { "kind": "prop-read", "name": "label" }
 ```
 
-**Read a computed value:**
+Read a computed value:
 
 ```json
 { "kind": "computed-read", "name": "doubled" }
 ```
 
-**Read a closure/action parameter:**
+Read a closure or action parameter:
 
 ```json
 { "kind": "param-read", "name": "e" }
 ```
 
-**Read a field of the current list item (inside `each` render):**
+Read a field of the current list item (inside `each` render):
 
 ```json
 { "kind": "item-field-read", "field": "text" }
 ```
 
-**Cell reference (for `show`/`each` subscription):**
+Cell reference (for `show` or `each` subscription):
 
 ```json
 { "kind": "cell-ref", "name": "visible" }
 ```
 
-**Literals:**
+Literals:
 
 ```json
 { "kind": "literal", "value": "hello" }
@@ -259,7 +236,7 @@ analyzable by the backend.
 { "kind": "literal", "value": null }
 ```
 
-**Binary operations:**
+Binary operations:
 
 ```json
 {
@@ -273,7 +250,7 @@ analyzable by the backend.
 Supported operators: `+`, `-`, `*`, `/`, `%`, `===`, `!==`, `>`, `<`, `>=`,
 `<=`, `&&`, `||`, `??`
 
-**Unary operations:**
+Unary operations:
 
 ```json
 {
@@ -285,7 +262,7 @@ Supported operators: `+`, `-`, `*`, `/`, `%`, `===`, `!==`, `>`, `<`, `>=`,
 
 Supported operators: `!`, `-`, `typeof`
 
-**Conditional (ternary):**
+Conditional (ternary):
 
 ```json
 {
@@ -296,7 +273,7 @@ Supported operators: `!`, `-`, `typeof`
 }
 ```
 
-**Member access:**
+Member access:
 
 ```json
 {
@@ -306,7 +283,7 @@ Supported operators: `!`, `-`, `typeof`
 }
 ```
 
-**Method call:**
+Method call:
 
 ```json
 {
@@ -317,7 +294,7 @@ Supported operators: `!`, `-`, `typeof`
 }
 ```
 
-**Function call:**
+Function call:
 
 ```json
 {
@@ -327,7 +304,7 @@ Supported operators: `!`, `-`, `typeof`
 }
 ```
 
-**Closure (lambda / callback):**
+Closure (lambda or callback):
 
 ```json
 {
@@ -349,7 +326,7 @@ Supported operators: `!`, `-`, `typeof`
 }
 ```
 
-**Block (sequence of expressions):**
+Block (sequence of expressions):
 
 ```json
 {
@@ -370,7 +347,7 @@ Supported operators: `!`, `-`, `typeof`
 }
 ```
 
-**Object literal:**
+Object literal:
 
 ```json
 {
@@ -389,7 +366,7 @@ Supported operators: `!`, `-`, `typeof`
 }
 ```
 
-**Template literal (string interpolation):**
+Template literal (string interpolation):
 
 ```json
 {
@@ -398,16 +375,16 @@ Supported operators: `!`, `-`, `typeof`
 }
 ```
 
-**Collection operations:**
+Collection operations:
 
 ```json
-{ "kind": "collection-op", "op": "insert", "name": "todos", "args": [{ "kind": "object", "..." }] }
-{ "kind": "collection-op", "op": "update", "name": "todos", "args": ["key", { "kind": "closure", "..." }] }
+{ "kind": "collection-op", "op": "insert", "name": "todos", "args": [{ "kind": "object", "...": true }] }
+{ "kind": "collection-op", "op": "update", "name": "todos", "args": ["key", { "kind": "closure", "...": true }] }
 { "kind": "collection-op", "op": "remove", "name": "todos", "args": ["key"] }
 { "kind": "collection-op", "op": "clear", "name": "todos", "args": [] }
 ```
 
-**Custom event emission:**
+Custom event emission:
 
 ```json
 {
@@ -417,13 +394,13 @@ Supported operators: `!`, `-`, `typeof`
 }
 ```
 
-**Imported references (from other modules):**
+Imported references (from other modules):
 
 ```json
 { "kind": "imported-ref", "source": "./utils.js", "name": "formatDate" }
 ```
 
-**External references (globals/builtins):**
+External references (globals or builtins):
 
 ```json
 { "kind": "external-ref", "name": "Math", "path": ["floor"] }
@@ -431,7 +408,7 @@ Supported operators: `!`, `-`, `typeof`
 { "kind": "external-ref", "name": "parseInt" }
 ```
 
-**Opaque escape hatch (use sparingly):**
+Opaque escape hatch (use sparingly):
 
 ```json
 {
@@ -442,20 +419,17 @@ Supported operators: `!`, `-`, `typeof`
 }
 ```
 
-The `reads` and `writes` arrays must be manually declared because the backend
-cannot analyze raw source strings. Prefer structured expressions whenever
-possible.
+The `reads` and `writes` arrays must be manually declared because the backend cannot analyze raw source strings. Prefer structured expressions whenever possible.
 
-For the complete type definitions and all expression kinds, see
-[`spec/ir.md` §Expression IR](./ir.md#mir-expression-ir).
+For the complete type definitions and all expression kinds, see the IR outline in `SKILL.md`.
 
 ---
 
 ## Producing the view tree: `NodeIR`
 
-The `render` field is an array of `NodeIR` children. There are five node kinds:
+The `render` field is an array of `NodeIR` children. There are five main node kinds:
 
-### `ElementIR` — an HTML element
+### `ElementIR`, an HTML element
 
 ```json
 {
@@ -475,16 +449,11 @@ The `render` field is an array of `NodeIR` children. There are five node kinds:
 }
 ```
 
-**Attributes** map string keys to `ExprIR` values. Static attributes
-(`LiteralExpr`) are baked into the HTML template. Dynamic attributes (any other
-expression) become runtime bindings.
+Attributes map string keys to `ExprIR` values. Static attributes (`LiteralExpr`) are baked into the HTML template. Dynamic attributes (any other expression) become runtime bindings.
 
-**Events** are an array of `{ event, handler }` pairs. The handler is an
-`ExprIR` — typically `ActionCallExpr`, `ClosureExpr`, or `CallExpr`.
+Events are an array of `{ event, handler }` pairs. The handler is an `ExprIR`, typically `ActionCallExpr`, `ClosureExpr`, or `CallExpr`.
 
-**Classes** — use either `attributes.class` (as a `LiteralExpr` for static
-classes) or the `classes` field (for conditional classes). Never both on the
-same element.
+Classes: use either `attributes.class` (as a `LiteralExpr` for static classes) or the `classes` field (for conditional classes). Never both on the same element.
 
 ```json
 {
@@ -506,44 +475,27 @@ same element.
 }
 ```
 
-**Custom elements** — when the `tag` is a custom element name (e.g.,
-`"status-badge"`), attributes that are `ExprIR` nodes with non-literal values
-are treated as props and set via `setProp()` before `appendChild()`.
+Custom elements: when the `tag` is a custom element name (for example, `"status-badge"`), attributes that are `ExprIR` nodes with non-literal values are treated as props and set via `setProp()` before `appendChild()`.
 
-### `TextIR` — static text
+### `TextIR`, static text
 
 ```json
 { "kind": "text", "value": "Count: " }
 ```
 
-Goes directly into the HTML template string.
+This goes directly into the HTML template string.
 
-### `ReactiveTextIR` — dynamic text
+### `ReactiveTextIR`, dynamic text
 
 ```json
 { "kind": "reactive-text", "source": { "kind": "state-read", "name": "count" } }
 ```
 
-A space placeholder `' '` is inserted into the template (creating a text
-node). A binding updates `textNode.nodeValue` when the source changes.
+A space placeholder is inserted into the template, creating a text node. A binding updates `textNode.nodeValue` when the source changes.
 
-**Adjacent text coalescing:** When `TextIR` and `ReactiveTextIR` nodes appear
-as adjacent siblings with no element nodes between them, the backend coalesces
-them into a **single text node**. The binding concatenates all parts:
+Adjacent text coalescing: when `TextIR` and `ReactiveTextIR` nodes appear as adjacent siblings with no element nodes between them, the backend coalesces them into a single text node. The binding concatenates all parts.
 
-```json
-[
-  { "kind": "text", "value": "Count: " },
-  {
-    "kind": "reactive-text",
-    "source": { "kind": "state-read", "name": "count" }
-  }
-]
-```
-
-Becomes a single text node whose `nodeValue` is `"Count: " + count.v`.
-
-### `ShowIR` — conditional rendering
+### `ShowIR`, conditional rendering
 
 ```json
 {
@@ -570,12 +522,11 @@ Becomes a single text node whose `nodeValue` is `"Count: " + count.v`.
 }
 ```
 
-The `condition` must be a `cell-ref` (not a `state-read`). The backend passes
-the cell object directly to `showBlock()` for subscription.
+The `condition` must be a `cell-ref`, not a `state-read`. The backend passes the cell object directly to `showBlock()` for subscription.
 
-The `fallback` field is optional — omit it for show-without-fallback.
+The `fallback` field is optional. Omit it for show-without-fallback.
 
-### `EachIR` — list rendering
+### `EachIR`, list rendering
 
 ```json
 {
@@ -600,10 +551,7 @@ The `fallback` field is optional — omit it for show-without-fallback.
 }
 ```
 
-The `source` must be a `cell-ref`. The `key` field names the item property
-used for efficient reconciliation (or `null` for identity-based keying). The
-`render` tree uses `item-field-read` expressions to access fields of the
-current item.
+The `source` must be a `cell-ref`. The `key` field names the item property used for efficient reconciliation (or `null` for identity-based keying). The `render` tree uses `item-field-read` expressions to access fields of the current item.
 
 ---
 
@@ -621,8 +569,7 @@ current item.
 { "kind": "collection", "name": "todos", "key": "id", "initial": [] }
 ```
 
-Use `collection-op` expressions in actions to manipulate collections (`insert`,
-`remove`, `update`, `remove-where`, `move`, `clear`).
+Use `collection-op` expressions in actions to manipulate collections (`insert`, `remove`, `update`, `remove-where`, `move`, `clear`).
 
 ### Computed (derived) value
 
@@ -639,8 +586,7 @@ Use `collection-op` expressions in actions to manipulate collections (`insert`,
 }
 ```
 
-The backend automatically derives dependencies by walking the `body`
-expression tree — no manual `dependencies` array needed.
+The backend automatically derives dependencies by walking the `body` expression tree. No manual `dependencies` array is needed.
 
 ### Optimization hints (optional)
 
@@ -660,10 +606,7 @@ All state kinds accept an optional `hints` object:
 }
 ```
 
-Hints are strictly advisory — the backend produces correct code even if hints
-are absent or wrong. A frontend that doesn't know or care about optimization
-can omit them entirely. See [`spec/ir.md` §OptimizationHints](./ir.md) for
-the full list.
+Hints are strictly advisory; the backend produces correct code even if hints are absent or wrong. A frontend that does not care about optimization can omit them entirely.
 
 ---
 
@@ -760,22 +703,17 @@ The `metadata` field is optional but recommended:
 }
 ```
 
-**`sourceFile`** — helps with error messages and future source map support.
+`sourceFile` helps with error messages and future source map support.
 
-**`frontend`** — identifies which frontend produced this IR (useful for
-debugging and tooling).
+`frontend` identifies which frontend produced this IR.
 
-**`imports`** — declares external module dependencies. The backend generates
-`import` statements for these. Any `imported-ref` expressions in the component
-must have a corresponding entry here.
+`imports` declares external module dependencies. The backend generates `import` statements for these. Any `imported-ref` expressions in the component must have a corresponding entry here.
 
 ---
 
 ## What the backend validates
 
-When you pass MIR to `compile()`, the backend runs validation before any code
-generation. Understanding what it checks helps you produce valid MIR from the
-start.
+When you pass Roqa IR to `compile()`, the backend runs validation before any code generation. Understanding what it checks helps you produce valid IR from the start.
 
 ### Errors (compilation fails)
 
@@ -788,7 +726,7 @@ start.
 | `dangling-action-ref`    | Every `action-call` must reference a declared action                  |
 | `dangling-computed-ref`  | Every `computed-read` must reference a declared computed              |
 | `invalid-show-condition` | `ShowIR.condition` must be a `cell-ref` to reactive state             |
-| `invalid-each-source`    | `EachIR.source` must be a `cell-ref` to a collection/value            |
+| `invalid-each-source`    | `EachIR.source` must be a `cell-ref` to a collection or value         |
 | `malformed-expression`   | Expression tree must be structurally valid                            |
 | `missing-key`            | Collections used in `each` should have a `key`                        |
 | `unsafe-import-path`     | Import paths must not traverse outside the project                    |
@@ -807,37 +745,35 @@ start.
 
 ## Testing your frontend independently
 
-You don't need the full Vite pipeline to test your frontend. Since `toIR()`
-produces JSON-serializable data, you can test it in isolation.
+You do not need the full Vite pipeline to test your frontend. Since `toIR()` produces JSON-serializable data, you can test it in isolation.
 
-### Strategy 1: Snapshot testing against MIR output
+### Strategy 1: Snapshot testing against IR output
 
-Write source files in your frontend's syntax and assert on the MIR output:
+Write source files in your frontend's syntax and assert on the IR output:
 
 ```js
 import { test, expect } from "vitest";
 import { myFrontend } from "./my-frontend.js";
 
-test("counter component produces correct MIR", () => {
+test("counter component produces correct IR", () => {
   const source = `
         // Your frontend's syntax for a counter component
     `;
 
-  const mir = myFrontend.toIR(source, "counter.tsx");
+  const ir = myFrontend.toIR(source, "counter.tsx");
 
-  expect(mir).toEqual({
+  expect(ir).toEqual({
     version: 1,
     tagName: "counter-button",
     name: "CounterButton",
     state: [{ kind: "value", name: "count", initial: 0 }],
-    // ...
   });
 });
 ```
 
 ### Strategy 2: Round-trip through the compiler
 
-Pass your MIR through `compile()` and verify it produces valid JavaScript:
+Pass your IR through `compile()` and verify it produces valid JavaScript:
 
 ```js
 import { test, expect } from "vitest";
@@ -846,8 +782,8 @@ import { myFrontend } from "./my-frontend.js";
 
 test("counter component compiles without errors", () => {
   const source = `...`;
-  const mir = myFrontend.toIR(source, "counter.tsx");
-  const result = compile(mir);
+  const ir = myFrontend.toIR(source, "counter.tsx");
+  const result = compile(ir);
 
   expect(result.code).toContain('defineComponent("counter-button"');
   expect(result.code).toContain("delegate(");
@@ -856,10 +792,7 @@ test("counter component compiles without errors", () => {
 
 ### Strategy 3: Use the reference examples as targets
 
-The `examples/ir/` directory contains 13 working applications written as raw
-IR (`.roqa` files). These are excellent test targets — for each one, write
-the equivalent in your frontend's syntax and verify your `toIR()` output
-matches the reference MIR:
+The `examples/ir/` directory contains working applications written as raw IR (`.roqa` files). These are excellent test targets. For each one, write the equivalent in your frontend's syntax and verify your `toIR()` output matches the reference IR.
 
 | Example            | Features covered                                   |
 | ------------------ | -------------------------------------------------- |
@@ -879,18 +812,16 @@ matches the reference MIR:
 
 ### Strategy 4: Use the test fixtures for end-to-end verification
 
-The `packages/roqa/tests/fixtures/` directory contains 28 `.roqa.json` + `.expected.js` pairs
-that are the ground truth for compiler output. You can verify your MIR produces
-the same JavaScript as the reference:
+The `packages/roqa/tests/fixtures/` directory contains `.roqa.json` and `.expected.js` pairs that are the ground truth for compiler output. You can verify your IR produces the same JavaScript as the reference:
 
 ```js
 import { test, expect } from "vitest";
 import { compile } from "roqa/compiler";
 import { readFileSync } from "node:fs";
 
-test("my counter MIR matches reference output", () => {
-  const mir = myFrontend.toIR(counterSource, "counter.tsx");
-  const result = compile(mir);
+test("my counter IR matches reference output", () => {
+  const ir = myFrontend.toIR(counterSource, "counter.tsx");
+  const result = compile(ir);
 
   const expected = readFileSync(
     "packages/roqa/tests/fixtures/counter-button.expected.js",
@@ -902,55 +833,53 @@ test("my counter MIR matches reference output", () => {
 
 ---
 
-## Common patterns: source syntax → MIR
+## Common patterns: source syntax -> IR
 
-This section shows how typical frontend constructs map to MIR, regardless of
-what syntax your frontend uses.
+This section shows how typical frontend constructs map to IR, regardless of what syntax your frontend uses.
 
-### State declaration → `StateValueIR`
+### State declaration -> `StateValueIR`
 
 ```
 // Whatever your syntax is for "reactive value initialized to 0"
-→ { "kind": "value", "name": "count", "initial": 0 }
+-> { "kind": "value", "name": "count", "initial": 0 }
 ```
 
-### Derived/computed value → `StateComputedIR`
+### Derived/computed value -> `StateComputedIR`
 
 ```
 // Whatever your syntax is for "value derived from count"
-→ { "kind": "computed", "name": "doubled", "body": { "kind": "binary", ... } }
+-> { "kind": "computed", "name": "doubled", "body": { "kind": "binary", ... } }
 ```
 
-### Event handler → `EventBindingIR`
+### Event handler -> `EventBindingIR`
 
 ```
 // Whatever your syntax is for "on click, call increment"
-→ { "event": "click", "handler": { "kind": "action-call", "name": "increment", "args": [] } }
+-> { "event": "click", "handler": { "kind": "action-call", "name": "increment", "args": [] } }
 ```
 
-### Conditional rendering → `ShowIR`
+### Conditional rendering -> `ShowIR`
 
 ```
 // Whatever your syntax is for "show this element when visible is true"
-→ { "kind": "show", "condition": { "kind": "cell-ref", "name": "visible" }, "render": [...] }
+-> { "kind": "show", "condition": { "kind": "cell-ref", "name": "visible" }, "render": [...] }
 ```
 
-Note: the condition is a `cell-ref`, not a `state-read`. The backend needs the
-cell itself (not its value) for subscription.
+Note: the condition is a `cell-ref`, not a `state-read`. The backend needs the cell itself, not its value, for subscription.
 
-### List rendering → `EachIR`
+### List rendering -> `EachIR`
 
 ```
 // Whatever your syntax is for "render each todo in the list"
-→ { "kind": "each", "source": { "kind": "cell-ref", "name": "todos" }, "key": "id",
+-> { "kind": "each", "source": { "kind": "cell-ref", "name": "todos" }, "key": "id",
      "itemAlias": "todo", "render": [...] }
 ```
 
-### String interpolation → `TemplateLiteralExpr` or text coalescing
+### String interpolation -> `TemplateLiteralExpr` or text coalescing
 
 Two valid approaches:
 
-**Approach A** — single `ReactiveTextIR` with `TemplateLiteralExpr`:
+Approach A, single `ReactiveTextIR` with `TemplateLiteralExpr`:
 
 ```json
 {
@@ -962,7 +891,7 @@ Two valid approaches:
 }
 ```
 
-**Approach B** — adjacent `TextIR` + `ReactiveTextIR` siblings:
+Approach B, adjacent `TextIR` and `ReactiveTextIR` siblings:
 
 ```json
 [
@@ -974,9 +903,7 @@ Two valid approaches:
 ]
 ```
 
-Both produce equivalent output — the backend coalesces adjacent text/reactive
-text into a single text node either way. Choose whichever maps more naturally
-to your frontend's syntax.
+Both produce equivalent output. The backend coalesces adjacent text and reactive text into a single text node either way. Choose whichever maps more naturally to your frontend's syntax.
 
 ---
 
@@ -986,15 +913,10 @@ to your frontend's syntax.
 
 This is the most common mistake frontend authors make.
 
-- **`cell-ref`** means "give me the cell object itself" — used by `ShowIR`
-  conditions and `EachIR` sources, because `showBlock()` and `forBlock()` need
-  to subscribe to the cell.
+- `cell-ref` means "give me the cell object itself". Use it for `ShowIR` conditions and `EachIR` sources because `showBlock()` and `forBlock()` need to subscribe to the cell.
+- `state-read` means "give me the current value". Use it in text content, attribute bindings, computed bodies, and action expressions.
 
-- **`state-read`** means "give me the current value" — used in text content,
-  attribute bindings, computed bodies, action expressions.
-
-If you use `state-read` where `cell-ref` is needed, validation will reject
-it with `invalid-show-condition` or `invalid-each-source`.
+If you use `state-read` where `cell-ref` is needed, validation will reject it with `invalid-show-condition` or `invalid-each-source`.
 
 ### `attributes.class` vs `classes` field
 
@@ -1002,7 +924,7 @@ These are mutually exclusive on the same element:
 
 - Use `attributes.class` with a `LiteralExpr` for all-static classes
 - Use the `classes` field with `ClassListIR` for conditional classes
-- Never set both — validation rejects this as ambiguous
+- Never set both; validation rejects this as ambiguous
 
 ### `ActionCallExpr` for event handlers
 
@@ -1015,7 +937,7 @@ Named actions are referenced using `ActionCallExpr`, not a plain string:
 }
 ```
 
-For actions with arguments (e.g., inside an `each` render):
+For actions with arguments, for example inside an `each` render:
 
 ```json
 {
@@ -1030,8 +952,7 @@ For actions with arguments (e.g., inside an `each` render):
 
 ### Imports must be declared in metadata
 
-If your component uses `imported-ref` expressions, the corresponding imports
-must be declared in `metadata.imports`:
+If your component uses `imported-ref` expressions, the corresponding imports must be declared in `metadata.imports`:
 
 ```json
 {
@@ -1042,15 +963,3 @@ must be declared in `metadata.imports`:
   }
 }
 ```
-
----
-
-## Reference
-
-- [`spec/ir.md`](./ir.md) — Complete Roqa IR type definitions
-- [`spec/compiler.md`](./compiler.md) — Backend compilation pipeline
-- [`spec/runtime.md`](./runtime.md) — Runtime primitives the compiler targets
-- [`examples/ir/`](../examples/ir/) — 13 working IR applications (reference
-  targets for frontend testing)
-- [`packages/roqa/tests/fixtures/`](../packages/roqa/tests/fixtures/) — 28 IR→JS test pairs (ground truth for
-  compiler output)
