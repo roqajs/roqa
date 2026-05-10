@@ -1,14 +1,14 @@
 # %PROJECT_NAME%
 
-This package is a starter kit for building a new TypeScript and Vite-based Roqa frontend.
+This package is a starter kit for building a new TypeScript and Vite-based Roqa authoring format.
 
 ## What this scaffold includes
 
 - `src/index.ts` is the frontend entrypoint that implements the `RoqaFrontend` Vite plugin interface.
 - `types/index.d.ts` defines the frontend interface your package should implement.
 - `tests/index.test.ts` contains fixture-based checks for `your_frontend()`.
-- `tests/fixtures/*.roqa` are real Roqa IR examples you can compare against while implementing new syntax or tooling.
-- `AGENTS.md` and `.agents/skills/create-roqa-frontend/SKILL.md` give high-level guidance for humans and agents.
+- `tests/fixtures/*.roqa` are real Roqa IR examples you can compare against while implementing the new format.
+- `AGENTS.md` and `.agents/skills/create-roqa-frontend/` give high-level guidance for humans and agents.
 
 ## Getting started
 
