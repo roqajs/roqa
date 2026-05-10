@@ -15,7 +15,7 @@ A play on the word "baroque" –– a term to describe the ornate and elaborate 
 
 ## At a glance
 
-Roqa is akin to a compile-time frontend framework, but instead of JSX or a custom DSL it accepts the "Roqa IR" — a JSON-serializable intermediate representation that live inside `.roqa` files.
+Roqa is akin to a compile-time frontend framework, but instead of JSX or a custom DSL the compiler accepts the "Roqa IR" — a JSON-serializable intermediate representation that live inside `.roqa` files.
 
 Just as LLVM did for programming languages, Roqa does for building reactive web frameworks and tooling. Whether it be JSX, TSRX, a custom DSL, a visual web builder, a programming language library, a CLI, literally whatever — as long as the authoring format can be converted to or output valid Roqa IR, the Roqa compiler will return unbelievably performant reactive web UIs.
 
