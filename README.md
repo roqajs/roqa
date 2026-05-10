@@ -29,10 +29,7 @@ npm create roqa@latest my-roqa-frontend
 
 The template provides an agent skill that includes a detailed overview of the [Roqa IR](packages/create-roqa/template/.agents/skills/create-roqa-frontend/SKILL.md) and a [frontend author guide](packages/create-roqa/template/.agents/skills/create-roqa-frontend/FRONTEND-GUIDE.md). It's a great reference for both agents and humans who want a more plain speak overview of this topic.
 
-If you are instead aiming to create a Roqa frontend that sits outside the realm of Vite and JS/TS, such as a library in another programming language, you are better off making using of the `roqa` CLI which provides:
-
-- `roqa compile <file.roqa>` — Compile a `.roqa` file to JS from the command line (useful for CI, debugging, non-Vite workflows)
-- `roqa validate <file.roqa>` — Run validation without compilation
+If you are instead aiming to create a Roqa frontend that sits outside the realm of Vite and JS/TS, such as a library in another programming language, you are better off making using of the `roqa` CLI which provides `compile` and `validate` commands.
 
 ## Try it out
 
