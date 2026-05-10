@@ -1,13 +1,13 @@
 # Roqa Compiler Spec
 
 This document specifies the compilation pipeline that transforms Roqa's
-canonical MIR (Mid-level IR) into high-performance JavaScript output:
+canonical Roqa IR into high-performance JavaScript output:
 `template()` clones, cells, inlined updates, `forBlock`/`showBlock`, delegated
 events, and custom elements.
 
 The compiler is the **backend** of Roqa's frontend/IR/backend architecture. It
-accepts valid MIR (as defined in [ir.md](./ir.md)) and produces optimized
-JavaScript. It doesn't know or care which frontend produced the MIR — JSX,
+accepts valid Roqa IR (as defined in [ir.md](./ir.md)) and produces optimized
+JavaScript. It doesn't know or care which frontend produced the IR — JSX,
 a custom DSL, a GUI web builder, or any other authoring tool.
 
 ## Compiler invariants
@@ -17,7 +17,7 @@ to rely on them without compensating in their own output.
 
 1. **Operator precedence is preserved.** `compileExpr(IR)` produces JavaScript
    whose evaluation order matches the IR tree. A `BinaryExpr { op: "*", left:
-   BinaryExpr { op: "-", ... } }` will be parenthesized correctly so the
+BinaryExpr { op: "-", ... } }` will be parenthesized correctly so the
    subtraction doesn't get reassociated under multiplication. Number-literal
    receivers (`(32).toFixed(1)`) and other "ambiguous left operand" cases are
    parenthesized when they appear in receiver position of `MemberExpr`,
@@ -62,7 +62,7 @@ to rely on them without compensating in their own output.
 │           │  produces                                               │
 │           ▼                                                         │
 │  ┌──────────────────────────────────────────────────────────────┐   │
-│  │  MIR (Canonical IR)                                          │   │
+│  │  Roqa IR (Canonical IR)                                     │   │
 │  │  Defined in ir.md — the contract between frontends & backend │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 │           │                                                         │
@@ -70,7 +70,7 @@ to rely on them without compensating in their own output.
 │           ▼                                                         │
 │  ┌──────────────────────────────────────────────────────────────┐   │
 │  │  THIS SPEC: The Roqa Backend Compiler                        │   │
-│  │  MIR → LIR → Optimized JS                                    │   │
+│  │  Roqa IR → compiler-internal IR → Optimized JS               │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -81,17 +81,17 @@ to rely on them without compensating in their own output.
 ┌──────────────────────────────────────────────────────────────────────┐
 │                       BACKEND PIPELINE                               │
 │                                                                      │
-│  ComponentIR (MIR)                                                   │
+│  ComponentIR (Roqa IR)                                              │
 │       │                                                              │
 │       ▼                                                              │
 │  ┌────────────────────────────────────────────────────────────┐      │
 │  │  PHASE 1: VALIDATE                                         │      │
 │  │  ──────────────────                                        │      │
-│  │  Input: ComponentIR (MIR)                                  │      │
+│  │  Input: ComponentIR (Roqa IR)                             │      │
 │  │  Output: ComponentIR (unchanged) or diagnostics            │      │
 │  │                                                            │      │
-│  │  Structural validation on the MIR:                         │      │
-│  │  - Version check (MIR version matches backend expectation) │      │
+│  │  Structural validation on the IR:                          │      │
+│  │  - Version check (IR version matches backend expectation)  │      │
 │  │  - Tag name is a valid custom element name                 │      │
 │  │  - No duplicate names in state/actions/props/attrs/emits   │      │
 │  │  - All cell-refs and action-calls resolve to declarations  │      │
@@ -103,10 +103,10 @@ to rely on them without compensating in their own output.
 │       │                                                              │
 │       ▼                                                              │
 │  ┌────────────────────────────────────────────────────────────┐      │
-│  │  PHASE 2: LOWER (MIR → LIR)                                │      │
+│  │  PHASE 2: LOWER (IR → compiler-internal IR)                │      │
 │  │  ───────────────────────────                               │      │
-│  │  Input: Validated ComponentIR (MIR)                        │      │
-│  │  Output: ComponentLIR (Low-level IR)                       │      │
+│  │  Input: Validated ComponentIR (Roqa IR)                    │      │
+│  │  Output: ComponentLIR (compiler-internal IR)               │      │
 │  │                                                            │      │
 │  │  Decomposes high-level constructs into codegen primitives: │      │
 │  │  - View tree → TemplateOps + TraversalOps                  │      │
@@ -125,7 +125,7 @@ to rely on them without compensating in their own output.
 │  │  Input: ComponentLIR                                       │      │
 │  │  Output: Optimized ComponentLIR                            │      │
 │  │                                                            │      │
-│  │  Optimization passes on the LIR:                           │      │
+│  │  Optimization passes on the compiler-internal IR:          │      │
 │  │  - Inline cell/get/set/bind (replaces old text rewriting)  │      │
 │  │  - Dead binding elimination                                │      │
 │  │  - Static hoisting                                         │      │
@@ -189,24 +189,24 @@ error messages.
 
 ### Validation checks
 
-| Check | Severity | Description |
-| --- | --- | --- |
-| `invalid-version` | error | MIR version doesn't match the backend's expected version |
-| `invalid-tag-name` | error | Tag name is not a valid custom element name (must contain hyphen, be lowercase) |
-| `duplicate-name` | error | Duplicate name within state, actions, props, attrs, or emits |
-| `dangling-cell-ref` | error | `cell-ref` or `state-read` references a state name that doesn't exist |
-| `dangling-action-ref` | error | `action-call` references an action that doesn't exist |
-| `dangling-computed-ref` | error | `computed-read` references a computed that doesn't exist |
-| `invalid-show-condition` | error | `ShowIR` condition is not a `cell-ref` |
-| `invalid-each-source` | error | `EachIR` source is not a `cell-ref` |
-| `malformed-expression` | error | Expression tree has structural errors (e.g., missing operands) |
-| `missing-key` | warning | `EachIR` without a `key` — may cause inefficient reconciliation |
-| `unreachable-action` | warning | Action declared but never referenced in render or lifecycle |
-| `unsubscribed-state` | warning | State declared but never read in render or computed |
-| `opaque-expression` | info | `OpaqueExpr` used — optimization opportunities limited |
-| `unsafe-import-path` | error | `ImportedRefExpr.source` contains path traversal or disallowed scheme |
-| `proto-pollution` | error | Initial state value contains `__proto__`, `constructor`, or `prototype` keys |
-| `unsafe-opaque-pattern` | warning | `OpaqueExpr.source` contains suspicious patterns (`eval(`, `innerHTML`, etc.) |
+| Check                    | Severity | Description                                                                     |
+| ------------------------ | -------- | ------------------------------------------------------------------------------- |
+| `invalid-version`        | error    | MIR version doesn't match the backend's expected version                        |
+| `invalid-tag-name`       | error    | Tag name is not a valid custom element name (must contain hyphen, be lowercase) |
+| `duplicate-name`         | error    | Duplicate name within state, actions, props, attrs, or emits                    |
+| `dangling-cell-ref`      | error    | `cell-ref` or `state-read` references a state name that doesn't exist           |
+| `dangling-action-ref`    | error    | `action-call` references an action that doesn't exist                           |
+| `dangling-computed-ref`  | error    | `computed-read` references a computed that doesn't exist                        |
+| `invalid-show-condition` | error    | `ShowIR` condition is not a `cell-ref`                                          |
+| `invalid-each-source`    | error    | `EachIR` source is not a `cell-ref`                                             |
+| `malformed-expression`   | error    | Expression tree has structural errors (e.g., missing operands)                  |
+| `missing-key`            | warning  | `EachIR` without a `key` — may cause inefficient reconciliation                 |
+| `unreachable-action`     | warning  | Action declared but never referenced in render or lifecycle                     |
+| `unsubscribed-state`     | warning  | State declared but never read in render or computed                             |
+| `opaque-expression`      | info     | `OpaqueExpr` used — optimization opportunities limited                          |
+| `unsafe-import-path`     | error    | `ImportedRefExpr.source` contains path traversal or disallowed scheme           |
+| `proto-pollution`        | error    | Initial state value contains `__proto__`, `constructor`, or `prototype` keys    |
+| `unsafe-opaque-pattern`  | warning  | `OpaqueExpr.source` contains suspicious patterns (`eval(`, `innerHTML`, etc.)   |
 
 ### Error format
 
@@ -214,11 +214,11 @@ All diagnostics use a structured format:
 
 ```ts
 type Diagnostic = {
-    code: string;                 // e.g., "dangling-cell-ref"
-    severity: "error" | "warning" | "info";
-    message: string;              // Human-readable description
-    component: string;            // Component tag name
-    path?: string[];              // IR path to the offending node (e.g., ["render", "children", "0"])
+  code: string; // e.g., "dangling-cell-ref"
+  severity: "error" | "warning" | "info";
+  message: string; // Human-readable description
+  component: string; // Component tag name
+  path?: string[]; // IR path to the offending node (e.g., ["render", "children", "0"])
 };
 ```
 
@@ -230,29 +230,29 @@ Errors halt the pipeline. Warnings are emitted but compilation continues.
 
 Lowering transforms the high-level, declarative MIR into low-level operations
 that map directly to code generation. This is where the "heavy thinking"
-happens — the MIR describes *what* the component looks like, the LIR describes
-*how* to build it.
+happens — the MIR describes _what_ the component looks like, the LIR describes
+_how_ to build it.
 
 ### LIR types
 
 ```ts
 type ComponentLIR = {
-    tagName: string;
-    name: string;
-    templates: TemplateOp[];
-    cells: CellOp[];
-    functions: FunctionOp[];
-    connected: ConnectedBlock;
-    delegatedEvents: string[];    // Event types to delegate (e.g., ["click", "input"])
-    imports: string[];            // Runtime imports needed (e.g., ["template", "delegate"])
+  tagName: string;
+  name: string;
+  templates: TemplateOp[];
+  cells: CellOp[];
+  functions: FunctionOp[];
+  connected: ConnectedBlock;
+  delegatedEvents: string[]; // Event types to delegate (e.g., ["click", "input"])
+  imports: string[]; // Runtime imports needed (e.g., ["template", "delegate"])
 };
 
 type ConnectedBlock = {
-    traversals: TraversalOp[];
-    bindings: BindingOp[];
-    events: EventOp[];
-    blocks: BlockOp[];
-    mounts: MountOp[];
+  traversals: TraversalOp[];
+  bindings: BindingOp[];
+  events: EventOp[];
+  blocks: BlockOp[];
+  mounts: MountOp[];
 };
 ```
 
@@ -260,15 +260,16 @@ type ConnectedBlock = {
 
 ```ts
 type TemplateOp = {
-    kind: "template";
-    id: string;                   // e.g., "$tmpl_1"
-    html: string;                 // e.g., '<button id="increment-button"> </button>'
-    svg: boolean;                 // Whether to use SVG template creation
+  kind: "template";
+  id: string; // e.g., "$tmpl_1"
+  html: string; // e.g., '<button id="increment-button"> </button>'
+  svg: boolean; // Whether to use SVG template creation
 };
 ```
 
 Generated from the `ElementIR` / `TextIR` nodes in the MIR render tree.
 Dynamic content becomes placeholder nodes:
+
 - Reactive text → space `' '` (creates a text node)
 
 Note: `ShowIR` and `EachIR` do **not** generate comment placeholder nodes in
@@ -280,15 +281,15 @@ contains the static content of the parent element.
 
 ```ts
 type TraversalOp = {
-    kind: "traversal";
-    varName: string;              // e.g., "button_1", "button_1_text"
-    path: TraversalStep[];        // Steps from template root to this node
+  kind: "traversal";
+  varName: string; // e.g., "button_1", "button_1_text"
+  path: TraversalStep[]; // Steps from template root to this node
 };
 
 type TraversalStep =
-    | { step: "firstChild" }
-    | { step: "nextSibling" }
-    | { step: "firstChild"; template: string };  // Clone from template first
+  | { step: "firstChild" }
+  | { step: "nextSibling" }
+  | { step: "firstChild"; template: string }; // Clone from template first
 ```
 
 Generated by walking the MIR render tree and computing
@@ -298,10 +299,10 @@ Generated by walking the MIR render tree and computing
 
 ```ts
 type CellOp = {
-    kind: "cell";
-    varName: string;              // e.g., "count"
-    initial: string;              // JS expression for initial value: "0", "[]", "() => count.v * 2"
-    inlined: boolean;             // If true, emit { v: initial, e: [] } directly
+  kind: "cell";
+  varName: string; // e.g., "count"
+  initial: string; // JS expression for initial value: "0", "[]", "() => count.v * 2"
+  inlined: boolean; // If true, emit { v: initial, e: [] } directly
 };
 ```
 
@@ -313,30 +314,30 @@ of `cell()` calls.
 
 ```ts
 type FunctionOp = {
-    kind: "function";
-    varName: string;              // e.g., "increment"
-    params: string[];             // e.g., [] or ["value"]
-    body: string;                 // Compiled JS body (from expression IR compilation)
-    inlinedSets: InlinedSet[];    // set() calls with their inlined DOM updates
+  kind: "function";
+  varName: string; // e.g., "increment"
+  params: string[]; // e.g., [] or ["value"]
+  body: string; // Compiled JS body (from expression IR compilation)
+  inlinedSets: InlinedSet[]; // set() calls with their inlined DOM updates
 };
 
 type InlinedSet = {
-    cellName: string;
-    valueExpr: string;            // JS expression for the new value
-    updates: InlinedUpdate[];     // DOM updates to inline after the set
-    blockUpdates: InlinedBlockUpdate[];  // Block controller .update() calls
-    notify: boolean;              // Whether to emit subscriber notification loop
-                                  // (see §Hybrid reactive model)
+  cellName: string;
+  valueExpr: string; // JS expression for the new value
+  updates: InlinedUpdate[]; // DOM updates to inline after the set
+  blockUpdates: InlinedBlockUpdate[]; // Block controller .update() calls
+  notify: boolean; // Whether to emit subscriber notification loop
+  // (see §Hybrid reactive model)
 };
 
 type InlinedUpdate = {
-    target: string;               // e.g., "count.ref_1.nodeValue"
-    expression: string;           // e.g., '"Count is " + count.v'
+  target: string; // e.g., "count.ref_1.nodeValue"
+  expression: string; // e.g., '"Count is " + count.v'
 };
 
 type InlinedBlockUpdate = {
-    blockVar: string;             // e.g., "todos_forBlock", "visible_showBlock"
-    method: "update";             // Currently always "update"
+  blockVar: string; // e.g., "todos_forBlock", "visible_showBlock"
+  method: "update"; // Currently always "update"
 };
 ```
 
@@ -351,19 +352,20 @@ single block.
 
 ```ts
 type BindingOp = {
-    kind: "binding";
-    cellName: string;             // Which cell to subscribe to
-    refName: string;              // e.g., "count.ref_1"
-    target: string;               // DOM node variable name (e.g., "button_1_text")
-    property: string;             // DOM property to update (e.g., "nodeValue", "className")
-    expression: string;           // JS expression for the updated value
-    initialValue: string;         // JS expression for the initial value
-    inlined: boolean;             // If true, emit ref storage instead of bind() call
+  kind: "binding";
+  cellName: string; // Which cell to subscribe to
+  refName: string; // e.g., "count.ref_1"
+  target: string; // DOM node variable name (e.g., "button_1_text")
+  property: string; // DOM property to update (e.g., "nodeValue", "className")
+  expression: string; // JS expression for the updated value
+  initialValue: string; // JS expression for the initial value
+  inlined: boolean; // If true, emit ref storage instead of bind() call
 };
 ```
 
 When `inlined` is true (the common case after optimization), the emitter
 outputs:
+
 ```js
 // Initial value
 button_1_text.nodeValue = "Count is " + count.v;
@@ -378,11 +380,11 @@ the emitter outputs a `bind()` call.
 
 ```ts
 type EventOp = {
-    kind: "event";
-    target: string;               // DOM node variable name
-    event: string;                // Event name (e.g., "click")
-    handler: string;              // JS expression for the handler
-    delegated: boolean;           // Whether this uses delegated events
+  kind: "event";
+  target: string; // DOM node variable name
+  event: string; // Event name (e.g., "click")
+  handler: string; // JS expression for the handler
+  delegated: boolean; // Whether this uses delegated events
 };
 ```
 
@@ -390,15 +392,15 @@ type EventOp = {
 
 ```ts
 type BlockOp = {
-    kind: "block";
-    blockType: "show" | "each";
-    container: string;            // Parent DOM element variable name (e.g., "div_1")
-    source: string;               // Cell variable name
-    templateId?: string;          // Template used inside the block
-    renderBody: ConnectedBlock;   // Nested operations for the block's content
-    fallbackBody?: ConnectedBlock; // For show blocks with fallback
-    key?: string;                 // For each blocks: key field name
-    itemAlias?: string;           // For each blocks: iteration variable name
+  kind: "block";
+  blockType: "show" | "each";
+  container: string; // Parent DOM element variable name (e.g., "div_1")
+  source: string; // Cell variable name
+  templateId?: string; // Template used inside the block
+  renderBody: ConnectedBlock; // Nested operations for the block's content
+  fallbackBody?: ConnectedBlock; // For show blocks with fallback
+  key?: string; // For each blocks: key field name
+  itemAlias?: string; // For each blocks: iteration variable name
 };
 ```
 
@@ -406,11 +408,11 @@ type BlockOp = {
 
 ```ts
 type MountOp = {
-    kind: "mount";
-    target: string;               // DOM node to insert
-    method: "appendChild" | "before" | "after";
-    container?: string;           // Parent node (for appendChild)
-    anchor?: string;              // Reference node (for before/after)
+  kind: "mount";
+  target: string; // DOM node to insert
+  method: "appendChild" | "before" | "after";
+  container?: string; // Parent node (for appendChild)
+  anchor?: string; // Reference node (for before/after)
 };
 ```
 
@@ -514,6 +516,7 @@ initial `className` value and all subsequent updates are computed as a single
 concatenated expression.
 
 For example, given `ClassListIR { items: ["content", { name: "active", condition: ... }] }`:
+
 - Template: `<main>...</main>` (no class attribute)
 - Binding: `main_1.className = "content" + (active.v ? " active" : "");`
 
@@ -531,7 +534,7 @@ uses `e` regardless of what the frontend's original source used:
 // ClosureExpr { params: ["e"], body: { kind: "state-write", name: "draft", value: <member (param-read "e") "target" → "value"> } }
 // Generates:
 input_1.__input = (e) => {
-    draft.v = e.target.value;
+  draft.v = e.target.value;
 };
 ```
 
@@ -553,15 +556,15 @@ Inline event handlers (`ClosureExpr` in event bindings) and named actions (`Acti
 ```js
 // Inline handler — no inlined updates, just the raw write
 input_1.__input = (e) => {
-    draft.v = e.target.value;
+  draft.v = e.target.value;
 };
 
 // Named action — full inlined updates
 const addTodo = () => {
-    todos.v = [...todos.v, newItem];
-    todos_forBlock.update();
-    draft.v = "";
-    draft.ref_1.value = draft.v;
+  todos.v = [...todos.v, newItem];
+  todos_forBlock.update();
+  draft.v = "";
+  draft.ref_1.value = draft.v;
 };
 ```
 
@@ -600,19 +603,23 @@ that cell. In the LIR, this is represented by `BindingOp.inlined = true` and
 `FunctionOp.inlinedSets`.
 
 **Before:**
+
 ```js
-bind(count, (v) => { button_1_text.nodeValue = "Count is " + v; });
+bind(count, (v) => {
+  button_1_text.nodeValue = "Count is " + v;
+});
 // ... later ...
 set(count, count.v + 1);
 ```
 
 **After:**
+
 ```js
 count.ref_1 = button_1_text;
 // ... later ...
 {
-    count.v = count.v + 1;
-    count.ref_1.nodeValue = "Count is " + count.v;
+  count.v = count.v + 1;
+  count.ref_1.nodeValue = "Count is " + count.v;
 }
 ```
 
@@ -644,6 +651,7 @@ The algorithm:
    - `quadrupled.v = () => doubled.v * 2`
 
    The inlined updates for `set(count, ...)` become:
+
    ```js
    count.v = count.v + 1;
    count.ref_1.nodeValue = "Count: " + count.v;
@@ -662,6 +670,7 @@ The algorithm:
 When a state cell is used as the `source` for a `forBlock` or `showBlock`, any action that writes to that cell must include a call to the block controller's `.update()` method in the inlined set output. This is how the runtime knows to re-reconcile a list or re-evaluate a condition after state changes.
 
 **Naming conventions:**
+
 - `forBlock` controllers: `{collectionName}_forBlock` (e.g., `todos_forBlock`)
 - `showBlock` controllers: `{cellName}_showBlock` (e.g., `visible_showBlock`)
 - Fallback block controllers: `{cellName}_fallbackBlock` (e.g., `loggedIn_fallbackBlock`)
@@ -669,6 +678,7 @@ When a state cell is used as the `source` for a `forBlock` or `showBlock`, any a
 **Declaration:** Block controller variables are declared with `let` at the component function scope (outside `this.connected()`) so that action functions can reference them. They're assigned inside `connected()` when the block is created.
 
 **Inlining rule:** When building `FunctionOp.inlinedSets` for a `state-write` to cell `X`:
+
 1. Include all DOM binding updates for `X` (the existing `InlinedUpdate` entries)
 2. For each `BlockOp` whose `source` is `X`, append the block controller `.update()` call
 3. If the `BlockOp` has a fallback, also append the fallback controller `.update()` call
@@ -775,11 +785,11 @@ The compiler performs **escape analysis** on each cell during lowering
 
    ```json
    {
-       "kind": "element",
-       "tag": "status-bar",
-       "attributes": {
-           "count": { "kind": "state-read", "name": "count" }
-       }
+     "kind": "element",
+     "tag": "status-bar",
+     "attributes": {
+       "count": { "kind": "state-read", "name": "count" }
+     }
    }
    ```
 
@@ -823,11 +833,12 @@ the subscriber notification loop after the inlined DOM updates:
 ```
 
 **Emitted output:**
+
 ```js
 {
-    count.v = count.v + 1;
-    count.ref_1.nodeValue = "Count: " + count.v;
-    for (let i = 0; i < count.e.length; i++) count.e[i](count.v);
+  count.v = count.v + 1;
+  count.ref_1.nodeValue = "Count: " + count.v;
+  for (let i = 0; i < count.e.length; i++) count.e[i](count.v);
 }
 ```
 
@@ -838,27 +849,29 @@ When a child component receives a cell via props, it subscribes at
 
 ```js
 defineComponent("status-bar", function StatusBar() {
-    this.connected(() => {
-        const $root = $tmpl_2();
-        this.appendChild($root);
-        const span_1 = this.firstChild;
+  this.connected(() => {
+    const $root = $tmpl_2();
+    this.appendChild($root);
+    const span_1 = this.firstChild;
 
-        // Cell received at runtime via props
-        const countCell = getProps(this).count;
+    // Cell received at runtime via props
+    const countCell = getProps(this).count;
 
-        // Initial render
-        span_1.nodeValue = "Items: " + countCell.v;
+    // Initial render
+    span_1.nodeValue = "Items: " + countCell.v;
 
-        // Runtime subscription — pushed onto the cell's e[] array
-        const update = (v) => { span_1.nodeValue = "Items: " + v; };
-        countCell.e.push(update);
+    // Runtime subscription — pushed onto the cell's e[] array
+    const update = (v) => {
+      span_1.nodeValue = "Items: " + v;
+    };
+    countCell.e.push(update);
 
-        // Cleanup on disconnect
-        this.disconnected(() => {
-            const idx = countCell.e.indexOf(update);
-            if (idx !== -1) countCell.e.splice(idx, 1);
-        });
+    // Cleanup on disconnect
+    this.disconnected(() => {
+      const idx = countCell.e.indexOf(update);
+      if (idx !== -1) countCell.e.splice(idx, 1);
     });
+  });
 });
 ```
 
@@ -870,11 +883,11 @@ helper that handles registration and returns a cleanup function:
 ```js
 // Runtime API
 function subscribe(cell, callback) {
-    cell.e.push(callback);
-    return () => {
-        const idx = cell.e.indexOf(callback);
-        if (idx !== -1) cell.e.splice(idx, 1);
-    };
+  cell.e.push(callback);
+  return () => {
+    const idx = cell.e.indexOf(callback);
+    if (idx !== -1) cell.e.splice(idx, 1);
+  };
 }
 ```
 
@@ -883,7 +896,7 @@ cleanup function for `disconnected()`:
 
 ```js
 const unsub = subscribe(countCell, (v) => {
-    span_1.nodeValue = "Items: " + v;
+  span_1.nodeValue = "Items: " + v;
 });
 this.disconnected(() => unsub());
 ```
@@ -896,6 +909,7 @@ this pattern but doesn't replace it. Block controllers continue to use their
 own update mechanism (`.update()` calls in inlined sets).
 
 The distinction:
+
 - **Block controllers** handle structural changes (add/remove DOM nodes)
 - **Runtime subscribers** handle value updates (change text, attributes, etc.)
 
@@ -904,13 +918,13 @@ AND runtime subscribers on individual item bindings within the block.
 
 ### Performance characteristics
 
-| Scenario | Compile-time inlining | Runtime notification |
-| --- | --- | --- |
-| Local state, static bindings | ✅ Full | ❌ Not emitted |
-| State passed to child elements | ✅ Local bindings | ✅ For child bindings |
-| State used in `forBlock`/`showBlock` | ✅ Local bindings | Via block `.update()` |
-| State emitted as event detail | ✅ Local bindings | ✅ For external observers |
-| No subscribers on `e[]` | — | Zero-cost (empty loop) |
+| Scenario                             | Compile-time inlining | Runtime notification      |
+| ------------------------------------ | --------------------- | ------------------------- |
+| Local state, static bindings         | ✅ Full               | ❌ Not emitted            |
+| State passed to child elements       | ✅ Local bindings     | ✅ For child bindings     |
+| State used in `forBlock`/`showBlock` | ✅ Local bindings     | Via block `.update()`     |
+| State emitted as event detail        | ✅ Local bindings     | ✅ For external observers |
+| No subscribers on `e[]`              | —                     | Zero-cost (empty loop)    |
 
 The compile-time path is always preferred. Runtime notification is additive —
 it never replaces inlined updates, only supplements them for bindings the
@@ -930,6 +944,7 @@ made by the lowering and optimization phases.
    (imports are derived from `ComponentLIR.imports`)
 
 2. **Template declarations** — top-level, outside the component:
+
    ```js
    const $tmpl_1 = template('<button id="increment-button"> </button>');
    ```
@@ -979,7 +994,7 @@ When emitting import statements, the emitter must deduplicate:
 
 - **`ImportedRefExpr` imports** — if multiple actions or computed values
   reference the same imported module (e.g., `import { formatDate } from
-  "./utils"`), emit one import statement with all bindings merged.
+"./utils"`), emit one import statement with all bindings merged.
 
 - **`delegate()` calls** — collect the union of all delegated event types
   across all components and emit a single `delegate()` call at the end of
@@ -991,35 +1006,35 @@ During lowering (Phase 2), expression IR nodes are compiled to JavaScript code
 fragments. The compilation is recursive — each `ExprIR` node produces a JS
 string:
 
-| ExprIR node | Compiled JS |
-| --- | --- |
-| `{ kind: "literal", value: 42 }` | `42` |
-| `{ kind: "literal", value: "hello" }` | `"hello"` |
-| `{ kind: "template-literal", parts: [...] }` | Binary `+` concatenation (see below) |
-| `{ kind: "object", properties: [...] }` | `{ key: value, ...spread }` |
-| `{ kind: "state-read", name: "count" }` | `count.v` (inlined form) |
-| `{ kind: "state-write", name: "count", value: ... }` | `{ count.v = ...; /* inlined updates */ }` |
-| `{ kind: "param-read", name: "id" }` | `id` (references action/closure parameter) |
-| `{ kind: "binary", op: "+", left: ..., right: ... }` | `left + right` |
-| `{ kind: "unary", op: "!", operand: ... }` | `!operand` |
-| `{ kind: "conditional", test: ..., ... }` | `test ? consequent : alternate` |
-| `{ kind: "member", object: ..., property: "x" }` | `object.x` |
-| `{ kind: "index", object: ..., index: ... }` | `object[index]` |
-| `{ kind: "spread", argument: ... }` | `...argument` |
-| `{ kind: "call", callee: ..., args: [...] }` | `callee(args)` |
-| `{ kind: "method-call", object: ..., method: "m", ... }` | `object.m(args)` |
-| `{ kind: "block", body: [...] }` | `{ stmt1; stmt2; ... }` |
-| `{ kind: "closure", params: [...], body: ... }` | `(params) => body` (destructuring preserved) |
-| `{ kind: "collection-op", op: "insert", ... }` | Collection-specific code |
-| `{ kind: "emit", event: "x", detail: ... }` | `this.emit("x", detail)` |
-| `{ kind: "action-call", name: "x", args: [...] }` | `x(args)` |
-| `{ kind: "prop-read", name: "x" }` | `x` (destructured parameter from component function) |
-| `{ kind: "attr-read", name: "x" }` | `this.getAttribute("x")` |
-| `{ kind: "computed-read", name: "x" }` | `x.v` (inlined form) |
-| `{ kind: "item-field-read", field: "x" }` | `item.x` (in forBlock context) |
-| `{ kind: "imported-ref", source: "...", name: "x" }` | `x` (import added to module head) |
-| `{ kind: "external-ref", name: "Math", path: ["floor"] }` | `Math.floor` |
-| `{ kind: "opaque", source: "..." }` | Source string passed through |
+| ExprIR node                                               | Compiled JS                                          |
+| --------------------------------------------------------- | ---------------------------------------------------- |
+| `{ kind: "literal", value: 42 }`                          | `42`                                                 |
+| `{ kind: "literal", value: "hello" }`                     | `"hello"`                                            |
+| `{ kind: "template-literal", parts: [...] }`              | Binary `+` concatenation (see below)                 |
+| `{ kind: "object", properties: [...] }`                   | `{ key: value, ...spread }`                          |
+| `{ kind: "state-read", name: "count" }`                   | `count.v` (inlined form)                             |
+| `{ kind: "state-write", name: "count", value: ... }`      | `{ count.v = ...; /* inlined updates */ }`           |
+| `{ kind: "param-read", name: "id" }`                      | `id` (references action/closure parameter)           |
+| `{ kind: "binary", op: "+", left: ..., right: ... }`      | `left + right`                                       |
+| `{ kind: "unary", op: "!", operand: ... }`                | `!operand`                                           |
+| `{ kind: "conditional", test: ..., ... }`                 | `test ? consequent : alternate`                      |
+| `{ kind: "member", object: ..., property: "x" }`          | `object.x`                                           |
+| `{ kind: "index", object: ..., index: ... }`              | `object[index]`                                      |
+| `{ kind: "spread", argument: ... }`                       | `...argument`                                        |
+| `{ kind: "call", callee: ..., args: [...] }`              | `callee(args)`                                       |
+| `{ kind: "method-call", object: ..., method: "m", ... }`  | `object.m(args)`                                     |
+| `{ kind: "block", body: [...] }`                          | `{ stmt1; stmt2; ... }`                              |
+| `{ kind: "closure", params: [...], body: ... }`           | `(params) => body` (destructuring preserved)         |
+| `{ kind: "collection-op", op: "insert", ... }`            | Collection-specific code                             |
+| `{ kind: "emit", event: "x", detail: ... }`               | `this.emit("x", detail)`                             |
+| `{ kind: "action-call", name: "x", args: [...] }`         | `x(args)`                                            |
+| `{ kind: "prop-read", name: "x" }`                        | `x` (destructured parameter from component function) |
+| `{ kind: "attr-read", name: "x" }`                        | `this.getAttribute("x")`                             |
+| `{ kind: "computed-read", name: "x" }`                    | `x.v` (inlined form)                                 |
+| `{ kind: "item-field-read", field: "x" }`                 | `item.x` (in forBlock context)                       |
+| `{ kind: "imported-ref", source: "...", name: "x" }`      | `x` (import added to module head)                    |
+| `{ kind: "external-ref", name: "Math", path: ["floor"] }` | `Math.floor`                                         |
+| `{ kind: "opaque", source: "..." }`                       | Source string passed through                         |
 
 **Template literal lowering:** `TemplateLiteralExpr` is lowered to binary `+`
 concatenation during expression compilation. Benchmarking shows concatenation
@@ -1047,6 +1062,7 @@ replace the cell's value, followed by a `forBlock.update()` call to trigger
 list re-reconciliation.
 
 Collection operations are distinct from `forBlock` — they are complementary:
+
 - `collection-op` = **write** operations on the collection data (used in
   action bodies)
 - `forBlock` = **rendering** the collection as DOM elements (used in the
@@ -1056,14 +1072,14 @@ The `forBlock.update()` call is the notification mechanism — it tells the
 list renderer to re-diff the array and reconcile the DOM. Any action that
 mutates a collection cell must call `update()` after setting the new value.
 
-| Operation | Compiled output |
-| --- | --- |
-| `insert(item)` | `{ todos.v = [...todos.v, item]; todos_forBlock.update(); }` |
-| `remove(id)` | `{ todos.v = todos.v.filter(t => t.id !== id); todos_forBlock.update(); }` |
-| `update(id, fn)` | `{ todos.v = todos.v.map(t => t.id === id ? fn(t) : t); todos_forBlock.update(); }` |
-| `remove-where(fn)` | `{ todos.v = todos.v.filter(t => !fn(t)); todos_forBlock.update(); }` |
-| `move(from, to)` | Array splice operations + `todos_forBlock.update()` |
-| `clear()` | `{ todos.v = []; todos_forBlock.update(); }` |
+| Operation          | Compiled output                                                                     |
+| ------------------ | ----------------------------------------------------------------------------------- |
+| `insert(item)`     | `{ todos.v = [...todos.v, item]; todos_forBlock.update(); }`                        |
+| `remove(id)`       | `{ todos.v = todos.v.filter(t => t.id !== id); todos_forBlock.update(); }`          |
+| `update(id, fn)`   | `{ todos.v = todos.v.map(t => t.id === id ? fn(t) : t); todos_forBlock.update(); }` |
+| `remove-where(fn)` | `{ todos.v = todos.v.filter(t => !fn(t)); todos_forBlock.update(); }`               |
+| `move(from, to)`   | Array splice operations + `todos_forBlock.update()`                                 |
+| `clear()`          | `{ todos.v = []; todos_forBlock.update(); }`                                        |
 
 If the collection cell also has non-forBlock bindings (e.g., a count display),
 those inlined binding updates are also appended after the `forBlock.update()`
@@ -1079,24 +1095,25 @@ import { defineComponent, delegate, template } from "roqa";
 const $tmpl_1 = template('<button id="increment-button"> </button>');
 
 defineComponent("counter-button", function CounterButton() {
-    const count = { v: 0, e: [] };
-    const doubled = { v: () => count.v * 2, e: [] };
+  const count = { v: 0, e: [] };
+  const doubled = { v: () => count.v * 2, e: [] };
 
-    this.connected(() => {
-        const $root_1 = $tmpl_1();
-        this.appendChild($root_1);
+  this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
 
-        const button_1 = this.firstChild;
-        const button_1_text = button_1.firstChild;
+    const button_1 = this.firstChild;
+    const button_1_text = button_1.firstChild;
 
-        button_1.__click = () => {
-            count.v = count.v + 1;
-            count.ref_1.nodeValue = "Count is " + count.v;
-        };
+    button_1.__click = () => {
+      count.v = count.v + 1;
+      count.ref_1.nodeValue = "Count is " + count.v;
+    };
 
-        button_1_text.nodeValue = "Count is " + count.v + " / doubled is " + count.v * 2;
-        count.ref_1 = button_1_text;
-    });
+    button_1_text.nodeValue =
+      "Count is " + count.v + " / doubled is " + count.v * 2;
+    count.ref_1 = button_1_text;
+  });
 });
 
 delegate(["click"]);
@@ -1112,51 +1129,52 @@ in its final inlined form because optimization happened at the LIR level.
 The Vite plugin orchestrates the pipeline. It handles two modes:
 
 1. **`.roqa` files** — compiled directly (no frontend needed). The plugin reads
-   the JSON MIR from the `.roqa` file and passes it to `compile()`.
+   the JSON Roqa IR from the `.roqa` file and passes it to `compile()`.
 2. **Frontend-delegated files** — a `frontend` option provides `handles(id)` and
-   `toMIR(code, id)` methods for custom source formats (JSX, DSL, etc.).
+   `toIR(code, id)` methods for custom source formats (JSX, DSL, etc.).
 
 ```ts
 // packages/vite-plugin/src/index.js
 export default function roqaPlugin(options) {
-    const frontend = options?.frontend;
+  const frontend = options?.frontend;
 
-    return {
-        name: "roqa",
-        enforce: "pre",
+  return {
+    name: "roqa",
+    enforce: "pre",
 
-        // Resolve .roqa imports
-        resolveId(source, importer) {
-            if (source.endsWith(".roqa") && importer) {
-                return resolve(dirname(importer), source);
-            }
-        },
+    // Resolve .roqa imports
+    resolveId(source, importer) {
+      if (source.endsWith(".roqa") && importer) {
+        return resolve(dirname(importer), source);
+      }
+    },
 
-        // Load .roqa files — reads JSON, compiles to JS
-        load(id) {
-            if (id.endsWith(".roqa")) {
-                const mir = JSON.parse(readFileSync(id, "utf-8"));
-                return compile(mir);
-            }
-        },
+    // Load .roqa files — reads JSON, compiles to JS
+    load(id) {
+      if (id.endsWith(".roqa")) {
+        const mir = JSON.parse(readFileSync(id, "utf-8"));
+        return compile(mir);
+      }
+    },
 
-        // Transform hook — handles frontend-delegated files and
-        // .roqa files in dev server mode
-        async transform(code, id) {
-            if (id.endsWith(".roqa")) {
-                const mir = JSON.parse(code);
-                return compile(mir);
-            }
-            if (frontend?.handles(id)) {
-                const mir = frontend.toMIR(code, id);
-                return compile(mir);
-            }
-        },
-    };
+    // Transform hook — handles frontend-delegated files and
+    // .roqa files in dev server mode
+    async transform(code, id) {
+      if (id.endsWith(".roqa")) {
+        const mir = JSON.parse(code);
+        return compile(mir);
+      }
+      if (frontend?.handles(id)) {
+        const mir = frontend.toIR(code, id);
+        return compile(mir);
+      }
+    },
+  };
 }
 ```
 
 Usage with `.roqa` files (no frontend):
+
 ```js
 // vite.config.js
 import roqa from "@roqajs/vite-plugin";
@@ -1167,6 +1185,7 @@ import "./counter-button.roqa";
 ```
 
 Usage with a custom frontend:
+
 ```js
 // vite.config.js
 import roqa from "@roqajs/vite-plugin";
@@ -1178,28 +1197,28 @@ The `compile()` entry point runs the backend pipeline:
 
 ```ts
 export function compile(mir: ComponentIR | ComponentIR[]) {
-    const components = Array.isArray(mir) ? mir : [mir];
+  const components = Array.isArray(mir) ? mir : [mir];
 
-    // Phase 1: Validate
-    const diagnostics = components.flatMap(c => validate(c));
-    if (diagnostics.some(d => d.severity === "error")) {
-        throw new CompileError(diagnostics);
-    }
+  // Phase 1: Validate
+  const diagnostics = components.flatMap((c) => validate(c));
+  if (diagnostics.some((d) => d.severity === "error")) {
+    throw new CompileError(diagnostics);
+  }
 
-    // Phase 2: Lower (MIR → LIR)
-    const lirs = components.map(c => lower(c));
+  // Phase 2: Lower (MIR → LIR)
+  const lirs = components.map((c) => lower(c));
 
-    // Phase 3: Optimize
-    const optimized = lirs.map(l => optimize(l));
+  // Phase 3: Optimize
+  const optimized = lirs.map((l) => optimize(l));
 
-    // Phase 4: Emit
-    return emit(optimized);
+  // Phase 4: Emit
+  return emit(optimized);
 }
 ```
 
-Note: the Vite plugin doesn't know or care which frontend produced the MIR. The
+Note: the Vite plugin doesn't know or care which frontend produced the IR. The
 `frontend` object is pluggable — a JSX frontend, a DSL frontend, or any tool
-that produces valid MIR. For `.roqa` files, no frontend is needed at all.
+that produces valid Roqa IR. For `.roqa` files, no frontend is needed at all.
 
 ---
 
@@ -1210,13 +1229,13 @@ source file (whichever frontend syntax that was). The challenge is that the
 pipeline has multiple transformation steps:
 
 ```txt
-Original source → (frontend) → MIR → (lower) → LIR → (emit) → JS output
+Original source → (frontend) → Roqa IR → (lower) → compiler-internal IR → (emit) → JS output
 ```
 
 ### Approach
 
 1. **Frontend responsibility**: The frontend includes source position metadata
-   in the MIR (via the optional `metadata.sourceFile` field and optional source
+   in the IR (via the optional `metadata.sourceFile` field and optional source
    position annotations on expression nodes).
 
 2. **LIR carries positions**: During lowering, source positions from the MIR
@@ -1260,6 +1279,7 @@ Best-effort suggestions (like "did you mean?") are provided when possible.
 
 These are internal compiler errors — they should not occur with valid MIR. If
 they do, they indicate a bug in the compiler's lowering logic. They include:
+
 - The MIR node that caused the error
 - The lowering phase that failed
 - A stack trace for debugging
@@ -1275,13 +1295,13 @@ Warnings can be configured through the Vite plugin options:
 
 ```ts
 roqaPlugin({
-    frontend: jsxFrontend(),
-    warnings: {
-        "unreachable-action": "off",     // Suppress this warning
-        "missing-key": "error",          // Promote to error
-    },
-    security: "standard",               // or "strict" (see below)
-})
+  frontend: jsxFrontend(),
+  warnings: {
+    "unreachable-action": "off", // Suppress this warning
+    "missing-key": "error", // Promote to error
+  },
+  security: "standard", // or "strict" (see below)
+});
 ```
 
 ### Security modes
@@ -1326,6 +1346,7 @@ use case emerges.
 
 When a file exports multiple components, each produces its own `ComponentIR`.
 The backend processes them independently, but the emitter needs to:
+
 - Deduplicate imports
 - Ensure template variable names don't collide
 - Emit a single `delegate()` call with the union of all event types
@@ -1348,6 +1369,7 @@ containing multiple components, all components are re-compiled even if only
 one changed.
 
 More importantly, incremental compilation enables:
+
 - **Faster CI builds** — skip re-compiling unchanged components
 - **Distributed compilation** — compile different components on different
   machines
@@ -1401,9 +1423,9 @@ with the same MIR should produce the same output. The key is:
 
 ```ts
 type CacheKey = {
-    mirHash: string;              // SHA-256 of the serialized ComponentIR
-    backendVersion: string;       // Compiler version (output changes across versions)
-    optimizationLevel: string;    // Different optimization settings = different output
+  mirHash: string; // SHA-256 of the serialized ComponentIR
+  backendVersion: string; // Compiler version (output changes across versions)
+  optimizationLevel: string; // Different optimization settings = different output
 };
 ```
 
@@ -1432,6 +1454,7 @@ handled at a higher level (by the frontend or by runtime validation).
 #### Cache invalidation
 
 The cache must be invalidated when:
+
 - The Roqa backend version changes (different codegen)
 - Optimization configuration changes
 - The MIR version changes (new IR format)
@@ -1448,7 +1471,7 @@ components actually changed, and Vite's HMR propagates only those updates.
 ```ts
 // Vite plugin with incremental support
 async transform(code, id) {
-    const newMirs = frontend.toMIR(code, id);
+    const newMirs = frontend.toIR(code, id);
     const results = [];
 
     for (const mir of newMirs) {

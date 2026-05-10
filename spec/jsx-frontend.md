@@ -1,14 +1,14 @@
 # JSX Frontend Specification
 
 This document specifies how the Roqa JSX frontend translates JSX/TSX source
-code into MIR (`ComponentIR`). The JSX frontend lives in `packages/roqa-jsx/`
+code into Roqa IR (`ComponentIR`). The JSX frontend lives in `packages/roqa-jsx/`
 and implements the `RoqaFrontend` interface defined in
 [`spec/frontend-guide.md`](./frontend-guide.md).
 
 ## Overview
 
 ```txt
-.tsx/.jsx source → Babel parse → AST → walk → ComponentIR (MIR) → compile() → JS
+.tsx/.jsx source → Babel parse → AST → walk → ComponentIR (Roqa IR) → compile() → JS
 ```
 
 The JSX frontend:
@@ -16,12 +16,12 @@ The JSX frontend:
 1. Parses JSX/TSX using `@babel/parser` (with `jsx` and `typescript` plugins)
 2. Walks the Babel AST to extract components, state, actions, and render trees
 3. Converts each component function into a `ComponentIR` object
-4. Returns the MIR to the Vite plugin, which passes it to the backend compiler
+4. Returns the IR to the Vite plugin, which passes it to the backend compiler
 
 ### Design decisions
 
-- **In-memory MIR** — v1 passes `ComponentIR` objects directly to `compile()`.
-  No `.roqa` files written to disk. Disk-cached MIR is a future optimization
+- **In-memory IR** — v1 passes `ComponentIR` objects directly to `compile()`.
+  No `.roqa` files written to disk. Disk-cached IR is a future optimization
   (see [`spec/ROADMAP.md`](./ROADMAP.md) §Incremental compilation).
 
 - **Babel for parsing** — Babel is already a dependency of the `roqa` package.
@@ -39,7 +39,7 @@ The JSX frontend:
 packages/roqa-jsx/
 ├── package.json
 ├── src/
-│   ├── index.js          # RoqaFrontend implementation (handles + toMIR)
+│   ├── index.js          # RoqaFrontend implementation (handles + toIR)
 │   ├── parse.js           # Babel parse wrapper
 │   ├── extract.js         # AST → component extraction
 │   ├── state.js           # cell() / cell(() => ...) → StateIR
@@ -53,7 +53,7 @@ packages/roqa-jsx/
 │   ├── actions.test.js
 │   ├── render.test.js
 │   ├── expressions.test.js
-│   └── integration.test.js  # Full .tsx → MIR round-trips
+│   └── integration.test.js  # Full .tsx → IR round-trips
 └── types/
     └── index.d.ts
 ```
@@ -62,23 +62,23 @@ packages/roqa-jsx/
 
 ```json
 {
-    "name": "@roqajs/jsx",
-    "version": "0.0.1",
-    "type": "module",
-    "exports": {
-        ".": {
-            "types": "./types/index.d.ts",
-            "import": "./src/index.js"
-        }
-    },
-    "dependencies": {
-        "@babel/parser": "catalog:default",
-        "@babel/traverse": "catalog:default",
-        "@babel/types": "catalog:default"
-    },
-    "peerDependencies": {
-        "roqa": "workspace:*"
+  "name": "@roqajs/jsx",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "import": "./src/index.js"
     }
+  },
+  "dependencies": {
+    "@babel/parser": "catalog:default",
+    "@babel/traverse": "catalog:default",
+    "@babel/types": "catalog:default"
+  },
+  "peerDependencies": {
+    "roqa": "workspace:*"
+  }
 }
 ```
 
@@ -90,7 +90,7 @@ import roqa from "@roqajs/vite-plugin";
 import jsx from "@roqajs/jsx";
 
 export default {
-    plugins: [roqa({ frontend: jsx() })]
+  plugins: [roqa({ frontend: jsx() })],
 };
 ```
 
@@ -102,17 +102,17 @@ export default {
 // packages/roqa-jsx/src/index.js
 
 export default function jsx() {
-    return {
-        handles(id) {
-            return /\.[jt]sx$/.test(id);
-        },
+  return {
+    handles(id) {
+      return /\.[jt]sx$/.test(id);
+    },
 
-        toMIR(code, id) {
-            const ast = parse(code, id);
-            const components = extractComponents(ast, id);
-            return components.length === 1 ? components[0] : components;
-        }
-    };
+    toIR(code, id) {
+      const ast = parse(code, id);
+      const components = extractComponents(ast, id);
+      return components.length === 1 ? components[0] : components;
+    },
+  };
 }
 ```
 
@@ -129,9 +129,9 @@ These are the same patterns used by the existing `examples/jsx/` applications.
 import { defineComponent, cell, get, set } from "roqa";
 
 function CounterButton() {
-    const count = cell(0);
-    const increment = () => set(count, get(count) + 1);
-    return <button onclick={increment}>Count: {get(count)}</button>;
+  const count = cell(0);
+  const increment = () => set(count, get(count) + 1);
+  return <button onclick={increment}>Count: {get(count)}</button>;
 }
 
 defineComponent("counter-button", CounterButton);
@@ -151,10 +151,11 @@ const items = cell([]);
 
 // Computed (derived) value → StateComputedIR { kind: "computed" }
 const doubled = cell(() => get(count) * 2);
-const remaining = cell(() => get(todos).filter(t => !t.completed).length);
+const remaining = cell(() => get(todos).filter((t) => !t.completed).length);
 ```
 
 The frontend distinguishes `cell(value)` from `cell(() => expr)`:
+
 - **Literal/value argument** → `StateValueIR`
 - **Arrow function argument** → `StateComputedIR` (the body becomes the
   structured `ExprIR`)
@@ -162,8 +163,8 @@ The frontend distinguishes `cell(value)` from `cell(() => expr)`:
 ### Reading state
 
 ```tsx
-get(count)        // → StateReadExpr { kind: "state-read", name: "count" }
-get(doubled)      // → ComputedReadExpr { kind: "computed-read", name: "doubled" }
+get(count); // → StateReadExpr { kind: "state-read", name: "count" }
+get(doubled); // → ComputedReadExpr { kind: "computed-read", name: "doubled" }
 ```
 
 The frontend resolves `get(x)` by looking up which variable `x` refers to
@@ -185,7 +186,7 @@ set(todos, [...get(todos), newTodo]);
 ```tsx
 // Destructured parameter → PropIR[]
 function NameTag({ name, message }: { name: string; message: () => void }) {
-    return <h1>Hello, {name}!</h1>;
+  return <h1>Hello, {name}!</h1>;
 }
 ```
 
@@ -197,15 +198,15 @@ entries. Each destructured key becomes a prop. Reading these in JSX produces
 
 ```tsx
 function MyComponent(this: RoqaElement) {
-    this.connected(() => {
-        console.log("mounted");
-    });
+  this.connected(() => {
+    console.log("mounted");
+  });
 
-    this.disconnected(() => {
-        console.log("unmounted");
-    });
+  this.disconnected(() => {
+    console.log("unmounted");
+  });
 
-    return <p>Hello</p>;
+  return <p>Hello</p>;
 }
 ```
 
@@ -218,11 +219,15 @@ The JSX frontend supports several patterns that all normalize to `ShowIR`:
 
 ```tsx
 // Pattern 1: logical AND (show without fallback)
-{get(visible) && <p>Visible content</p>}
+{
+  get(visible) && <p>Visible content</p>;
+}
 // → ShowIR { condition: cell-ref("visible"), render: [...], fallback: undefined }
 
 // Pattern 2: ternary (show with fallback)
-{get(visible) ? <p>Visible</p> : <p>Hidden</p>}
+{
+  get(visible) ? <p>Visible</p> : <p>Hidden</p>;
+}
 // → ShowIR { condition: cell-ref("visible"), render: [...], fallback: [...] }
 ```
 
@@ -235,11 +240,7 @@ cell directly.
 ```tsx
 import { For } from "roqa";
 
-<For each={todos}>
-    {(todo) => (
-        <li>{todo.text}</li>
-    )}
-</For>
+<For each={todos}>{(todo) => <li>{todo.text}</li>}</For>;
 // → EachIR { source: cell-ref("todos"), itemAlias: "todo", render: [...] }
 ```
 
@@ -272,10 +273,10 @@ name in the MIR.
 
 ```tsx
 return (
-    <>
-        <p>First</p>
-        <p>Second</p>
-    </>
+  <>
+    <p>First</p>
+    <p>Second</p>
+  </>
 );
 ```
 
@@ -298,10 +299,10 @@ are analyzed:
 
 ## Translation rules
 
-This section defines the precise mapping from Babel AST nodes to MIR nodes.
+This section defines the precise mapping from Babel AST nodes to Roqa IR nodes.
 The reference algorithms in [`spec/archive/reference-algorithms.md`](./archive/reference-algorithms.md)
 describe the old compiler's patterns — the approach applies here, but the
-output target is MIR instead of JavaScript.
+output target is Roqa IR instead of JavaScript.
 
 ### Component extraction
 
@@ -323,7 +324,7 @@ defineComponent("parent-app", ParentApp);
 defineComponent("child-card", ChildCard);
 ```
 
-→ Returns `[parentMIR, childMIR]`.
+→ Returns `[parentIR, childIR]`.
 
 ### State extraction
 
@@ -343,6 +344,7 @@ defineComponent("child-card", ChildCard);
 **Identifying collections:**
 
 A `cell([])` or `cell([...items])` becomes a `StateCollectionIR` when:
+
 - It is used as the `each` prop of a `<For>` component
 - A `key` can be inferred from the render callback's item field accesses,
   or from an explicit key prop on `<For>`
@@ -379,30 +381,30 @@ component body that are **not** the return value and **not** cell initializers.
 
 For each JSX node:
 
-| JSX form | MIR node |
-|----------|----------|
-| `<div>` | `ElementIR { tag: "div" }` |
-| `"literal text"` | `TextIR { value: "literal text" }` |
-| `{get(x)}` | `ReactiveTextIR { source: StateReadExpr }` |
-| `{expr}` (non-get) | `ReactiveTextIR { source: convertExpr(expr) }` |
-| `<>...</>` | Multiple root `NodeIR` entries |
-| `<For each={x}>{(item) => ...}</For>` | `EachIR` |
-| `{get(x) && <el/>}` | `ShowIR` (no fallback) |
-| `{get(x) ? <a/> : <b/>}` | `ShowIR` (with fallback) |
+| JSX form                              | MIR node                                       |
+| ------------------------------------- | ---------------------------------------------- |
+| `<div>`                               | `ElementIR { tag: "div" }`                     |
+| `"literal text"`                      | `TextIR { value: "literal text" }`             |
+| `{get(x)}`                            | `ReactiveTextIR { source: StateReadExpr }`     |
+| `{expr}` (non-get)                    | `ReactiveTextIR { source: convertExpr(expr) }` |
+| `<>...</>`                            | Multiple root `NodeIR` entries                 |
+| `<For each={x}>{(item) => ...}</For>` | `EachIR`                                       |
+| `{get(x) && <el/>}`                   | `ShowIR` (no fallback)                         |
+| `{get(x) ? <a/> : <b/>}`              | `ShowIR` (with fallback)                       |
 
 #### Element attributes
 
 For each JSX attribute on an element:
 
-| JSX attribute | MIR mapping |
-|--------------|-------------|
-| `id="my-id"` | `attributes.id: LiteralExpr` |
-| `value={get(x)}` | `attributes.value: StateReadExpr` |
-| `class="btn"` | `attributes.class: LiteralExpr` or `classes: StaticClassIR` |
-| `class={expr}` | `classes: ClassListIR` (if conditional) |
-| `onclick={fn}` / `onClick={fn}` | `events: [{ event: "click", handler: ActionCallExpr }]` |
-| `oninput={(e) => ...}` / `onInput={(e) => ...}` | `events: [{ event: "input", handler: ClosureExpr }]` |
-| `ref={name}` | `ElementIR.ref = name` |
+| JSX attribute                                   | MIR mapping                                                 |
+| ----------------------------------------------- | ----------------------------------------------------------- |
+| `id="my-id"`                                    | `attributes.id: LiteralExpr`                                |
+| `value={get(x)}`                                | `attributes.value: StateReadExpr`                           |
+| `class="btn"`                                   | `attributes.class: LiteralExpr` or `classes: StaticClassIR` |
+| `class={expr}`                                  | `classes: ClassListIR` (if conditional)                     |
+| `onclick={fn}` / `onClick={fn}`                 | `events: [{ event: "click", handler: ActionCallExpr }]`     |
+| `oninput={(e) => ...}` / `onInput={(e) => ...}` | `events: [{ event: "input", handler: ClosureExpr }]`        |
+| `ref={name}`                                    | `ElementIR.ref = name`                                      |
 
 #### Event attribute naming
 
@@ -433,50 +435,52 @@ Authors can use whichever convention they prefer — the MIR is identical.
 This is the core of the JSX frontend. Every JavaScript expression inside the
 component must be converted to a structured `ExprIR`.
 
-| Babel AST node | ExprIR |
-|---------------|--------|
-| `NumericLiteral(42)` | `LiteralExpr { value: 42 }` |
-| `StringLiteral("hi")` | `LiteralExpr { value: "hi" }` |
-| `BooleanLiteral(true)` | `LiteralExpr { value: true }` |
-| `NullLiteral` | `LiteralExpr { value: null }` |
-| `TemplateLiteral` | `TemplateLiteralExpr { parts: [...] }` |
-| `BinaryExpression(+, l, r)` | `BinaryExpr { op: "+", left, right }` |
-| `UnaryExpression(!, x)` | `UnaryExpr { op: "!", operand }` |
-| `ConditionalExpression` | `ConditionalExpr { test, consequent, alternate }` |
-| `MemberExpression(o, p)` | `MemberExpr { object, property }` |
-| `CallExpression(get, [x])` | `StateReadExpr` or `ComputedReadExpr` (see below) |
-| `CallExpression(set, [x, v])` | `StateWriteExpr` |
-| `CallExpression(fn, args)` | `CallExpr { callee, args }` |
-| `ArrowFunctionExpression` | `ClosureExpr { params, body }` |
-| `ObjectExpression` | `ObjectExpr { properties }` |
-| `SpreadElement` | `SpreadExpr { argument }` |
-| `Identifier(x)` | Context-dependent (see resolution rules) |
+| Babel AST node                | ExprIR                                            |
+| ----------------------------- | ------------------------------------------------- |
+| `NumericLiteral(42)`          | `LiteralExpr { value: 42 }`                       |
+| `StringLiteral("hi")`         | `LiteralExpr { value: "hi" }`                     |
+| `BooleanLiteral(true)`        | `LiteralExpr { value: true }`                     |
+| `NullLiteral`                 | `LiteralExpr { value: null }`                     |
+| `TemplateLiteral`             | `TemplateLiteralExpr { parts: [...] }`            |
+| `BinaryExpression(+, l, r)`   | `BinaryExpr { op: "+", left, right }`             |
+| `UnaryExpression(!, x)`       | `UnaryExpr { op: "!", operand }`                  |
+| `ConditionalExpression`       | `ConditionalExpr { test, consequent, alternate }` |
+| `MemberExpression(o, p)`      | `MemberExpr { object, property }`                 |
+| `CallExpression(get, [x])`    | `StateReadExpr` or `ComputedReadExpr` (see below) |
+| `CallExpression(set, [x, v])` | `StateWriteExpr`                                  |
+| `CallExpression(fn, args)`    | `CallExpr { callee, args }`                       |
+| `ArrowFunctionExpression`     | `ClosureExpr { params, body }`                    |
+| `ObjectExpression`            | `ObjectExpr { properties }`                       |
+| `SpreadElement`               | `SpreadExpr { argument }`                         |
+| `Identifier(x)`               | Context-dependent (see resolution rules)          |
 
 #### Identifier resolution
 
 When the expression converter encounters an `Identifier`, it must resolve it
 against the component's scope:
 
-| Identifier refers to | ExprIR |
-|---------------------|--------|
-| A `cell()` variable | **Depends on context** — see `get()`/`set()` |
-| An action function | `ActionCallExpr` (if used as event handler) |
-| A prop (destructured param) | `PropReadExpr` |
-| A closure parameter | `ParamReadExpr` |
-| An `each` item alias | `ParamReadExpr` (inside `<For>`) |
-| A module-level import | `ImportedRefExpr` |
-| A global (`Math`, `console`) | `ExternalRefExpr` |
+| Identifier refers to         | ExprIR                                       |
+| ---------------------------- | -------------------------------------------- |
+| A `cell()` variable          | **Depends on context** — see `get()`/`set()` |
+| An action function           | `ActionCallExpr` (if used as event handler)  |
+| A prop (destructured param)  | `PropReadExpr`                               |
+| A closure parameter          | `ParamReadExpr`                              |
+| An `each` item alias         | `ParamReadExpr` (inside `<For>`)             |
+| A module-level import        | `ImportedRefExpr`                            |
+| A global (`Math`, `console`) | `ExternalRefExpr`                            |
 
 #### `get()` and `set()` recognition
 
 The frontend recognizes specific Roqa API calls:
 
 **`get(cellVar)`:**
+
 1. Resolve `cellVar` to its declaration
 2. If it's a `StateValueIR` or `StateCollectionIR` → `StateReadExpr { name }`
 3. If it's a `StateComputedIR` → `ComputedReadExpr { name }`
 
 **`set(cellVar, valueExpr)`:**
+
 1. Resolve `cellVar` to its declaration
 2. Convert `valueExpr` to `ExprIR`
 3. → `StateWriteExpr { name, value }`
@@ -502,9 +506,7 @@ produces a `cell-ref` because `showBlock()` needs the cell itself.
 #### Item field access inside `<For>`
 
 ```tsx
-<For each={todos}>
-    {(todo) => <li>{todo.text}</li>}
-</For>
+<For each={todos}>{(todo) => <li>{todo.text}</li>}</For>
 ```
 
 Inside the `<For>` render callback, member access on the item parameter
@@ -523,7 +525,7 @@ property accesses on it accordingly.
 
 ```tsx
 this.connected(() => {
-    console.log("mounted");
+  console.log("mounted");
 });
 ```
 
@@ -548,9 +550,11 @@ Module imports (excluding `roqa` imports) are collected into
 
 ```json
 {
-    "metadata": {
-        "imports": [{ "kind": "import", "source": "./utils.js", "bindings": ["formatDate"] }]
-    }
+  "metadata": {
+    "imports": [
+      { "kind": "import", "source": "./utils.js", "bindings": ["formatDate"] }
+    ]
+  }
 }
 ```
 
@@ -568,8 +572,8 @@ consumes during translation, not runtime dependencies.
 
 ## Normalization rules
 
-The JSX frontend must normalize source patterns to canonical MIR forms.
-Different ways of writing the same thing in JSX should produce the same MIR.
+The JSX frontend must normalize source patterns to canonical IR forms.
+Different ways of writing the same thing in JSX should produce the same IR.
 
 ### Class normalization
 
@@ -611,7 +615,12 @@ as a `ClosureExpr`.
 
 ```tsx
 // Fragment wrapper:
-return <><p>A</p><p>B</p></>;
+return (
+  <>
+    <p>A</p>
+    <p>B</p>
+  </>
+);
 
 // Equivalent to render: [ElementIR("p", "A"), ElementIR("p", "B")]
 // (fragments are unwrapped — they don't produce a wrapper node)
@@ -635,8 +644,8 @@ return <><p>A</p><p>B</p></>;
 
 ```tsx
 const addTodo = () => {
-    set(todos, [...get(todos), { text: get(draft), completed: false }]);
-    set(draft, "");
+  set(todos, [...get(todos), { text: get(draft), completed: false }]);
+  set(draft, "");
 };
 ```
 
@@ -645,11 +654,15 @@ When an action body contains multiple statements, they are wrapped in a
 
 ```json
 {
-    "kind": "block",
-    "body": [
-        { "kind": "state-write", "name": "todos", "value": "..." },
-        { "kind": "state-write", "name": "draft", "value": { "kind": "literal", "value": "" } }
-    ]
+  "kind": "block",
+  "body": [
+    { "kind": "state-write", "name": "todos", "value": "..." },
+    {
+      "kind": "state-write",
+      "name": "draft",
+      "value": { "kind": "literal", "value": "" }
+    }
+  ]
 }
 ```
 
@@ -657,7 +670,7 @@ When an action body contains multiple statements, they are wrapped in a
 
 ```tsx
 function App(this: RoqaElement) {
-    const message = () => alert("From <" + this.tagName.toLowerCase() + ">");
+  const message = () => alert("From <" + this.tagName.toLowerCase() + ">");
 }
 ```
 
@@ -667,27 +680,32 @@ with appropriate member access:
 
 ```json
 {
-    "kind": "method-call",
-    "object": { "kind": "member",
-        "object": { "kind": "external-ref", "name": "this" },
-        "property": "tagName"
-    },
-    "method": "toLowerCase",
-    "args": []
+  "kind": "method-call",
+  "object": {
+    "kind": "member",
+    "object": { "kind": "external-ref", "name": "this" },
+    "property": "tagName"
+  },
+  "method": "toLowerCase",
+  "args": []
 }
 ```
 
 ### Emit / custom events
 
 ```tsx
-this.on("count-changed", handler);  // listening (parent side)
+this.on("count-changed", handler); // listening (parent side)
 this.emit("count-changed", detail); // dispatching
 ```
 
 Event emission in actions produces `EmitExpr`:
 
 ```json
-{ "kind": "emit", "event": "count-changed", "detail": { "kind": "state-read", "name": "count" } }
+{
+  "kind": "emit",
+  "event": "count-changed",
+  "detail": { "kind": "state-read", "name": "count" }
+}
 ```
 
 ### TypeScript stripping
@@ -697,7 +715,7 @@ the MIR. Type assertions (`as HTMLInputElement`) are unwrapped to their
 expression:
 
 ```tsx
-(e.target as HTMLInputElement).value
+(e.target as HTMLInputElement).value;
 // → MemberExpr { object: MemberExpr { object: ParamRead("e"), property: "target" }, property: "value" }
 ```
 
@@ -724,9 +742,9 @@ These show complete source → MIR translations for the canonical examples.
 import { defineComponent, cell, get, set } from "roqa";
 
 function App() {
-    const count = cell(0);
-    const increment = () => set(count, get(count) + 1);
-    return <button onclick={increment}>Count is {get(count)}</button>;
+  const count = cell(0);
+  const increment = () => set(count, get(count) + 1);
+  return <button onclick={increment}>Count is {get(count)}</button>;
 }
 
 defineComponent("counter-button", App);
@@ -736,38 +754,51 @@ defineComponent("counter-button", App);
 
 ```json
 {
-    "version": 1,
-    "tagName": "counter-button",
-    "name": "App",
-    "state": [{ "kind": "value", "name": "count", "initial": 0 }],
-    "actions": [{
-        "kind": "action",
-        "name": "increment",
-        "params": [],
-        "body": {
-            "kind": "state-write",
-            "name": "count",
-            "value": {
-                "kind": "binary", "op": "+",
-                "left": { "kind": "state-read", "name": "count" },
-                "right": { "kind": "literal", "value": 1 }
-            }
+  "version": 1,
+  "tagName": "counter-button",
+  "name": "App",
+  "state": [{ "kind": "value", "name": "count", "initial": 0 }],
+  "actions": [
+    {
+      "kind": "action",
+      "name": "increment",
+      "params": [],
+      "body": {
+        "kind": "state-write",
+        "name": "count",
+        "value": {
+          "kind": "binary",
+          "op": "+",
+          "left": { "kind": "state-read", "name": "count" },
+          "right": { "kind": "literal", "value": 1 }
         }
-    }],
-    "props": [],
-    "attrs": [],
-    "emits": [],
-    "lifecycle": {},
-    "render": [{
-        "kind": "element",
-        "tag": "button",
-        "attributes": {},
-        "events": [{ "event": "click", "handler": { "kind": "action-call", "name": "increment", "args": [] } }],
-        "children": [
-            { "kind": "text", "value": "Count is " },
-            { "kind": "reactive-text", "source": { "kind": "state-read", "name": "count" } }
-        ]
-    }]
+      }
+    }
+  ],
+  "props": [],
+  "attrs": [],
+  "emits": [],
+  "lifecycle": {},
+  "render": [
+    {
+      "kind": "element",
+      "tag": "button",
+      "attributes": {},
+      "events": [
+        {
+          "event": "click",
+          "handler": { "kind": "action-call", "name": "increment", "args": [] }
+        }
+      ],
+      "children": [
+        { "kind": "text", "value": "Count is " },
+        {
+          "kind": "reactive-text",
+          "source": { "kind": "state-read", "name": "count" }
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -777,20 +808,20 @@ defineComponent("counter-button", App);
 
 ```tsx
 function DerivedCount() {
-    const count = cell(0);
-    const doubled = cell(() => get(count) * 2);
-    const quadrupled = cell(() => get(doubled) * 2);
+  const count = cell(0);
+  const doubled = cell(() => get(count) * 2);
+  const quadrupled = cell(() => get(doubled) * 2);
 
-    const increment = () => set(count, get(count) + 1);
+  const increment = () => set(count, get(count) + 1);
 
-    return (
-        <>
-            <button onclick={increment}>Increment count</button>
-            <p>Count: {get(count)}</p>
-            <p>Doubled: {get(doubled)}</p>
-            <p>Quadrupled: {get(quadrupled)}</p>
-        </>
-    );
+  return (
+    <>
+      <button onclick={increment}>Increment count</button>
+      <p>Count: {get(count)}</p>
+      <p>Doubled: {get(doubled)}</p>
+      <p>Quadrupled: {get(quadrupled)}</p>
+    </>
+  );
 }
 ```
 
@@ -798,68 +829,106 @@ function DerivedCount() {
 
 ```json
 {
-    "version": 1,
-    "tagName": "derived-count",
-    "name": "DerivedCount",
-    "state": [
-        { "kind": "value", "name": "count", "initial": 0 },
-        {
-            "kind": "computed", "name": "doubled",
-            "body": {
-                "kind": "binary", "op": "*",
-                "left": { "kind": "state-read", "name": "count" },
-                "right": { "kind": "literal", "value": 2 }
-            }
-        },
-        {
-            "kind": "computed", "name": "quadrupled",
-            "body": {
-                "kind": "binary", "op": "*",
-                "left": { "kind": "computed-read", "name": "doubled" },
-                "right": { "kind": "literal", "value": 2 }
-            }
+  "version": 1,
+  "tagName": "derived-count",
+  "name": "DerivedCount",
+  "state": [
+    { "kind": "value", "name": "count", "initial": 0 },
+    {
+      "kind": "computed",
+      "name": "doubled",
+      "body": {
+        "kind": "binary",
+        "op": "*",
+        "left": { "kind": "state-read", "name": "count" },
+        "right": { "kind": "literal", "value": 2 }
+      }
+    },
+    {
+      "kind": "computed",
+      "name": "quadrupled",
+      "body": {
+        "kind": "binary",
+        "op": "*",
+        "left": { "kind": "computed-read", "name": "doubled" },
+        "right": { "kind": "literal", "value": 2 }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "kind": "action",
+      "name": "increment",
+      "params": [],
+      "body": {
+        "kind": "state-write",
+        "name": "count",
+        "value": {
+          "kind": "binary",
+          "op": "+",
+          "left": { "kind": "state-read", "name": "count" },
+          "right": { "kind": "literal", "value": 1 }
         }
-    ],
-    "actions": [{
-        "kind": "action", "name": "increment", "params": [],
-        "body": {
-            "kind": "state-write", "name": "count",
-            "value": { "kind": "binary", "op": "+",
-                "left": { "kind": "state-read", "name": "count" },
-                "right": { "kind": "literal", "value": 1 }
-            }
+      }
+    }
+  ],
+  "props": [],
+  "attrs": [],
+  "emits": [],
+  "lifecycle": {},
+  "render": [
+    {
+      "kind": "element",
+      "tag": "button",
+      "attributes": {},
+      "events": [
+        {
+          "event": "click",
+          "handler": { "kind": "action-call", "name": "increment", "args": [] }
         }
-    }],
-    "props": [], "attrs": [], "emits": [], "lifecycle": {},
-    "render": [
+      ],
+      "children": [{ "kind": "text", "value": "Increment count" }]
+    },
+    {
+      "kind": "element",
+      "tag": "p",
+      "attributes": {},
+      "events": [],
+      "children": [
+        { "kind": "text", "value": "Count: " },
         {
-            "kind": "element", "tag": "button",
-            "attributes": {},
-            "events": [{ "event": "click", "handler": { "kind": "action-call", "name": "increment", "args": [] } }],
-            "children": [{ "kind": "text", "value": "Increment count" }]
-        },
-        {
-            "kind": "element", "tag": "p", "attributes": {}, "events": [],
-            "children": [
-                { "kind": "text", "value": "Count: " },
-                { "kind": "reactive-text", "source": { "kind": "state-read", "name": "count" } }
-            ]
-        },
-        {
-            "kind": "element", "tag": "p", "attributes": {}, "events": [],
-            "children": [
-                { "kind": "text", "value": "Doubled: " },
-                { "kind": "reactive-text", "source": { "kind": "computed-read", "name": "doubled" } }
-            ]
-        },
-        {
-            "kind": "element", "tag": "p", "attributes": {}, "events": [],
-            "children": [
-                { "kind": "text", "value": "Quadrupled: " },
-                { "kind": "reactive-text", "source": { "kind": "computed-read", "name": "quadrupled" } }
-            ]
+          "kind": "reactive-text",
+          "source": { "kind": "state-read", "name": "count" }
         }
-    ]
+      ]
+    },
+    {
+      "kind": "element",
+      "tag": "p",
+      "attributes": {},
+      "events": [],
+      "children": [
+        { "kind": "text", "value": "Doubled: " },
+        {
+          "kind": "reactive-text",
+          "source": { "kind": "computed-read", "name": "doubled" }
+        }
+      ]
+    },
+    {
+      "kind": "element",
+      "tag": "p",
+      "attributes": {},
+      "events": [],
+      "children": [
+        { "kind": "text", "value": "Quadrupled: " },
+        {
+          "kind": "reactive-text",
+          "source": { "kind": "computed-read", "name": "quadrupled" }
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -869,16 +938,17 @@ function DerivedCount() {
 
 ```tsx
 function HelloWorld() {
-    const name = cell("World");
-    const updateName = (e: Event) => set(name, (e.target as HTMLInputElement).value);
+  const name = cell("World");
+  const updateName = (e: Event) =>
+    set(name, (e.target as HTMLInputElement).value);
 
-    return (
-        <>
-            <label for="name">Enter name:</label>
-            <input id="name" type="text" value={get(name)} oninput={updateName} />
-            <p id="msg">Hello {get(name)}!</p>
-        </>
-    );
+  return (
+    <>
+      <label for="name">Enter name:</label>
+      <input id="name" type="text" value={get(name)} oninput={updateName} />
+      <p id="msg">Hello {get(name)}!</p>
+    </>
+  );
 }
 ```
 
@@ -886,54 +956,73 @@ function HelloWorld() {
 
 ```json
 {
-    "version": 1,
-    "tagName": "hello-world",
-    "name": "HelloWorld",
-    "state": [{ "kind": "value", "name": "name", "initial": "World" }],
-    "actions": [{
-        "kind": "action", "name": "updateName", "params": ["e"],
-        "body": {
-            "kind": "state-write", "name": "name",
-            "value": {
-                "kind": "member",
-                "object": {
-                    "kind": "member",
-                    "object": { "kind": "param-read", "name": "e" },
-                    "property": "target"
-                },
-                "property": "value"
-            }
+  "version": 1,
+  "tagName": "hello-world",
+  "name": "HelloWorld",
+  "state": [{ "kind": "value", "name": "name", "initial": "World" }],
+  "actions": [
+    {
+      "kind": "action",
+      "name": "updateName",
+      "params": ["e"],
+      "body": {
+        "kind": "state-write",
+        "name": "name",
+        "value": {
+          "kind": "member",
+          "object": {
+            "kind": "member",
+            "object": { "kind": "param-read", "name": "e" },
+            "property": "target"
+          },
+          "property": "value"
         }
-    }],
-    "props": [], "attrs": [], "emits": [], "lifecycle": {},
-    "render": [
+      }
+    }
+  ],
+  "props": [],
+  "attrs": [],
+  "emits": [],
+  "lifecycle": {},
+  "render": [
+    {
+      "kind": "element",
+      "tag": "label",
+      "attributes": { "for": { "kind": "literal", "value": "name" } },
+      "events": [],
+      "children": [{ "kind": "text", "value": "Enter name:" }]
+    },
+    {
+      "kind": "element",
+      "tag": "input",
+      "attributes": {
+        "id": { "kind": "literal", "value": "name" },
+        "type": { "kind": "literal", "value": "text" },
+        "value": { "kind": "state-read", "name": "name" }
+      },
+      "events": [
         {
-            "kind": "element", "tag": "label",
-            "attributes": { "for": { "kind": "literal", "value": "name" } },
-            "events": [],
-            "children": [{ "kind": "text", "value": "Enter name:" }]
-        },
-        {
-            "kind": "element", "tag": "input",
-            "attributes": {
-                "id": { "kind": "literal", "value": "name" },
-                "type": { "kind": "literal", "value": "text" },
-                "value": { "kind": "state-read", "name": "name" }
-            },
-            "events": [{ "event": "input", "handler": { "kind": "action-call", "name": "updateName", "args": [] } }],
-            "children": []
-        },
-        {
-            "kind": "element", "tag": "p",
-            "attributes": { "id": { "kind": "literal", "value": "msg" } },
-            "events": [],
-            "children": [
-                { "kind": "text", "value": "Hello " },
-                { "kind": "reactive-text", "source": { "kind": "state-read", "name": "name" } },
-                { "kind": "text", "value": "!" }
-            ]
+          "event": "input",
+          "handler": { "kind": "action-call", "name": "updateName", "args": [] }
         }
-    ]
+      ],
+      "children": []
+    },
+    {
+      "kind": "element",
+      "tag": "p",
+      "attributes": { "id": { "kind": "literal", "value": "msg" } },
+      "events": [],
+      "children": [
+        { "kind": "text", "value": "Hello " },
+        {
+          "kind": "reactive-text",
+          "source": { "kind": "state-read", "name": "name" }
+        },
+        { "kind": "text", "value": "!" }
+      ]
+    }
+  ]
 }
 ```
 
@@ -958,8 +1047,11 @@ to make the distinction unambiguous at the declaration site.
 The existing JSX examples use patterns like:
 
 ```tsx
-set(todos, [...get(todos), newTodo]);           // append
-set(todos, get(todos).filter(t => !t.completed)); // filter
+set(todos, [...get(todos), newTodo]); // append
+set(
+  todos,
+  get(todos).filter((t) => !t.completed),
+); // filter
 ```
 
 Should these be recognized as `collection-op` expressions (`insert`,
@@ -993,10 +1085,10 @@ named actions. This is correct and matches how the backend handles them.
 - [`spec/frontend-guide.md`](./frontend-guide.md) — General frontend author
   guide (the `ComponentIR` contract, `RoqaFrontend` interface, testing
   strategies)
-- [`spec/ir.md`](./ir.md) — Complete MIR type definitions
+- [`spec/ir.md`](./ir.md) — Complete Roqa IR type definitions
 - [`spec/archive/reference-algorithms.md`](./archive/reference-algorithms.md) —
   Old compiler algorithms (DOM traversal, text coalescing, event delegation)
 - [`examples/jsx/`](../examples/jsx/) — 21 JSX example applications (test
   targets for the frontend)
-- [`examples/ir/`](../examples/ir/) — 13 MIR reference applications (target
+- [`examples/ir/`](../examples/ir/) — 13 IR reference applications (target
   output for translation verification)

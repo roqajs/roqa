@@ -13,7 +13,7 @@ Convert the project's custom source format into valid Roqa `ComponentIR` objects
 2. Check `handles(id)` to confirm which extensions the frontend owns.
 3. Add or expand parser helpers as the source format grows.
 4. Normalize the parsed result into `ComponentIR` in `toIR(code, id)`.
-5. Compare the result against the reference `.roqa` files in `tests/fixtures/`.
+5. Compare the result against the reference `.roqa.json` files in `tests/fixtures/`.
 6. Validate changes with `npm test` and `npx tsc --noEmit`.
 
 ## Roqa interface walkthrough

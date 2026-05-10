@@ -1,8 +1,8 @@
 # Roqa Compiler Implementation Guide
 
 This document provides the practical context needed to implement the new
-MIR-based backend compiler. It is intended to be read alongside
-[ir.md](./ir.md) (the MIR spec) and [compiler.md](./compiler.md) (the
+IR-based backend compiler. It is intended to be read alongside
+[ir.md](./ir.md) (the Roqa IR spec) and [compiler.md](./compiler.md) (the
 compiler pipeline spec).
 
 ---
@@ -22,12 +22,12 @@ code into optimized JavaScript. This compiler lives in
 
 ### What we're building
 
-A new **MIR-based backend compiler** that accepts the canonical MIR (defined
+A new **IR-based backend compiler** that accepts the canonical Roqa IR (defined
 in ir.md) and produces the same high-performance output the current compiler
 generates. This replaces the existing compiler in-place.
 
 The key difference: the new compiler doesn't parse JSX. It consumes structured
-MIR data (JSON objects) and produces JavaScript. Frontends (JSX, DSLs, GUI
+IR data (JSON objects) and produces JavaScript. Frontends (JSX, DSLs, GUI
 builders, etc.) are responsible for producing MIR — the backend doesn't care
 how it was created.
 
@@ -38,23 +38,23 @@ compiler targets the same runtime primitives. The `subscribe()` function for
 the hybrid reactive model has already been added. See [runtime.md](./runtime.md)
 for the full runtime specification.
 
-| Runtime export | Purpose |
-| --- | --- |
-| `template(html)` | Create cloneable DOM template from HTML string |
-| `svgTemplate(html)` | Same but for SVG content |
-| `cell(v)` | Create reactive value (inlined to `{ v, e: [] }`) |
-| `get(cell)` | Read cell value (inlined to `cell.v`) |
-| `set(cell, v)` | Write cell + notify (inlined to block with updates) |
-| `put(cell, v)` | Write cell without notify (inlined to `cell.v = v`) |
-| `bind(cell, fn)` | Subscribe to cell (inlined to ref storage) |
-| `notify(cell)` | Trigger all subscribers |
-| `subscribe(cell, fn)` | Runtime subscription — returns cleanup function (for dynamic bindings) |
-| `defineComponent(tag, fn, opts?)` | Register web component (creates `RoqaElement` subclass) |
-| `delegate(events)` | Set up event delegation at document level |
-| `forBlock(container, cell, fn)` | Efficient list rendering (LIS reconciliation) |
-| `showBlock(container, cell, fn)` | Conditional rendering |
-| `setProp(el, name, value)` | Set prop on custom element (WeakMap-based) |
-| `getProps(el)` | Retrieve all props for an element (used internally by `defineComponent`) |
+| Runtime export                    | Purpose                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `template(html)`                  | Create cloneable DOM template from HTML string                           |
+| `svgTemplate(html)`               | Same but for SVG content                                                 |
+| `cell(v)`                         | Create reactive value (inlined to `{ v, e: [] }`)                        |
+| `get(cell)`                       | Read cell value (inlined to `cell.v`)                                    |
+| `set(cell, v)`                    | Write cell + notify (inlined to block with updates)                      |
+| `put(cell, v)`                    | Write cell without notify (inlined to `cell.v = v`)                      |
+| `bind(cell, fn)`                  | Subscribe to cell (inlined to ref storage)                               |
+| `notify(cell)`                    | Trigger all subscribers                                                  |
+| `subscribe(cell, fn)`             | Runtime subscription — returns cleanup function (for dynamic bindings)   |
+| `defineComponent(tag, fn, opts?)` | Register web component (creates `RoqaElement` subclass)                  |
+| `delegate(events)`                | Set up event delegation at document level                                |
+| `forBlock(container, cell, fn)`   | Efficient list rendering (LIS reconciliation)                            |
+| `showBlock(container, cell, fn)`  | Conditional rendering                                                    |
+| `setProp(el, name, value)`        | Set prop on custom element (WeakMap-based)                               |
+| `getProps(el)`                    | Retrieve all props for an element (used internally by `defineComponent`) |
 
 The generated output should import from `"roqa"` and use these runtime
 functions (most of which get inlined during optimization).
@@ -78,6 +78,7 @@ packages/roqa/src/compiler/
 ```
 
 **Before starting implementation**, delete all existing compiler files:
+
 - `packages/roqa/src/compiler/index.js`
 - `packages/roqa/src/compiler/parser.js`
 - `packages/roqa/src/compiler/codegen.js`
@@ -110,6 +111,7 @@ for approach, do not copy verbatim.** The inputs change (MIR trees instead
 of Babel AST) but the output patterns are the same.
 
 Key algorithms documented there:
+
 - DOM traversal computation (firstChild/nextSibling chains)
 - Transitive computed dependency expansion
 - Event handler delegation patterns
@@ -144,7 +146,7 @@ so far and why."
 
 ## Fixture accuracy
 
-The test fixtures in `spec/fixtures/` (`.mir.json` + `.expected.js` pairs)
+The test fixtures in `packages/roqa/tests/fixtures/` (`.roqa.json` + `.expected.js` pairs)
 were hand-authored alongside the spec documents. They **should** be correct,
 but small mistakes may have made their way in — typos in traversal paths,
 wrong variable names, incorrect template strings, mismatched binding
@@ -179,11 +181,12 @@ before starting work.
 The `props-attrs` fixture generates `attrChanged()` callbacks for reactive
 bindings that reference attribute values (via `attr-read`), but compiler.md
 doesn't have an explicit section explaining when/how `attrChanged` is
-generated. The expression compilation table shows `attr-read` → 
+generated. The expression compilation table shows `attr-read` →
 `this.getAttribute("x")` but doesn't cover the reactive subscription side.
 
 **Guidance:** When an `attr-read` expression appears inside a reactive binding
 (e.g., a class condition), the compiler should:
+
 1. Use `this.getAttribute("name")` for the value read
 2. Generate `this.attrChanged("name", () => { /* re-evaluate binding */ })`
 3. Add the attribute name to `observedAttributes` in the `defineComponent`
@@ -203,7 +206,7 @@ function at runtime.
 ### 3. IR spec's counter-button example differs from the fixture
 
 The ir.md inline example shows a counter-button with `id="increment-button"`
-and text `"Count is "`, while `counter-button.mir.json` has no id attribute
+and text `"Count is "`, while `counter-button.roqa.json` has no id attribute
 and text `"Count: "`. The fixture README states fixtures are authoritative.
 The inline examples in spec documents are illustrative only — when in doubt,
 follow the fixtures.
@@ -259,6 +262,7 @@ Build the compiler incrementally. Each phase produces testable output.
 **Files:** `types.d.ts`, `validate.js`, `index.js` (skeleton)
 
 **What to build:**
+
 - TypeScript type definitions in `types.d.ts` for all MIR types from ir.md
   (`ComponentIR`, `StateIR`, `NodeIR`, `ExprIR`, etc.), all LIR types
   from compiler.md (`ComponentLIR`, `TemplateOp`, `TraversalOp`, etc.),
@@ -280,6 +284,7 @@ Build the compiler incrementally. Each phase produces testable output.
   requiring a build step. The existing `packages/roqa/types/` directory
   already uses `.d.ts` files for the public API — this follows the same
   pattern for compiler internals.
+
 - `validate(mir)` function that checks all validation rules from
   compiler.md Phase 1 (version check, tag name, duplicate names, dangling
   refs, etc.)
@@ -287,7 +292,7 @@ Build the compiler incrementally. Each phase produces testable output.
 - Skeleton `compile()` in index.js that calls `validate()` and throws on
   errors
 
-**Test with:** `static-component.mir.json` (should pass validation),
+**Test with:** `static-component.roqa.json` (should pass validation),
 plus intentionally invalid MIR objects (should produce correct diagnostics).
 
 ### Phase 2: Expression IR compiler
@@ -297,6 +302,7 @@ plus intentionally invalid MIR objects (should produce correct diagnostics).
 **Files:** `expr-compiler.js`
 
 **What to build:**
+
 - `compileExpr(expr, context)` function that recursively produces JS strings
 - Handle all ExprIR node types (see compiler.md §Expression IR compilation
   table)
@@ -312,15 +318,16 @@ handle context-dependent expression types:
 
 ```ts
 type ExprContext = {
-    itemAlias?: string;          // Current iteration variable name (e.g., "todo")
-                                 // Set when compiling inside an EachIR render tree
-    isInlineHandler?: boolean;   // true when compiling an event handler ClosureExpr body
-                                 // Affects state-write compilation (no inlined updates)
-    componentName?: string;      // Component function name (for error messages)
+  itemAlias?: string; // Current iteration variable name (e.g., "todo")
+  // Set when compiling inside an EachIR render tree
+  isInlineHandler?: boolean; // true when compiling an event handler ClosureExpr body
+  // Affects state-write compilation (no inlined updates)
+  componentName?: string; // Component function name (for error messages)
 };
 ```
 
 Context-dependent compilation rules:
+
 - `item-field-read` with field `"x"` → `{itemAlias}.x` (requires `itemAlias` in context)
 - `state-write` inside an inline handler → `{cellName}.v = value` (no inlined binding updates)
 - `state-write` inside an action → compiled separately via `FunctionOp.inlinedSets`
@@ -336,6 +343,7 @@ the JS output string.
 **Files:** `lower.js`
 
 **What to build:**
+
 - `lower(mir)` function that produces a `ComponentLIR`
 - Template extraction: walk render tree, collect static HTML, insert
   placeholders for reactive content
@@ -353,7 +361,7 @@ the JS output string.
 into one `nodeValue` expression. Example: `["Count: ", <reactive count>]`
 → template `' '`, binding `text.nodeValue = "Count: " + count.v`.
 
-**Test with:** `counter-button.mir.json`, `static-component.mir.json`.
+**Test with:** `counter-button.roqa.json`, `static-component.roqa.json`.
 Verify the LIR structure has correct templates, traversals, bindings.
 
 ### Phase 4: Emitter (LIR → JavaScript)
@@ -363,6 +371,7 @@ Verify the LIR structure has correct templates, traversals, bindings.
 **Files:** `emit.js`
 
 **What to build:**
+
 - `emit(lirs)` function that produces `{ code, map }`
 - Emit in the order specified in compiler.md §Emission order:
   1. Import statement (deduplicated)
@@ -373,7 +382,7 @@ Verify the LIR structure has correct templates, traversals, bindings.
   order)
 - Source map generation (can use `magic-string` — it's already a dependency)
 
-**Test with:** Full pipeline from `counter-button.mir.json` → compare output
+**Test with:** Full pipeline from `counter-button.roqa.json` → compare output
 against `counter-button.expected.js`.
 
 ### Phase 5: Optimization passes
@@ -383,6 +392,7 @@ against `counter-button.expected.js`.
 **Files:** `optimize.js`
 
 **What to build (start with just these two):**
+
 - **Inline cells:** Set `CellOp.inlined = true` for all cells → emitter
   outputs `{ v: value, e: [] }` instead of `cell(value)`
 - **Inline bindings:** Set `BindingOp.inlined = true`, populate
@@ -393,7 +403,7 @@ These two passes are the critical optimizations that make Roqa fast. The
 remaining passes (dead binding elimination, binding coalescing, template
 merging, static hoisting) can be added later.
 
-**Test with:** Verify `counter-button.mir.json` output matches
+**Test with:** Verify `counter-button.roqa.json` output matches
 `counter-button.expected.js` exactly (which shows fully inlined output).
 
 ### Phase 6: Vite plugin integration
@@ -403,11 +413,12 @@ merging, static hoisting) can be added later.
 **Files:** `packages/vite-plugin/src/index.js`
 
 **What to build:**
+
 - Update the Vite plugin to accept a `frontend` option
-- The frontend provides `handles(id)` and `toMIR(code, id)` methods
+- The frontend provides `handles(id)` and `toIR(code, id)` methods
 - The plugin calls `compile(mir)` with the new compiler
 - **Native `.roqa` file support** — the plugin handles `.roqa` files directly
-  without a frontend. A `.roqa` file is a JSON-serializable MIR
+  without a frontend. A `.roqa` file is a JSON-serializable IR
   (`ComponentIR` or `ComponentIR[]`). The plugin uses `resolveId` to resolve
   `.roqa` imports, `load` to read and compile them, and `transform` for dev
   server support.
@@ -423,6 +434,7 @@ merging, static hoisting) can be added later.
 The project uses **Vitest** (v3.x). Tests are in `packages/roqa/tests/`.
 
 Run tests:
+
 ```bash
 cd packages/roqa
 pnpm test           # Run all tests once
@@ -449,7 +461,7 @@ The existing tests in `tests/compiler/` and `tests/integration/` test the
   template extraction from AST, etc. which no longer applies.
 - **Rewrite** `tests/integration/compile.test.js` — change from JSX input
   to MIR input. The new integration tests should:
-  - Read `.mir.json` fixture files
+  - Read `.roqa.json` fixture files
   - Pass them through `compile()`
   - Verify output against `.expected.js` files or snapshots
 - **Keep** all tests in `tests/runtime/` — runtime modules are unchanged.
@@ -478,16 +490,20 @@ import { readFileSync } from "node:fs";
 import { compile } from "../../src/compiler/index.js";
 
 describe("compile fixtures", () => {
-    it("compiles counter-button", () => {
-        const mir = JSON.parse(
-            readFileSync("../../spec/fixtures/counter-button.mir.json", "utf-8")
-        );
-        const result = compile(mir);
-        const expected = readFileSync(
-            "../../spec/fixtures/counter-button.expected.js", "utf-8"
-        );
-        expect(result.code.trim()).toBe(expected.trim());
-    });
+  it("compiles counter-button", () => {
+    const mir = JSON.parse(
+      readFileSync(
+        "../../packages/roqa/tests/fixtures/counter-button.roqa.json",
+        "utf-8",
+      ),
+    );
+    const result = compile(mir);
+    const expected = readFileSync(
+      "../../packages/roqa/tests/fixtures/counter-button.expected.js",
+      "utf-8",
+    );
+    expect(result.code.trim()).toBe(expected.trim());
+  });
 });
 ```
 
@@ -501,22 +517,23 @@ patterns. These are the patterns the runtime expects.
 ### Template + traversal
 
 ```js
-const $tmpl_1 = template('<div><span> </span><button>+</button></div>');
+const $tmpl_1 = template("<div><span> </span><button>+</button></div>");
 
 this.connected(() => {
-    const $root_1 = $tmpl_1();
-    this.appendChild($root_1);
+  const $root_1 = $tmpl_1();
+  this.appendChild($root_1);
 
-    const div_1 = this.firstChild;
-    const span_1 = div_1.firstChild;
-    const span_1_text = span_1.firstChild;
-    const button_1 = span_1.nextSibling;
+  const div_1 = this.firstChild;
+  const span_1 = div_1.firstChild;
+  const span_1_text = span_1.firstChild;
+  const button_1 = span_1.nextSibling;
 
-    // ... events, blocks, bindings ...
+  // ... events, blocks, bindings ...
 });
 ```
 
 Key rules:
+
 - Template root is cloned via `$tmpl_N()`
 - `this.appendChild($root_1)` happens immediately after cloning — this
   transfers the fragment's children into the component's DOM
@@ -527,7 +544,7 @@ Key rules:
 ### Event delegation
 
 ```js
-button_1.__click = increment;          // Simple action ref
+button_1.__click = increment; // Simple action ref
 input_1.__input = [setDraft, someArg]; // Bound action (array form)
 
 // At end of file:
@@ -546,8 +563,8 @@ count.ref_1 = span_1_text;
 
 // Set (inlined with DOM updates):
 const increment = () => {
-    count.v = count.v + 1;
-    count.ref_1.nodeValue = "Count: " + count.v;
+  count.v = count.v + 1;
+  count.ref_1.nodeValue = "Count: " + count.v;
 };
 ```
 
@@ -577,11 +594,11 @@ function**. Each call to the clone function returns a deep clone of the
 template content as a `DocumentFragment`.
 
 ```js
-const $tmpl_1 = template('<div><span> </span></div>');
+const $tmpl_1 = template("<div><span> </span></div>");
 // Later, inside connected():
-const $root_1 = $tmpl_1();          // DocumentFragment
-this.appendChild($root_1);           // Transfers children into DOM
-const div_1 = this.firstChild;       // Traverse from component root
+const $root_1 = $tmpl_1(); // DocumentFragment
+this.appendChild($root_1); // Transfers children into DOM
+const div_1 = this.firstChild; // Traverse from component root
 ```
 
 The clone function uses `Node.prototype.cloneNode.call(t.content, true)` for
@@ -644,8 +661,8 @@ function in `cell.e`).
 set(count, count.v + 1);
 // Inlined form (with DOM updates from bind callbacks):
 {
-    count.v = count.v + 1;
-    count.ref_1.nodeValue = "Count: " + count.v;
+  count.v = count.v + 1;
+  count.ref_1.nodeValue = "Count: " + count.v;
 }
 ```
 
@@ -674,7 +691,7 @@ function.
 
 ```js
 const unsub = bind(count, (v) => {
-    span_1_text.nodeValue = "Count: " + v;
+  span_1_text.nodeValue = "Count: " + v;
 });
 ```
 
@@ -683,8 +700,8 @@ initial value assignment and ref storage are emitted inline:
 
 ```js
 // Instead of bind(), the optimized output is:
-span_1_text.nodeValue = "Count: " + count.v;   // Initial value
-count.ref_1 = span_1_text;                      // Store ref for set() updates
+span_1_text.nodeValue = "Count: " + count.v; // Initial value
+count.ref_1 = span_1_text; // Store ref for set() updates
 ```
 
 The callback body is inlined into every `set()` call site for that cell (see
@@ -738,16 +755,22 @@ defineComponent(tagName, fn, options?)
 ```js
 // Simple component:
 defineComponent("my-counter", function Counter() {
-    // ... cells, actions ...
-    this.connected(() => { /* ... */ });
+  // ... cells, actions ...
+  this.connected(() => {
+    /* ... */
+  });
 });
 
 // With observed attributes (for AttrIR with reflect):
-defineComponent("my-switch", function Switch() {
+defineComponent(
+  "my-switch",
+  function Switch() {
     // ...
-}, {
-    observedAttributes: ["checked", "disabled"]
-});
+  },
+  {
+    observedAttributes: ["checked", "disabled"],
+  },
+);
 ```
 
 **Important:** `defineComponent` is idempotent — if the tag is already
@@ -759,29 +782,33 @@ All Roqa components extend `RoqaElement`, which extends `HTMLElement`. The
 component function receives `this` bound to the element instance. The
 following methods are available on `this`:
 
-| Method | Signature | Purpose |
-| --- | --- | --- |
-| `connected(fn)` | `(fn: () => void \| (() => void)) → void` | Register callback for when component is mounted. If `fn` returns a function, it's called on unmount. |
-| `disconnected(fn)` | `(fn: () => void) → void` | Register callback for when component is unmounted. |
-| `on(event, handler)` | `(event: string, handler: Function) → void` | Add event listener with auto-cleanup (uses `AbortController`). Removed on disconnect. |
-| `emit(event, detail?, options?)` | `(event: string, detail?: any, options?: { bubbles?, composed? }) → void` | Dispatch a `CustomEvent`. Default: `bubbles: true`, `composed: false`. |
-| `toggleAttr(name, condition)` | `(name: string, condition: boolean) → void` | Set/remove a boolean attribute. `true` → `<el name>`, `false` → `<el>`. |
-| `stateAttr(name, condition)` | `(name: string, condition: boolean) → void` | Set mutually exclusive state attributes. `true` → `<el name>`, `false` → `<el unname>`. |
-| `attrChanged(name, callback)` | `(name: string, fn: (newVal, oldVal) → void) → void` | React to observed attribute changes. The attribute must be in `observedAttributes`. |
+| Method                           | Signature                                                                 | Purpose                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `connected(fn)`                  | `(fn: () => void \| (() => void)) → void`                                 | Register callback for when component is mounted. If `fn` returns a function, it's called on unmount. |
+| `disconnected(fn)`               | `(fn: () => void) → void`                                                 | Register callback for when component is unmounted.                                                   |
+| `on(event, handler)`             | `(event: string, handler: Function) → void`                               | Add event listener with auto-cleanup (uses `AbortController`). Removed on disconnect.                |
+| `emit(event, detail?, options?)` | `(event: string, detail?: any, options?: { bubbles?, composed? }) → void` | Dispatch a `CustomEvent`. Default: `bubbles: true`, `composed: false`.                               |
+| `toggleAttr(name, condition)`    | `(name: string, condition: boolean) → void`                               | Set/remove a boolean attribute. `true` → `<el name>`, `false` → `<el>`.                              |
+| `stateAttr(name, condition)`     | `(name: string, condition: boolean) → void`                               | Set mutually exclusive state attributes. `true` → `<el name>`, `false` → `<el unname>`.              |
+| `attrChanged(name, callback)`    | `(name: string, fn: (newVal, oldVal) → void) → void`                      | React to observed attribute changes. The attribute must be in `observedAttributes`.                  |
 
 **Generated code using these methods:**
 
 ```js
 // Lifecycle hooks (from LifecycleIR):
-this.connected(() => { /* mount logic */ });
-this.disconnected(() => { /* cleanup logic */ });
+this.connected(() => {
+  /* mount logic */
+});
+this.disconnected(() => {
+  /* cleanup logic */
+});
 
 // Custom events (from EmitExpr):
 this.emit("todo-added", { id: 1, text: "Hello" });
 
 // Attribute observation (from AttrIR):
 this.attrChanged("checked", (newValue) => {
-    // Update internal state based on attribute change
+  // Update internal state based on attribute change
 });
 
 // Event listeners with auto-cleanup (from LifecycleIR):
@@ -833,9 +860,9 @@ component function receives the result as its first argument:
 
 ```js
 function MyComponent(props) {
-    // props = getProps(this), called by the runtime
-    const { label, value } = props;
-    // ...
+  // props = getProps(this), called by the runtime
+  const { label, value } = props;
+  // ...
 }
 ```
 
@@ -844,8 +871,8 @@ based on `PropIR` declarations:
 
 ```js
 defineComponent("my-comp", function MyComp({ label, value = 0 }) {
-    // label comes from getProps(this).label
-    // value defaults to 0 if not provided
+  // label comes from getProps(this).label
+  // value defaults to 0 if not provided
 });
 ```
 
@@ -862,6 +889,7 @@ via `bind()`, and returns a controller object.
   `cleanup` function: `{ start, end, cleanup }`.
 
 **Return value:**
+
 - `update()` — re-reconcile the list from the current `sourceCell.v`. Must
   be called after mutating the cell's value.
 - `destroy()` — remove all rendered items, unsubscribe from the cell, and
@@ -879,19 +907,19 @@ efficient DOM reordering — minimizing moves when items are reordered.
 let todos_forBlock;
 
 const addTodo = () => {
-    todos.v = [...todos.v, newItem];
-    todos_forBlock.update();  // Re-reconcile after mutation
+  todos.v = [...todos.v, newItem];
+  todos_forBlock.update(); // Re-reconcile after mutation
 };
 
 this.connected(() => {
-    // ...
-    todos_forBlock = forBlock(ul_1, todos, (anchor, todo, index) => {
-        const li_1 = $tmpl_2().firstChild;
-        // ... setup bindings, events on li_1 ...
-        anchor.before(li_1);
-        return { start: li_1, end: li_1 };
-    });
-    // ...
+  // ...
+  todos_forBlock = forBlock(ul_1, todos, (anchor, todo, index) => {
+    const li_1 = $tmpl_2().firstChild;
+    // ... setup bindings, events on li_1 ...
+    anchor.before(li_1);
+    return { start: li_1, end: li_1 };
+  });
+  // ...
 });
 ```
 
@@ -919,15 +947,20 @@ creates its own internal text-node anchor, and manages showing/hiding content.
 ```js
 // Simple cell condition:
 showBlock(div_1, visible, (anchor) => {
-    const p_1 = $tmpl_2().firstChild;
-    anchor.before(p_1);
-    return { start: p_1, end: p_1 };
+  const p_1 = $tmpl_2().firstChild;
+  anchor.before(p_1);
+  return { start: p_1, end: p_1 };
 });
 
 // Complex expression condition (multiple dependencies):
-showBlock(div_1, () => !loading.v && !error.v, (anchor) => {
+showBlock(
+  div_1,
+  () => !loading.v && !error.v,
+  (anchor) => {
     // ... render content ...
-}, [loading, error]);
+  },
+  [loading, error],
+);
 ```
 
 **Important:** The template for the parent element does NOT include a comment

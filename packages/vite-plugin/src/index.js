@@ -7,19 +7,19 @@ import { readFileSync } from "node:fs";
 /**
  * @typedef {Object} RoqaFrontend
  * @property {(id: string) => boolean} handles - Whether this frontend handles the given file
- * @property {(code: string, id: string) => import("roqa/ir").ComponentIR | import("roqa/ir").ComponentIR[]} toMIR - Convert source code to MIR
+ * @property {(code: string, id: string) => import("roqa/ir").ComponentIR | import("roqa/ir").ComponentIR[]} toIR - Convert source code to Roqa IR
  */
 
 /**
  * @typedef {Object} RoqaPluginOptions
- * @property {RoqaFrontend} [frontend] - Frontend that converts source files to MIR
+ * @property {RoqaFrontend} [frontend] - Frontend that converts source files to Roqa IR
  */
 
 /**
  * Vite plugin for the Roqa UI framework.
  *
- * Accepts an optional `frontend` that converts source files to MIR.
- * The MIR is then compiled to optimized JavaScript by the Roqa backend.
+ * Accepts an optional `frontend` that converts source files to Roqa IR.
+ * The IR is then compiled to optimized JavaScript by the Roqa backend.
  *
  * @param {RoqaPluginOptions} [options]
  * @returns {Plugin}
@@ -77,8 +77,8 @@ export default function roqa(options) {
 				if (!frontend.handles(id)) return null;
 
 				try {
-					const mir = frontend.toMIR(code, id);
-					return compile(mir);
+					const ir = frontend.toIR(code, id);
+					return compile(ir);
 				} catch (error) {
 					this.error(formatCompileError(error, id));
 				}

@@ -23,7 +23,7 @@ Then edit `src/index.ts`, `tests/index.test.ts`, and the fixture files in `tests
 ## Frontend workflow
 
 1. Design your frontend authoring format.
-2. Implement `handles(id)` and `toMIR(code, id)` in `src/index.ts`.
+2. Implement `handles(id)` and `toIR(code, id)` in `src/index.ts`.
 3. Parse your source format into your own high-level IR or AST.
 4. Normalize that structure into valid `ComponentIR` objects.
 5. Compare your output against the reference `.roqa` fixtures in `tests/fixtures/`.

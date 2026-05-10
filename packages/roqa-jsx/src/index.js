@@ -4,7 +4,7 @@ import { extractComponents } from "./extract.js";
 /**
  * Create a JSX frontend for the Roqa Vite plugin.
  *
- * @returns {{ handles: (id: string) => boolean, toMIR: (code: string, id: string) => import("roqa/ir").ComponentIR | import("roqa/ir").ComponentIR[] }}
+ * @returns {{ handles: (id: string) => boolean, toIR: (code: string, id: string) => import("roqa/ir").ComponentIR | import("roqa/ir").ComponentIR[] }}
  */
 export default function jsx() {
 	return {
@@ -12,7 +12,7 @@ export default function jsx() {
 			return /\.[jt]sx$/.test(id);
 		},
 
-		toMIR(code, id) {
+		toIR(code, id) {
 			const ast = parse(code, id);
 			const components = extractComponents(ast, id, code);
 			return components.length === 1 ? components[0] : components;

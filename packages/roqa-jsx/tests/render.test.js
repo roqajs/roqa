@@ -192,7 +192,11 @@ describe("convertJSXToNodes", () => {
 			expect(liChildren).toHaveLength(1);
 			expect(liChildren[0]).toEqual({
 				kind: "reactive-text",
-				source: { kind: "item-field-read", field: "text" },
+				source: {
+					kind: "member",
+					object: { kind: "local-read", name: "item" },
+					property: "text",
+				},
 			});
 		});
 	});

@@ -21,16 +21,16 @@ and why certain decisions were made.
 > Update this section as phases are completed. Mark each phase with
 > ✅ (done), 🔧 (in progress), or ⬚ (not started).
 
-| Phase | Status | Notes |
-| --- | --- | --- |
-| Phase 1: MIR types + validation | ✅ | `types.d.ts`, `validate.js`, `index.js` |
-| Phase 2: Expression IR compiler | ✅ | `expr-compiler.js` |
-| Phase 3: Lowering (MIR → LIR) | ✅ | `lower.js` — all 13 fixtures passing |
-| Phase 4: Emitter (LIR → JS) | ✅ | `emit.js` |
-| Phase 5: Optimization passes | ✅ | `optimize.js` — inline cells + inline bindings |
-| Phase 6: Vite plugin integration | ✅ | `packages/vite-plugin/src/index.js` — frontend option + .mir.json support |
-| Runtime: Add `subscribe()` | ✅ | `cell.js` + `index.js` exports (done pre-handoff) |
-| Tests | ✅ | 36 tests passing (5 validate + 15 expr + 16 integration) |
+| Phase                            | Status | Notes                                                                 |
+| -------------------------------- | ------ | --------------------------------------------------------------------- |
+| Phase 1: MIR types + validation  | ✅     | `types.d.ts`, `validate.js`, `index.js`                               |
+| Phase 2: Expression IR compiler  | ✅     | `expr-compiler.js`                                                    |
+| Phase 3: Lowering (MIR → LIR)    | ✅     | `lower.js` — all 13 fixtures passing                                  |
+| Phase 4: Emitter (LIR → JS)      | ✅     | `emit.js`                                                             |
+| Phase 5: Optimization passes     | ✅     | `optimize.js` — inline cells + inline bindings                        |
+| Phase 6: Vite plugin integration | ✅     | `packages/vite-plugin/src/index.js` — frontend option + .roqa support |
+| Runtime: Add `subscribe()`       | ✅     | `cell.js` + `index.js` exports (done pre-handoff)                     |
+| Tests                            | ✅     | 36 tests passing (5 validate + 15 expr + 16 integration)              |
 
 ---
 
@@ -39,25 +39,28 @@ and why certain decisions were made.
 > Each session should add an entry below. Format:
 >
 > ### Session N — YYYY-MM-DD
+>
 > **Goal:** What was the session's objective
 > **Completed:** What was actually done
 > **Decisions:** Any design decisions made and why
 > **Issues found:** Bugs, inconsistencies, or problems discovered
 > **Next steps:** What the next session should pick up
 
-*(No sessions logged yet — implementation has not started.)*
+_(No sessions logged yet — implementation has not started.)_
 
 ### Session 1 — 2026-05-03
 
 **Goal:** Implement the full MIR-based backend compiler from scratch.
 
 **Completed:**
+
 - Deleted all old compiler files (parser.js, codegen.js, utils.js, transforms/)
 - Created all 6 new compiler files: `types.d.ts`, `validate.js`, `expr-compiler.js`, `lower.js`, `optimize.js`, `emit.js`, `index.js`
 - Full pipeline working: validate → lower → optimize → emit
 - **9 of 13 fixtures passing exactly**: static-component, counter-button, derived-state, deep-nesting, show-conditional, show-fallback, multi-component, svg-circle, external-refs
 
 **Decisions:**
+
 - Ref numbering is per-cell (e.g., `count.ref_1`, `doubled.ref_1`) not global
 - Computed cell bodies are expanded at lowering time (e.g., `quadrupled.v = () => count.v * 2 * 2`)
 - Binding expressions for computed cells use expanded forms (replace `computed.v` with underlying expression)
@@ -86,6 +89,7 @@ and why certain decisions were made.
    - Collection `update` op with inline closure now compiles correctly after fix
 
 **Next steps:**
+
 - Fix child-props: rewrite phase-2 traversal to reuse phase-1 anchors, skip non-referenced intermediate nodes
 - Fix props-attrs: reorder bindings so className + attrChanged come before text bindings
 - Fix todo-list: decide on block var placement (before vs after functions)
@@ -98,6 +102,7 @@ and why certain decisions were made.
 **Goal:** Fix the remaining 4 failing fixtures.
 
 **Completed:**
+
 - Fixed child-props: rewrote phase-2 traversal to skip intermediate elements and use phase-1 prop target vars as anchors for subsequent traversals
 - Fixed props-attrs: className + attrChanged now emitted in correct position (creation order, with blank line after attrChanged block); fixed attr-read class bindings to create bindings even without reactive state cells
 - Fixed todo-list: block vars now placed correctly (show/fallback before functions, each/forBlock after functions); inline closures with statement bodies now use block syntax `{ }; collection update op correctly inlines closure body; `remaining` computed expanded correctly via template-literal expansion; delegate events preserve first-encountered order
@@ -105,12 +110,14 @@ and why certain decisions were made.
 - **11 of 13 fixtures now pass exactly**
 
 **Remaining 2 fixture mismatches are quote-style-only:**
-1. `multi-action`: template uses `"..."` (our output) vs `'...'` (fixture) for HTML with no quotes; lifecycle `console.log("...")` vs `console.log('...')` 
+
+1. `multi-action`: template uses `"..."` (our output) vs `'...'` (fixture) for HTML with no quotes; lifecycle `console.log("...")` vs `console.log('...')`
 2. `todo-list`: template uses `"..."` vs `'...'` for HTML with no quotes
 
 All other 11 fixtures with the same pattern (no quotes in HTML) use double quotes. These 2 fixtures are outliers. The compiled output is structurally and semantically identical — only quote style differs.
 
 **Decisions:**
+
 - Block var placement: show/fallback block vars before functions, each/forBlock vars after (matches both show and todo-list fixture patterns)
 - Template string quotes: double quotes by default, single when HTML contains double quotes (matches 11/13 fixtures)
 - String literal quotes: double quotes via JSON.stringify (matches majority of string occurrences in fixtures)
@@ -118,29 +125,34 @@ All other 11 fixtures with the same pattern (no quotes in HTML) use double quote
 - Closure bodies with statements (state-write, block, collection-op) use block syntax `(e) => { ... }`
 
 **Next steps:**
+
 - Add Vitest integration tests for all fixtures
 - Phase 6: Vite plugin wiring
 - Delete old compiler tests, add new test suite
 
 ### Session 3 — 2026-05-03
 
-**Goal:** Create IR examples for all 13 fixtures, document .roqa file extension decision.
+**Goal:** Create IR examples for all 13 fixtures, document the `.roqa` file extension decision.
 
 **Completed:**
+
 - Created `examples/ir/` directories for all 13 fixtures: static-component, counter-button, derived-state, deep-nesting, show-conditional, show-fallback, multi-component, svg-circle, external-refs, multi-action, props-attrs, child-props, todo-list
 - Each example is a standalone Vite app with `package.json`, `vite.config.js`, `index.html`, `src/main.js`, and `src/<name>.roqa`
 - Added `src/utils.js` stub for external-refs example (provides `formatDate`)
 - All 13 examples build successfully with `vite build`
-- Updated all spec documents (ir.md, compiler.md, implementation-guide.md, fixtures/README.md) to document the `.roqa` file extension as the canonical MIR format
+- Updated all spec documents (ir.md, compiler.md, implementation-guide.md, fixtures/README.md) to document `.roqa` as the canonical app-facing IR format
 - Recorded architecture decision in AGENT-LOG
 
 **Decisions:**
-- `.roqa` is the canonical file extension for serialized MIR (JSON). Avoids Vite/Rolldown builtin JSON plugin conflicts. Test fixtures remain `.mir.json` (descriptive, editor JSON support).
+
+- `.roqa` is the canonical file extension for serialized Roqa IR. Spec fixtures remain `.roqa.json` for editor JSON support.
 
 **Issues found:**
+
 - None — all examples built cleanly on first pass
 
 **Next steps:**
+
 - JSX frontend adapter (separate workstream)
 - Consider adding styles/CSS to IR examples for visual polish
 
@@ -152,14 +164,16 @@ All other 11 fixtures with the same pattern (no quotes in HTML) use double quote
 > questions discovered during work. These help future sessions avoid
 > re-discovering the same problems.
 
-*(See the audit findings in the implementation guide for pre-implementation
-discoveries. Add runtime discoveries here as work proceeds.)*
+_(See the audit findings in the implementation guide for pre-implementation
+discoveries. Add runtime discoveries here as work proceeds.)_
 
 ### Fixture quote inconsistency (Session 1)
+
 - `multi-action.expected.js` and `todo-list.expected.js` use single quotes for template strings (`template('...')`) even when the HTML contains no quotes. All other no-quote fixtures use double quotes. May be an authoring inconsistency.
 - `multi-action.expected.js` line 28: `console.log('MultiAction connected')` uses single quotes while all other string literals in fixtures use double quotes via `JSON.stringify` patterns.
 
 ### Block var placement inconsistency (Session 1)
+
 - `show-conditional.expected.js` and `show-fallback.expected.js` place `let blockVar;` BEFORE function declarations.
 - `todo-list.expected.js` places `let todos_forBlock;` AFTER function declarations.
 - Both patterns work (JS hoists `let` declarations). Current compiler emits block vars before functions (matches show fixtures).
@@ -172,19 +186,22 @@ discoveries. Add runtime discoveries here as work proceeds.)*
 > by the spec documents. Include the reasoning so future sessions understand
 > the "why" behind choices.
 
-*(No decisions logged yet.)*
+_(No decisions logged yet.)_
 
-### `.roqa` file extension for MIR (Session 2 — 2026-05-03)
+### `.roqa` file extension for Roqa IR (Session 2 — 2026-05-03)
 
-**Decision:** The canonical file extension for serialized MIR is `.roqa`. A `.roqa` file contains a JSON-serializable `ComponentIR` (or array of `ComponentIR` for multi-component files) as defined in `spec/ir.md`.
+**Decision:** The canonical file extension for serialized Roqa IR is `.roqa`. A `.roqa` file contains a JSON-serializable `ComponentIR` (or array of `ComponentIR` for multi-component files) as defined in `spec/ir.md`.
 
 **Rationale:**
-- Using a dedicated extension (not `.json` or `.mir.json`) avoids conflicts with Vite/Rolldown's built-in JSON plugin, which aggressively claims `.json` files and interferes with custom compilation.
+
+- Using a dedicated extension (not `.json` or `.roqa.json`) avoids conflicts with Vite/Rolldown's built-in JSON plugin, which aggressively claims `.json` files and interferes with custom compilation.
 - `.roqa` is short, distinctive, and immediately associated with the framework.
 - The Vite plugin handles `.roqa` files natively — no frontend needed. The plugin's `resolveId` hook resolves `.roqa` imports, the `load` hook reads and compiles them in build mode, and the `transform` hook handles dev server HMR.
-- Frontends that produce MIR can write `.roqa` files directly, or pass MIR objects programmatically via the `frontend.toMIR()` API.
+- Test fixtures remain `.roqa.json` so editors and JSON tooling still recognize them as JSON documents.
+- Frontends that produce Roqa IR can write `.roqa` files directly, or pass IR objects programmatically via the `frontend.toIR()` API.
 
 **File format:**
+
 ```json
 {
     "version": 1,
@@ -197,6 +214,7 @@ discoveries. Add runtime discoveries here as work proceeds.)*
 ```
 
 Multi-component files use a JSON array at the top level:
+
 ```json
 [
     { "version": 1, "tagName": "comp-a", ... },
@@ -205,6 +223,7 @@ Multi-component files use a JSON array at the top level:
 ```
 
 **Usage in Vite:**
+
 ```js
 // main.js
 import "./counter-button.roqa";
@@ -223,7 +242,7 @@ export default defineConfig({ plugins: [roqa()] });
 > Keep a running record of test results so regressions are visible.
 > Format: `YYYY-MM-DD | fixture-name | pass/fail | notes`
 
-*(No test runs yet.)*
+_(No test runs yet.)_
 
 ### 2026-05-03 | All fixtures | 36 tests passing
 
@@ -252,7 +271,7 @@ All 13 IR examples build successfully via `vite build`.
 **The MIR-based backend compiler rewrite is complete as of 2026-05-03.**
 
 All 6 implementation phases are done. The compiler accepts `.roqa` files
-(JSON-serializable MIR) and produces optimized JavaScript. The Vite plugin
+(JSON-serializable IR) and produces optimized JavaScript. The Vite plugin
 handles `.roqa` files natively. 13 examples in `examples/ir/` demonstrate
 every supported pattern.
 

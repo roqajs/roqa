@@ -22,11 +22,13 @@ was learned. The 🟡 / 📝 items are the actionable backlog.
 ## High-impact MIR gaps
 
 ### 🟢 1. Missing primitive expression kinds (`ArrayExpr`, `AssignExpr`, `UpdateExpr`)
+
 - Added to `ExprIR` in `ir.md`.
 - The JSX frontend was previously losing array literals and assignments into
   `OpaqueExpr` placeholders.
 
 ### 🟢 2. Component-scope locals & preamble
+
 - Added `ComponentIR.locals` (`LocalDeclIR[]`) and `ComponentIR.preamble`
   (`ExprIR[]`).
 - JSX patterns like `let renderer: THREE.WebGLRenderer` (captured by `connected`
@@ -34,11 +36,13 @@ was learned. The 🟡 / 📝 items are the actionable backlog.
   now have first-class IR slots.
 
 ### 🟢 3. Module-level helper code
+
 - Added `ComponentMetadata.moduleCode: string` for non-import, non-component
   module statements (e.g. `js-benchmark` defines const arrays of adjectives at
   module scope).
 
 ### 🟢 4. Action ordering (interleaved local decls + state writes)
+
 - Added `InlinedSet.prelude` so frontends can preserve the original ordering
   of `const x = compute(); set(cell, x)` patterns.
 - The optimizer's `inlinedSets` representation collapses state-writes into a
@@ -48,13 +52,16 @@ was learned. The 🟡 / 📝 items are the actionable backlog.
   op stream rather than two parallel lists.
 
 ### 🟢 5. Default / namespace imports
+
 - Extended `ImportIR.bindings` to `(string | { local, imported?, kind })[]`.
 - `import * as THREE from "three"` now compiles correctly.
 
 ### 🟢 6. `async` actions & closures
+
 - Added `ActionIR.async?: boolean` and `ClosureExpr.async?: boolean`.
 
 ### 🟢 7. Non-literal cell initializers
+
 - Added `StateValueIR.initialExpr?: string` so `cell(FEEDS.top)` doesn't lose
   its initializer.
 - 🟡 **Followup:** the cleaner long-term design is `initial: ExprIR` (drop
@@ -62,11 +69,13 @@ was learned. The 🟡 / 📝 items are the actionable backlog.
   Held back to avoid breaking existing IR fixtures.
 
 ### 🟡 8. `ReturnExpr`
+
 - ✅ **Implemented.** `ReturnExpr { value?: ExprIR }` is now a first-class
   `ExprIR` kind. Frontends can emit `return { x, y }` patterns inside
   closures structurally instead of falling back to `OpaqueExpr`.
 
 ### 🟡 9. `IfExpr` / `ForExpr` / `WhileExpr` / `TryCatchExpr` / `NewExpr`
+
 - ✅ `NewExpr { callee, args }` was added — `new Date()`, `new URL(...)`,
   etc. are now structured.
 - 🟡 **Deferred:** `IfExpr`, `ForExpr`, `WhileExpr`, `TryCatchExpr` remain
@@ -74,6 +83,7 @@ was learned. The 🟡 / 📝 items are the actionable backlog.
   from agent feedback".
 
 ### 🟡 10. Cell-arg helper convention
+
 - During JSX work I had to hardcode a list of runtime helpers that take a cell
   reference (not the unwrapped value) as their first argument: `bind`,
   `subscribe`, `notify`, `put`. If the user wrote `bind(myCell, fn)`, the
@@ -118,10 +128,11 @@ auditing all `parts.join(" + ")` sites for consistency.
 ## Documentation feedback
 
 ### 📝 1. `spec/implementation-guide.md` is empty
+
 That's the file a new frontend author would open first. **Highest leverage.**
 Suggested contents:
 
-- A "minimal frontend" tutorial: go from `myFrontend({ handles, toMIR })` to a
+- A "minimal frontend" tutorial: go from `myFrontend({ handles, toIR })` to a
   component that compiles. Start with a static element, add a cell, add an
   event handler.
 - The escape hatch contract: "When you can't model something as IR, emit
@@ -153,9 +164,9 @@ Add to `spec/frontend-guide.md`:
 frontend forwards to the emitted output. During this work I learned
 empirically:
 
-- **Compiled away** (frontend should *not* re-import): `cell`, `get`, `set`,
+- **Compiled away** (frontend should _not_ re-import): `cell`, `get`, `set`,
   `For`, `Show`. These map to primitive operations / IR markers.
-- **Forwarded to runtime** (frontend *should* preserve user imports): `bind`,
+- **Forwarded to runtime** (frontend _should_ preserve user imports): `bind`,
   `subscribe`, `notify`, `put`, `defineComponent`, `template`, `delegate`,
   `forBlock`, `showBlock`, `setProp`, `getProps`, `svgTemplate`,
   `handleRootEvents`.
@@ -169,7 +180,7 @@ empirically:
   is subtle and there's no narrative around it.
 - Add an example of multi-root render with mixed element + text nodes.
 
-### 📝 5. New fixtures to add to `spec/fixtures/`
+### 📝 5. New fixtures to add to `packages/roqa/tests/fixtures/`
 
 These would let the next frontend author validate against ground truth instead
 of discovering issues in real apps:
@@ -191,7 +202,7 @@ of discovering issues in real apps:
 - The MIR's overall shape (state / actions / render / lifecycle) maps cleanly
   onto component frameworks. Onboarding to the IR took maybe an hour.
 - The runtime API surface is small and orthogonal — easy to target.
-- `spec/fixtures/` as ground-truth pairs is an excellent pattern.
+- `packages/roqa/tests/fixtures/` as ground-truth pairs is an excellent pattern.
 - Separating `validate` → `lower` → `optimize` → `emit` made debugging trivial
   — it was always obvious which phase owned a given bug.
 
@@ -211,7 +222,7 @@ highest leverage for future frontend authors:
 
 Postmortem feedback from implementing a brand-new whitespace-significant
 DSL frontend for Roqa. Unlike the JSX postmortem above, this frontend was
-designed _around_ the MIR rather than mapping an existing language onto it,
+designed _around_ the IR rather than mapping an existing language onto it,
 which surfaces a different set of friction points.
 
 ## What went incredibly well
@@ -223,10 +234,10 @@ which surfaces a different set of friction points.
   member chains, method calls, object literals). I'd recommend this trick
   in `frontend-guide.md` — any frontend that ends up needing to parse JS
   expressions can use it without a custom parser.
-- **The MIR ExprIR is _genuinely_ frontend-independent.** I authored a
+- **The IR ExprIR is _genuinely_ frontend-independent.** I authored a
   syntax that looks nothing like JSX (no closing tags, single sigil, sigil-
   based reactivity resolution) and the lowering pass was still mostly a
-  linear walk of the HIR.
+  linear walk of the frontend's own intermediate form.
 - **The hint system in `LoomError` paid for itself immediately.** Every
   diagnostic ships with line/column + a hint that points to the canonical
   workaround (`use @item.field`, `wrap in derived`, etc.). The fact that
@@ -237,7 +248,7 @@ which surfaces a different set of friction points.
   custom events work. The frontend just needs to validate that emitted
   events are declared.
 
-## 🟡 Open MIR / IR feedback
+## 🟡 Open IR feedback
 
 ### 1. `cell-ref` vs `state-read` is still a footgun
 
@@ -297,9 +308,9 @@ Concretely:
 
 ```ts
 type ClassItemIR =
-    | string
-    | { name: string; condition: ExprIR }
-    | { kind: "dynamic"; value: ExprIR };  // ← new
+  | string
+  | { name: string; condition: ExprIR }
+  | { kind: "dynamic"; value: ExprIR }; // ← new
 ```
 
 > ✅ **Implemented.** `ClassItemIR` accepts the proposed

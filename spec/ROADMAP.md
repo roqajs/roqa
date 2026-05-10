@@ -8,9 +8,9 @@ stays aligned with the current repository state.
 
 ## Frontend adapters
 
-Build frontends that convert authoring syntaxes into MIR (`.roqa` files or
+Build frontends that convert authoring syntaxes into IR (`.roqa` files or
 in-memory `ComponentIR` objects). Each frontend implements the `RoqaFrontend`
-interface: `handles(id)` and `toMIR(code, id)`.
+interface: `handles(id)` and `toIR(code, id)`.
 
 ### Other frontends
 
@@ -26,7 +26,7 @@ interface: `handles(id)` and `toMIR(code, id)`.
 **Status:** Implemented.
 
 The frontend guide now exists and covers the `ComponentIR` contract,
-`handles()` / `toMIR()`, Vite plugin wiring, normalization rules, and
+`handles()` / `toIR()`, Vite plugin wiring, normalization rules, and
 validation expectations.
 
 - **Spec:** [`spec/frontend-guide.md`](./frontend-guide.md)
@@ -76,7 +76,7 @@ reactive binding correctness, but the broader passes from
 
 **Status:** Partial.
 
-JSX MIR extraction now records component metadata such as `sourceFile` and
+JSX IR extraction now records component metadata such as `sourceFile` and
 `frontend`, which covers part of the data plumbing needed for source maps.
 The compiler still returns `map: null`, so end-to-end source map generation
 has not landed yet.
@@ -198,7 +198,7 @@ started, and custom frontend entry points. The following docs are still open
 or incomplete as dedicated guides:
 
 - Getting started guide (using `.roqa` files directly)
-- MIR authoring guide (hand-writing components in MIR)
+- IR authoring guide (hand-writing components in MIR)
 - Migration guide (JSX → MIR, now that the JSX frontend exists)
 
 ### Contributor docs

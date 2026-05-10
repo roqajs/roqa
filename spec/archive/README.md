@@ -4,11 +4,11 @@ This directory contains documents from the **MIR-based compiler rewrite**
 (completed 2026-05-03). They are preserved for historical reference but are
 no longer actively maintained.
 
-| File | Purpose |
-| --- | --- |
+| File                      | Purpose                                                                                |
+| ------------------------- | -------------------------------------------------------------------------------------- |
 | `implementation-guide.md` | The step-by-step plan for the compiler rewrite (phases, audit findings, test strategy) |
-| `reference-algorithms.md` | Algorithmic patterns extracted from the old JSX-based compiler |
-| `AGENT-LOG.md` | Session-by-session implementation log with decisions and issues |
+| `reference-algorithms.md` | Algorithmic patterns extracted from the old JSX-based compiler                         |
+| `AGENT-LOG.md`            | Session-by-session implementation log with decisions and issues                        |
 
 ## When to read these
 
@@ -23,7 +23,8 @@ no longer actively maintained.
 ## Active specs
 
 The active specification documents remain in `spec/`:
-- `ir.md` — MIR type definitions (the `.roqa` file format)
+
+- `ir.md` — IR type definitions (the `.roqa` file format)
 - `compiler.md` — compilation pipeline specification
 - `runtime.md` — runtime primitives
 - `ROADMAP.md` — future work items

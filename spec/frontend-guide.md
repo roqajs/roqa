@@ -2,7 +2,7 @@
 
 This document explains how to build a custom frontend for Roqa. A frontend
 converts an authoring syntax (JSX, a custom DSL, a visual builder, etc.) into
-MIR — the intermediate representation that the Roqa backend compiles into
+Roqa IR — the intermediate representation that the Roqa backend compiles into
 optimized JavaScript.
 
 You do not need to understand the backend compiler to build a frontend. Your
@@ -14,8 +14,8 @@ from there.
 ```txt
 Your frontend                         Roqa backend
 ─────────────                         ────────────
-Source code  →  parse  →  HIR  →  normalize  →  MIR  →  compile()  →  Optimized JS
-  (.tsx)       (yours)    (yours)    (yours)     │         │
+Source code  →  parse  →  your frontend model  →  Roqa IR  →  compile()  →  Optimized JS
+    (.tsx)       (yours)        (yours)               │             │
   (.dsl)                                         │    validate → lower → optimize → emit
   (GUI)                                          │
                                                  ▼
@@ -24,15 +24,15 @@ Source code  →  parse  →  HIR  →  normalize  →  MIR  →  compile()  →
 
 A frontend is responsible for:
 
-1. **Parsing** source code into whatever internal representation you want (HIR)
-2. **Normalizing** that HIR into valid `ComponentIR` objects (MIR)
-3. **Returning** those objects from `toMIR()`
+1. **Parsing** source code into whatever internal representation you want
+2. **Normalizing** that representation into valid `ComponentIR` objects
+3. **Returning** those objects from `toIR()`
 
 The backend is responsible for:
 
-1. **Validating** the MIR (structural soundness, reference integrity)
-2. **Lowering** MIR to LIR (template extraction, traversal, bindings)
-3. **Optimizing** the LIR (cell inlining, binding inlining)
+1. **Validating** the IR (structural soundness, reference integrity)
+2. **Lowering** it into compiler-internal forms (template extraction, traversal, bindings)
+3. **Optimizing** those internal forms (cell inlining, binding inlining)
 4. **Emitting** JavaScript (the final output)
 
 ---
@@ -43,8 +43,8 @@ Every frontend implements two methods:
 
 ```ts
 interface RoqaFrontend {
-    handles(id: string): boolean;
-    toMIR(code: string, id: string): ComponentIR | ComponentIR[];
+  handles(id: string): boolean;
+  toIR(code: string, id: string): ComponentIR | ComponentIR[];
 }
 ```
 
@@ -60,15 +60,15 @@ handles(id) {
 }
 ```
 
-### `toMIR(code, id)`
+### `toIR(code, id)`
 
 Accepts the raw source code and file path, returns one or more `ComponentIR`
 objects. A single file may define multiple components (return an array), or
 just one (return a single object).
 
 ```js
-// Example: parse JSX, walk AST, produce MIR
-toMIR(code, id) {
+// Example: parse JSX, walk AST, produce Roqa IR
+toIR(code, id) {
     const ast = parse(code);
     const components = extractComponents(ast);
     return components.map(c => convertToMIR(c));
@@ -85,17 +85,15 @@ import roqa from "@roqajs/vite-plugin";
 import myFrontend from "./my-frontend.js";
 
 export default {
-    plugins: [
-        roqa({ frontend: myFrontend })
-    ]
+  plugins: [roqa({ frontend: myFrontend })],
 };
 ```
 
 The plugin calls `frontend.handles(id)` during Vite's `transform` hook. When
-it returns `true`, the plugin calls `frontend.toMIR(code, id)` and passes the
+it returns `true`, the plugin calls `frontend.toIR(code, id)` and passes the
 result to `compile()`.
 
-`.roqa` files (raw MIR JSON) are always handled by the plugin directly — they
+`.roqa` files (raw Roqa IR JSON) are always handled by the plugin directly — they
 don't go through your frontend.
 
 ---
@@ -133,16 +131,24 @@ keys:
 
 ```json
 {
-    "version": 1,
-    "tagName": "my-button",
-    "name": "MyButton",
-    "state": [],
-    "actions": [],
-    "props": [],
-    "attrs": [],
-    "emits": [],
-    "lifecycle": {},
-    "render": [{ "kind": "element", "tag": "button", "attributes": {}, "events": [], "children": [] }]
+  "version": 1,
+  "tagName": "my-button",
+  "name": "MyButton",
+  "state": [],
+  "actions": [],
+  "props": [],
+  "attrs": [],
+  "emits": [],
+  "lifecycle": {},
+  "render": [
+    {
+      "kind": "element",
+      "tag": "button",
+      "attributes": {},
+      "events": [],
+      "children": []
+    }
+  ]
 }
 ```
 
@@ -160,31 +166,31 @@ failure.
 
 ### Version field
 
-Always `1` (the current MIR version). The backend checks this first and
+Always `1` (the current IR version). The backend checks this first and
 rejects mismatched versions with a clear error. This ensures frontends built
-against older MIR formats fail fast instead of producing subtly wrong output.
+against older IR formats fail fast instead of producing subtly wrong output.
 
 ---
 
 ## Producing expressions: the `ExprIR` type
 
-The expression IR is the most important part of the MIR to understand.
+The expression IR is the most important part of the Roqa IR to understand.
 Expressions appear in action bodies, computed values, event handlers, attribute
 bindings, class conditions, lifecycle hooks — everywhere the component performs
 computation.
 
 ### Why structured expressions?
 
-The MIR is frontend-independent. Instead of embedding JavaScript strings (which
+The IR is frontend-independent. Instead of embedding JavaScript strings (which
 would tie the IR to JS syntax), expressions use a structured tree that any
 frontend can produce:
 
 ```json
 {
-    "kind": "binary",
-    "op": "+",
-    "left": { "kind": "state-read", "name": "count" },
-    "right": { "kind": "literal", "value": 1 }
+  "kind": "binary",
+  "op": "+",
+  "left": { "kind": "state-read", "name": "count" },
+  "right": { "kind": "literal", "value": 1 }
 }
 ```
 
@@ -194,50 +200,58 @@ analyzable by the backend.
 ### Common expression patterns
 
 **Read reactive state:**
+
 ```json
 { "kind": "state-read", "name": "count" }
 ```
 
 **Write reactive state:**
+
 ```json
 {
-    "kind": "state-write",
-    "name": "count",
-    "value": {
-        "kind": "binary",
-        "op": "+",
-        "left": { "kind": "state-read", "name": "count" },
-        "right": { "kind": "literal", "value": 1 }
-    }
+  "kind": "state-write",
+  "name": "count",
+  "value": {
+    "kind": "binary",
+    "op": "+",
+    "left": { "kind": "state-read", "name": "count" },
+    "right": { "kind": "literal", "value": 1 }
+  }
 }
 ```
 
 **Read a prop:**
+
 ```json
 { "kind": "prop-read", "name": "label" }
 ```
 
 **Read a computed value:**
+
 ```json
 { "kind": "computed-read", "name": "doubled" }
 ```
 
 **Read a closure/action parameter:**
+
 ```json
 { "kind": "param-read", "name": "e" }
 ```
 
 **Read a field of the current list item (inside `each` render):**
+
 ```json
 { "kind": "item-field-read", "field": "text" }
 ```
 
 **Cell reference (for `show`/`each` subscription):**
+
 ```json
 { "kind": "cell-ref", "name": "visible" }
 ```
 
 **Literals:**
+
 ```json
 { "kind": "literal", "value": "hello" }
 { "kind": "literal", "value": 42 }
@@ -246,12 +260,13 @@ analyzable by the backend.
 ```
 
 **Binary operations:**
+
 ```json
 {
-    "kind": "binary",
-    "op": "*",
-    "left": { "kind": "state-read", "name": "count" },
-    "right": { "kind": "literal", "value": 2 }
+  "kind": "binary",
+  "op": "*",
+  "left": { "kind": "state-read", "name": "count" },
+  "right": { "kind": "literal", "value": 2 }
 }
 ```
 
@@ -259,94 +274,132 @@ Supported operators: `+`, `-`, `*`, `/`, `%`, `===`, `!==`, `>`, `<`, `>=`,
 `<=`, `&&`, `||`, `??`
 
 **Unary operations:**
+
 ```json
-{ "kind": "unary", "op": "!", "operand": { "kind": "state-read", "name": "visible" } }
+{
+  "kind": "unary",
+  "op": "!",
+  "operand": { "kind": "state-read", "name": "visible" }
+}
 ```
 
 Supported operators: `!`, `-`, `typeof`
 
 **Conditional (ternary):**
+
 ```json
 {
-    "kind": "conditional",
-    "test": { "kind": "state-read", "name": "isActive" },
-    "consequent": { "kind": "literal", "value": "active" },
-    "alternate": { "kind": "literal", "value": "inactive" }
+  "kind": "conditional",
+  "test": { "kind": "state-read", "name": "isActive" },
+  "consequent": { "kind": "literal", "value": "active" },
+  "alternate": { "kind": "literal", "value": "inactive" }
 }
 ```
 
 **Member access:**
+
 ```json
-{ "kind": "member", "object": { "kind": "param-read", "name": "e" }, "property": "target" }
+{
+  "kind": "member",
+  "object": { "kind": "param-read", "name": "e" },
+  "property": "target"
+}
 ```
 
 **Method call:**
+
 ```json
 {
-    "kind": "method-call",
-    "object": { "kind": "state-read", "name": "todos" },
-    "method": "filter",
-    "args": [{ "kind": "closure", "params": ["t"], "body": "..." }]
+  "kind": "method-call",
+  "object": { "kind": "state-read", "name": "todos" },
+  "method": "filter",
+  "args": [{ "kind": "closure", "params": ["t"], "body": "..." }]
 }
 ```
 
 **Function call:**
+
 ```json
 {
-    "kind": "call",
-    "callee": { "kind": "external-ref", "name": "Math", "path": ["floor"] },
-    "args": [{ "kind": "state-read", "name": "rawValue" }]
+  "kind": "call",
+  "callee": { "kind": "external-ref", "name": "Math", "path": ["floor"] },
+  "args": [{ "kind": "state-read", "name": "rawValue" }]
 }
 ```
 
 **Closure (lambda / callback):**
+
 ```json
 {
-    "kind": "closure",
-    "params": ["e"],
-    "body": {
-        "kind": "state-write",
-        "name": "name",
-        "value": {
-            "kind": "member",
-            "object": { "kind": "member", "object": { "kind": "param-read", "name": "e" }, "property": "target" },
-            "property": "value"
-        }
+  "kind": "closure",
+  "params": ["e"],
+  "body": {
+    "kind": "state-write",
+    "name": "name",
+    "value": {
+      "kind": "member",
+      "object": {
+        "kind": "member",
+        "object": { "kind": "param-read", "name": "e" },
+        "property": "target"
+      },
+      "property": "value"
     }
+  }
 }
 ```
 
 **Block (sequence of expressions):**
+
 ```json
 {
-    "kind": "block",
-    "body": [
-        { "kind": "collection-op", "op": "insert", "name": "todos", "args": ["..."] },
-        { "kind": "state-write", "name": "draft", "value": { "kind": "literal", "value": "" } }
-    ]
+  "kind": "block",
+  "body": [
+    {
+      "kind": "collection-op",
+      "op": "insert",
+      "name": "todos",
+      "args": ["..."]
+    },
+    {
+      "kind": "state-write",
+      "name": "draft",
+      "value": { "kind": "literal", "value": "" }
+    }
+  ]
 }
 ```
 
 **Object literal:**
+
 ```json
 {
-    "kind": "object",
-    "properties": [
-        { "kind": "property", "key": "id", "value": { "kind": "literal", "value": 1 } },
-        { "kind": "spread", "argument": { "kind": "param-read", "name": "existing" } }
-    ]
+  "kind": "object",
+  "properties": [
+    {
+      "kind": "property",
+      "key": "id",
+      "value": { "kind": "literal", "value": 1 }
+    },
+    {
+      "kind": "spread",
+      "argument": { "kind": "param-read", "name": "existing" }
+    }
+  ]
 }
 ```
 
 **Template literal (string interpolation):**
+
 ```json
 {
-    "kind": "template-literal",
-    "parts": ["Remaining: ", { "kind": "computed-read", "name": "remaining" }]
+  "kind": "template-literal",
+  "parts": ["Remaining: ", { "kind": "computed-read", "name": "remaining" }]
 }
 ```
 
 **Collection operations:**
+
 ```json
 { "kind": "collection-op", "op": "insert", "name": "todos", "args": [{ "kind": "object", "..." }] }
 { "kind": "collection-op", "op": "update", "name": "todos", "args": ["key", { "kind": "closure", "..." }] }
@@ -355,16 +408,23 @@ Supported operators: `!`, `-`, `typeof`
 ```
 
 **Custom event emission:**
+
 ```json
-{ "kind": "emit", "event": "todo-added", "detail": { "kind": "state-read", "name": "count" } }
+{
+  "kind": "emit",
+  "event": "todo-added",
+  "detail": { "kind": "state-read", "name": "count" }
+}
 ```
 
 **Imported references (from other modules):**
+
 ```json
 { "kind": "imported-ref", "source": "./utils.js", "name": "formatDate" }
 ```
 
 **External references (globals/builtins):**
+
 ```json
 { "kind": "external-ref", "name": "Math", "path": ["floor"] }
 { "kind": "external-ref", "name": "console", "path": ["log"] }
@@ -372,12 +432,13 @@ Supported operators: `!`, `-`, `typeof`
 ```
 
 **Opaque escape hatch (use sparingly):**
+
 ```json
 {
-    "kind": "opaque",
-    "source": "someComplexLibraryCall()",
-    "reads": ["count"],
-    "writes": []
+  "kind": "opaque",
+  "source": "someComplexLibraryCall()",
+  "reads": ["count"],
+  "writes": []
 }
 ```
 
@@ -398,18 +459,19 @@ The `render` field is an array of `NodeIR` children. There are five node kinds:
 
 ```json
 {
-    "kind": "element",
-    "tag": "button",
-    "attributes": {
-        "id": { "kind": "literal", "value": "my-btn" },
-        "value": { "kind": "state-read", "name": "draft" }
-    },
-    "events": [
-        { "event": "click", "handler": { "kind": "action-call", "name": "increment", "args": [] } }
-    ],
-    "children": [
-        { "kind": "text", "value": "Click me" }
-    ]
+  "kind": "element",
+  "tag": "button",
+  "attributes": {
+    "id": { "kind": "literal", "value": "my-btn" },
+    "value": { "kind": "state-read", "name": "draft" }
+  },
+  "events": [
+    {
+      "event": "click",
+      "handler": { "kind": "action-call", "name": "increment", "args": [] }
+    }
+  ],
+  "children": [{ "kind": "text", "value": "Click me" }]
 }
 ```
 
@@ -426,18 +488,21 @@ same element.
 
 ```json
 {
-    "kind": "element",
-    "tag": "div",
-    "classes": {
-        "kind": "class-list",
-        "items": [
-            "todo",
-            { "name": "completed", "condition": { "kind": "item-field-read", "field": "completed" } }
-        ]
-    },
-    "attributes": {},
-    "events": [],
-    "children": []
+  "kind": "element",
+  "tag": "div",
+  "classes": {
+    "kind": "class-list",
+    "items": [
+      "todo",
+      {
+        "name": "completed",
+        "condition": { "kind": "item-field-read", "field": "completed" }
+      }
+    ]
+  },
+  "attributes": {},
+  "events": [],
+  "children": []
 }
 ```
 
@@ -468,8 +533,11 @@ them into a **single text node**. The binding concatenates all parts:
 
 ```json
 [
-    { "kind": "text", "value": "Count: " },
-    { "kind": "reactive-text", "source": { "kind": "state-read", "name": "count" } }
+  { "kind": "text", "value": "Count: " },
+  {
+    "kind": "reactive-text",
+    "source": { "kind": "state-read", "name": "count" }
+  }
 ]
 ```
 
@@ -479,16 +547,26 @@ Becomes a single text node whose `nodeValue` is `"Count: " + count.v`.
 
 ```json
 {
-    "kind": "show",
-    "condition": { "kind": "cell-ref", "name": "visible" },
-    "render": [
-        { "kind": "element", "tag": "p", "attributes": {}, "events": [],
-          "children": [{ "kind": "text", "value": "Now you see me!" }] }
-    ],
-    "fallback": [
-        { "kind": "element", "tag": "p", "attributes": {}, "events": [],
-          "children": [{ "kind": "text", "value": "Hidden" }] }
-    ]
+  "kind": "show",
+  "condition": { "kind": "cell-ref", "name": "visible" },
+  "render": [
+    {
+      "kind": "element",
+      "tag": "p",
+      "attributes": {},
+      "events": [],
+      "children": [{ "kind": "text", "value": "Now you see me!" }]
+    }
+  ],
+  "fallback": [
+    {
+      "kind": "element",
+      "tag": "p",
+      "attributes": {},
+      "events": [],
+      "children": [{ "kind": "text", "value": "Hidden" }]
+    }
+  ]
 }
 ```
 
@@ -501,21 +579,24 @@ The `fallback` field is optional — omit it for show-without-fallback.
 
 ```json
 {
-    "kind": "each",
-    "source": { "kind": "cell-ref", "name": "todos" },
-    "key": "id",
-    "itemAlias": "todo",
-    "render": [
+  "kind": "each",
+  "source": { "kind": "cell-ref", "name": "todos" },
+  "key": "id",
+  "itemAlias": "todo",
+  "render": [
+    {
+      "kind": "element",
+      "tag": "li",
+      "attributes": {},
+      "events": [],
+      "children": [
         {
-            "kind": "element",
-            "tag": "li",
-            "attributes": {},
-            "events": [],
-            "children": [
-                { "kind": "reactive-text", "source": { "kind": "item-field-read", "field": "text" } }
-            ]
+          "kind": "reactive-text",
+          "source": { "kind": "item-field-read", "field": "text" }
         }
-    ]
+      ]
+    }
+  ]
 }
 ```
 
@@ -547,14 +628,14 @@ Use `collection-op` expressions in actions to manipulate collections (`insert`,
 
 ```json
 {
-    "kind": "computed",
-    "name": "doubled",
-    "body": {
-        "kind": "binary",
-        "op": "*",
-        "left": { "kind": "state-read", "name": "count" },
-        "right": { "kind": "literal", "value": 2 }
-    }
+  "kind": "computed",
+  "name": "doubled",
+  "body": {
+    "kind": "binary",
+    "op": "*",
+    "left": { "kind": "state-read", "name": "count" },
+    "right": { "kind": "literal", "value": 2 }
+  }
 }
 ```
 
@@ -567,15 +648,15 @@ All state kinds accept an optional `hints` object:
 
 ```json
 {
-    "kind": "value",
-    "name": "count",
-    "initial": 0,
-    "hints": {
-        "writeOnce": false,
-        "hotPath": true,
-        "immutable": true,
-        "escapesComponent": false
-    }
+  "kind": "value",
+  "name": "count",
+  "initial": 0,
+  "hints": {
+    "writeOnce": false,
+    "hotPath": true,
+    "immutable": true,
+    "escapesComponent": false
+  }
 }
 ```
 
@@ -592,17 +673,19 @@ the full list.
 
 ```json
 {
-    "kind": "action",
-    "name": "increment",
-    "params": [],
-    "body": {
-        "kind": "state-write",
-        "name": "count",
-        "value": { "kind": "binary", "op": "+",
-            "left": { "kind": "state-read", "name": "count" },
-            "right": { "kind": "literal", "value": 1 }
-        }
+  "kind": "action",
+  "name": "increment",
+  "params": [],
+  "body": {
+    "kind": "state-write",
+    "name": "count",
+    "value": {
+      "kind": "binary",
+      "op": "+",
+      "left": { "kind": "state-read", "name": "count" },
+      "right": { "kind": "literal", "value": 1 }
     }
+  }
 }
 ```
 
@@ -610,18 +693,18 @@ Actions with parameters:
 
 ```json
 {
-    "kind": "action",
-    "name": "toggleTodo",
-    "params": ["id"],
-    "body": {
-        "kind": "collection-op",
-        "op": "update",
-        "name": "todos",
-        "args": [
-            { "kind": "param-read", "name": "id" },
-            { "kind": "closure", "params": ["t"], "body": "..." }
-        ]
-    }
+  "kind": "action",
+  "name": "toggleTodo",
+  "params": ["id"],
+  "body": {
+    "kind": "collection-op",
+    "op": "update",
+    "name": "todos",
+    "args": [
+      { "kind": "param-read", "name": "id" },
+      { "kind": "closure", "params": ["t"], "body": "..." }
+    ]
+  }
 }
 ```
 
@@ -648,11 +731,11 @@ Actions with parameters:
 
 ```json
 {
-    "onConnect": {
-        "kind": "call",
-        "callee": { "kind": "external-ref", "name": "console", "path": ["log"] },
-        "args": [{ "kind": "literal", "value": "Connected!" }]
-    }
+  "onConnect": {
+    "kind": "call",
+    "callee": { "kind": "external-ref", "name": "console", "path": ["log"] },
+    "args": [{ "kind": "literal", "value": "Connected!" }]
+  }
 }
 ```
 
@@ -667,13 +750,13 @@ The `metadata` field is optional but recommended:
 
 ```json
 {
-    "metadata": {
-        "sourceFile": "src/components/Counter.tsx",
-        "frontend": "jsx",
-        "imports": [
-            { "kind": "import", "source": "./utils.js", "bindings": ["formatDate"] }
-        ]
-    }
+  "metadata": {
+    "sourceFile": "src/components/Counter.tsx",
+    "frontend": "jsx",
+    "imports": [
+      { "kind": "import", "source": "./utils.js", "bindings": ["formatDate"] }
+    ]
+  }
 }
 ```
 
@@ -696,35 +779,35 @@ start.
 
 ### Errors (compilation fails)
 
-| Code | What it checks |
-|------|---------------|
-| `invalid-version` | `version` must be `1` |
-| `invalid-tag-name` | Must be a valid custom element name (hyphenated, lowercase) |
-| `duplicate-name` | No duplicate names within state, actions, props, attrs, or emits |
-| `dangling-cell-ref` | Every `cell-ref` must reference a declared state entry |
-| `dangling-action-ref` | Every `action-call` must reference a declared action |
-| `dangling-computed-ref` | Every `computed-read` must reference a declared computed |
-| `invalid-show-condition` | `ShowIR.condition` must be a `cell-ref` to reactive state |
-| `invalid-each-source` | `EachIR.source` must be a `cell-ref` to a collection/value |
-| `malformed-expression` | Expression tree must be structurally valid |
-| `missing-key` | Collections used in `each` should have a `key` |
-| `unsafe-import-path` | Import paths must not traverse outside the project |
-| `proto-pollution` | Member access must not target `__proto__`, `constructor`, `prototype` |
-| `unsafe-opaque-pattern` | Opaque expressions must not contain dangerous patterns |
+| Code                     | What it checks                                                        |
+| ------------------------ | --------------------------------------------------------------------- |
+| `invalid-version`        | `version` must be `1`                                                 |
+| `invalid-tag-name`       | Must be a valid custom element name (hyphenated, lowercase)           |
+| `duplicate-name`         | No duplicate names within state, actions, props, attrs, or emits      |
+| `dangling-cell-ref`      | Every `cell-ref` must reference a declared state entry                |
+| `dangling-action-ref`    | Every `action-call` must reference a declared action                  |
+| `dangling-computed-ref`  | Every `computed-read` must reference a declared computed              |
+| `invalid-show-condition` | `ShowIR.condition` must be a `cell-ref` to reactive state             |
+| `invalid-each-source`    | `EachIR.source` must be a `cell-ref` to a collection/value            |
+| `malformed-expression`   | Expression tree must be structurally valid                            |
+| `missing-key`            | Collections used in `each` should have a `key`                        |
+| `unsafe-import-path`     | Import paths must not traverse outside the project                    |
+| `proto-pollution`        | Member access must not target `__proto__`, `constructor`, `prototype` |
+| `unsafe-opaque-pattern`  | Opaque expressions must not contain dangerous patterns                |
 
 ### Warnings (compilation continues)
 
-| Code | What it checks |
-|------|---------------|
+| Code                 | What it checks                                                  |
+| -------------------- | --------------------------------------------------------------- |
 | `unreachable-action` | Action declared but never referenced in events or other actions |
-| `unsubscribed-state` | State declared but never read in render, computed, or actions |
-| `opaque-expression` | Opaque expressions limit backend optimization |
+| `unsubscribed-state` | State declared but never read in render, computed, or actions   |
+| `opaque-expression`  | Opaque expressions limit backend optimization                   |
 
 ---
 
 ## Testing your frontend independently
 
-You don't need the full Vite pipeline to test your frontend. Since `toMIR()`
+You don't need the full Vite pipeline to test your frontend. Since `toIR()`
 produces JSON-serializable data, you can test it in isolation.
 
 ### Strategy 1: Snapshot testing against MIR output
@@ -736,19 +819,19 @@ import { test, expect } from "vitest";
 import { myFrontend } from "./my-frontend.js";
 
 test("counter component produces correct MIR", () => {
-    const source = `
+  const source = `
         // Your frontend's syntax for a counter component
     `;
 
-    const mir = myFrontend.toMIR(source, "counter.tsx");
+  const mir = myFrontend.toIR(source, "counter.tsx");
 
-    expect(mir).toEqual({
-        version: 1,
-        tagName: "counter-button",
-        name: "CounterButton",
-        state: [{ kind: "value", name: "count", initial: 0 }],
-        // ...
-    });
+  expect(mir).toEqual({
+    version: 1,
+    tagName: "counter-button",
+    name: "CounterButton",
+    state: [{ kind: "value", name: "count", initial: 0 }],
+    // ...
+  });
 });
 ```
 
@@ -762,41 +845,41 @@ import { compile } from "roqa/compiler";
 import { myFrontend } from "./my-frontend.js";
 
 test("counter component compiles without errors", () => {
-    const source = `...`;
-    const mir = myFrontend.toMIR(source, "counter.tsx");
-    const result = compile(mir);
+  const source = `...`;
+  const mir = myFrontend.toIR(source, "counter.tsx");
+  const result = compile(mir);
 
-    expect(result.code).toContain('defineComponent("counter-button"');
-    expect(result.code).toContain("delegate(");
+  expect(result.code).toContain('defineComponent("counter-button"');
+  expect(result.code).toContain("delegate(");
 });
 ```
 
 ### Strategy 3: Use the reference examples as targets
 
 The `examples/ir/` directory contains 13 working applications written as raw
-MIR (`.roqa` files). These are excellent test targets — for each one, write
-the equivalent in your frontend's syntax and verify your `toMIR()` output
+IR (`.roqa` files). These are excellent test targets — for each one, write
+the equivalent in your frontend's syntax and verify your `toIR()` output
 matches the reference MIR:
 
-| Example | Features covered |
-|---------|-----------------|
-| `static-component` | Static elements, no reactive state |
-| `counter-button` | State, actions, events, reactive text |
-| `derived-state` | Computed values, transitive dependencies |
-| `show-conditional` | Conditional rendering (`ShowIR`) |
-| `show-fallback` | Conditional rendering with fallback |
-| `todo-list` | Collections, `EachIR`, collection-ops, closures |
-| `child-props` | Custom element props (cross-component) |
-| `props-attrs` | Props, attrs, conditional classes |
-| `multi-action` | Multiple actions, emit, lifecycle |
-| `multi-component` | Multiple components in one file |
-| `deep-nesting` | Deeply nested element trees |
-| `svg-circle` | SVG elements |
-| `external-refs` | Imported and external references, metadata.imports |
+| Example            | Features covered                                   |
+| ------------------ | -------------------------------------------------- |
+| `static-component` | Static elements, no reactive state                 |
+| `counter-button`   | State, actions, events, reactive text              |
+| `derived-state`    | Computed values, transitive dependencies           |
+| `show-conditional` | Conditional rendering (`ShowIR`)                   |
+| `show-fallback`    | Conditional rendering with fallback                |
+| `todo-list`        | Collections, `EachIR`, collection-ops, closures    |
+| `child-props`      | Custom element props (cross-component)             |
+| `props-attrs`      | Props, attrs, conditional classes                  |
+| `multi-action`     | Multiple actions, emit, lifecycle                  |
+| `multi-component`  | Multiple components in one file                    |
+| `deep-nesting`     | Deeply nested element trees                        |
+| `svg-circle`       | SVG elements                                       |
+| `external-refs`    | Imported and external references, metadata.imports |
 
 ### Strategy 4: Use the test fixtures for end-to-end verification
 
-The `spec/fixtures/` directory contains 28 `.mir.json` + `.expected.js` pairs
+The `packages/roqa/tests/fixtures/` directory contains 28 `.roqa.json` + `.expected.js` pairs
 that are the ground truth for compiler output. You can verify your MIR produces
 the same JavaScript as the reference:
 
@@ -806,11 +889,14 @@ import { compile } from "roqa/compiler";
 import { readFileSync } from "node:fs";
 
 test("my counter MIR matches reference output", () => {
-    const mir = myFrontend.toMIR(counterSource, "counter.tsx");
-    const result = compile(mir);
+  const mir = myFrontend.toIR(counterSource, "counter.tsx");
+  const result = compile(mir);
 
-    const expected = readFileSync("spec/fixtures/counter-button.expected.js", "utf-8");
-    expect(result.code).toBe(expected);
+  const expected = readFileSync(
+    "packages/roqa/tests/fixtures/counter-button.expected.js",
+    "utf-8",
+  );
+  expect(result.code).toBe(expected);
 });
 ```
 
@@ -865,18 +951,26 @@ cell itself (not its value) for subscription.
 Two valid approaches:
 
 **Approach A** — single `ReactiveTextIR` with `TemplateLiteralExpr`:
+
 ```json
-{ "kind": "reactive-text", "source": {
+{
+  "kind": "reactive-text",
+  "source": {
     "kind": "template-literal",
     "parts": ["Count: ", { "kind": "state-read", "name": "count" }]
-}}
+  }
+}
 ```
 
 **Approach B** — adjacent `TextIR` + `ReactiveTextIR` siblings:
+
 ```json
 [
-    { "kind": "text", "value": "Count: " },
-    { "kind": "reactive-text", "source": { "kind": "state-read", "name": "count" } }
+  { "kind": "text", "value": "Count: " },
+  {
+    "kind": "reactive-text",
+    "source": { "kind": "state-read", "name": "count" }
+  }
 ]
 ```
 
@@ -915,14 +1009,23 @@ These are mutually exclusive on the same element:
 Named actions are referenced using `ActionCallExpr`, not a plain string:
 
 ```json
-{ "event": "click", "handler": { "kind": "action-call", "name": "increment", "args": [] } }
+{
+  "event": "click",
+  "handler": { "kind": "action-call", "name": "increment", "args": [] }
+}
 ```
 
 For actions with arguments (e.g., inside an `each` render):
 
 ```json
-{ "event": "click", "handler": { "kind": "action-call", "name": "toggleTodo",
-    "args": [{ "kind": "item-field-read", "field": "id" }] } }
+{
+  "event": "click",
+  "handler": {
+    "kind": "action-call",
+    "name": "toggleTodo",
+    "args": [{ "kind": "item-field-read", "field": "id" }]
+  }
+}
 ```
 
 ### Imports must be declared in metadata
@@ -932,9 +1035,11 @@ must be declared in `metadata.imports`:
 
 ```json
 {
-    "metadata": {
-        "imports": [{ "kind": "import", "source": "./utils.js", "bindings": ["formatDate"] }]
-    }
+  "metadata": {
+    "imports": [
+      { "kind": "import", "source": "./utils.js", "bindings": ["formatDate"] }
+    ]
+  }
 }
 ```
 
@@ -942,10 +1047,10 @@ must be declared in `metadata.imports`:
 
 ## Reference
 
-- [`spec/ir.md`](./ir.md) — Complete MIR type definitions
+- [`spec/ir.md`](./ir.md) — Complete Roqa IR type definitions
 - [`spec/compiler.md`](./compiler.md) — Backend compilation pipeline
 - [`spec/runtime.md`](./runtime.md) — Runtime primitives the compiler targets
-- [`examples/ir/`](../examples/ir/) — 13 working MIR applications (reference
+- [`examples/ir/`](../examples/ir/) — 13 working IR applications (reference
   targets for frontend testing)
-- [`spec/fixtures/`](./fixtures/) — 28 MIR→JS test pairs (ground truth for
+- [`packages/roqa/tests/fixtures/`](../packages/roqa/tests/fixtures/) — 28 IR→JS test pairs (ground truth for
   compiler output)

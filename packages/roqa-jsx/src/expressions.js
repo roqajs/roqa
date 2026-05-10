@@ -347,12 +347,12 @@ function convertIfStatement(node, ctx) {
 function resolveIdentifier(name, ctx) {
 	// Item alias inside <For> (the iteration variable itself, not a field access)
 	if (name === ctx.itemAlias) {
-		return { kind: "param-read", name };
+		return { kind: "local-read", name };
 	}
 
 	// Closure / action parameter
 	if (ctx.params.has(name)) {
-		return { kind: "param-read", name };
+		return { kind: "local-read", name };
 	}
 
 	// Prop
@@ -388,7 +388,7 @@ function resolveIdentifier(name, ctx) {
 
 	// Local variable
 	if (ctx.localVars.has(name)) {
-		return { kind: "param-read", name };
+		return { kind: "local-read", name };
 	}
 
 	// Known global
@@ -543,7 +543,11 @@ function convertMemberExpr(node, ctx) {
 
 	// Item field access: itemAlias.field inside <For>
 	if (t.isIdentifier(node.object) && node.object.name === ctx.itemAlias) {
-		return { kind: "item-field-read", field: prop.name };
+		return {
+			kind: "member",
+			object: { kind: "local-read", name: ctx.itemAlias },
+			property: prop.name,
+		};
 	}
 
 	// Chain member access

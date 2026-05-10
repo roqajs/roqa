@@ -149,7 +149,7 @@ describe("convertExpr", () => {
 			const result = convertExpr(node, ctx);
 			expect(result).toEqual({
 				kind: "member",
-				object: { kind: "param-read", name: "e" },
+				object: { kind: "local-read", name: "e" },
 				property: "target",
 			});
 		});
@@ -168,7 +168,11 @@ describe("convertExpr", () => {
 			const ctx = makeCtx();
 			ctx.itemAlias = "todo";
 			const result = convertExpr(node, ctx);
-			expect(result).toEqual({ kind: "item-field-read", field: "text" });
+			expect(result).toEqual({
+				kind: "member",
+				object: { kind: "local-read", name: "todo" },
+				property: "text",
+			});
 		});
 	});
 
@@ -212,7 +216,7 @@ describe("convertExpr", () => {
 			const result = convertExpr(node, ctx);
 			expect(result.kind).toBe("template-literal");
 			expect(result.parts[0]).toBe("Hello ");
-			expect(result.parts[1].kind).toBe("param-read");
+			expect(result.parts[1].kind).toBe("local-read");
 		});
 	});
 
@@ -224,11 +228,11 @@ describe("convertExpr", () => {
 			expect(result).toEqual({ kind: "prop-read", name: "label" });
 		});
 
-		it("resolves params to ParamReadExpr", () => {
+		it("resolves params to LocalReadExpr", () => {
 			const node = parseExpr("e");
 			const ctx = makeCtx({}, [], [], ["e"]);
 			const result = convertExpr(node, ctx);
-			expect(result).toEqual({ kind: "param-read", name: "e" });
+			expect(result).toEqual({ kind: "local-read", name: "e" });
 		});
 
 		it("resolves imports to ImportedRefExpr", () => {
