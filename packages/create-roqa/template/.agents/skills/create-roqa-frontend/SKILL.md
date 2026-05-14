@@ -7,14 +7,97 @@ description: Use this skill for creating a custom Roqa frontend that implements 
 
 Convert the project's custom source format into valid Roqa `ComponentIR` objects so Vite-facing consumers can hand them to the Roqa backend compiler.
 
+This skill folder is self-contained. Use `FRONTEND-GUIDE.md` in this directory for the full frontend author guide, and use this `SKILL.md` for the detailed IR contract and implementation checklist.
+
 ## Core workflow
 
 1. Start in `src/index.ts`.
 2. Check `handles(id)` to confirm which extensions the frontend owns.
 3. Add or expand parser helpers as the source format grows.
 4. Normalize the parsed result into `ComponentIR` in `toIR(code, id)`.
-5. Compare the result against the reference `.roqa.json` files in `tests/fixtures/`.
+5. Compare the result against the reference `.roqa` files in `tests/fixtures/`.
 6. Validate changes with `npm test` and `npx tsc --noEmit`.
+
+## Frontend architecture
+
+Roqa uses a split architecture:
+
+```txt
+your source format -> parser -> frontend model -> Roqa IR -> roqa/compiler -> optimized JavaScript
+```
+
+As a frontend author, your job stops at valid `ComponentIR` output. The backend compiler owns validation, lowering, optimization, and JavaScript emission.
+
+Frontend responsibilities:
+
+- Parse source code into whatever intermediate form is natural for your syntax.
+- Normalize that representation into one or more valid `ComponentIR` objects.
+- Return those IR objects from `toIR(code, id)`.
+
+Backend responsibilities:
+
+- Validate structural correctness and reference integrity.
+- Lower the IR into compiler-internal runtime shapes.
+- Optimize reactive cells, bindings, and render paths.
+- Emit the final JavaScript module.
+
+## Frontend interface behavior
+
+Every frontend implements two methods:
+
+```ts
+export interface RoqaFrontend {
+  handles(id: string): boolean;
+  toIR(code: string, id: string): ComponentIR | ComponentIR[];
+}
+```
+
+### handles(id)
+
+`handles(id)` receives a fully resolved file path and decides whether the frontend owns that file.
+
+```ts
+handles(id) {
+  return /\.[jt]sx$/.test(id);
+}
+```
+
+Keep this check narrow. If your frontend only owns `.tsx`, do not claim `.jsx` or `.ts` as a convenience.
+
+### toIR(code, id)
+
+`toIR(code, id)` receives raw source text and the resolved path. It must return either a single `ComponentIR` or an array when one file defines multiple components.
+
+```ts
+toIR(code, id) {
+  const ast = parse(code);
+  const components = extractComponents(ast);
+  return components.map((component) => convertToIR(component, id));
+}
+```
+
+Design notes:
+
+- Prefer deterministic normalization over preserving source-level quirks.
+- Emit empty arrays or `{}` for required top-level sections instead of omitting them.
+- Prefer structured `ExprIR` nodes over opaque string blobs whenever possible.
+
+### Wiring into Vite
+
+Roqa frontends plug into the Vite package through `roqa({ frontend })`.
+
+```ts
+import roqa from "@roqajs/vite-plugin";
+import frontend from "./src/index.js";
+
+export default {
+  plugins: [roqa({ frontend })],
+};
+```
+
+The plugin calls `frontend.handles(id)` during `transform()`. If it returns `true`, the plugin invokes `frontend.toIR(code, id)` and passes the result into `compile()`.
+
+Raw `.roqa` files bypass your frontend and are compiled directly by the plugin.
 
 ## Roqa interface walkthrough
 
@@ -40,6 +123,14 @@ export interface RoqaFrontend {
 ## Frontend-owned IR contract
 
 The sections below reproduce the Roqa IR interface in a frontend-focused form. Keep your work centered on these shapes and the normalization decisions needed to produce them. Omit sections you do not use, but when a field exists in the interface you emit, it must follow the contract below.
+
+Before adding syntax sugar in your frontend, anchor it back to these runtime-facing guarantees:
+
+- `version` is always `1`.
+- `tagName` is a lowercase custom element name with a hyphen.
+- `render` is always an array of root nodes.
+- `lifecycle` is an object even when empty.
+- The backend validates the contract, but the frontend should aim to emit correct IR on the first pass.
 
 ### Component IR
 
