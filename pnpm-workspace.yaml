@@ -3,6 +3,9 @@ packages:
   - packages/*
   - examples/*
 
+allowBuilds:
+  esbuild: set this to true or false
+
 # Shared dependency versions (use with `catalog:default` in package.json)
 catalogs:
   default:
