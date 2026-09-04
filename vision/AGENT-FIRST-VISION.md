@@ -1,6 +1,8 @@
-# Roqa Without a Compiler: An Agent-First Vision
+# Roqa Without a Compiler: An Earlier Agent-First Exploration
 
-> Status: exploratory draft. This document describes a possible direction, not a committed roadmap or API.
+> Status: earlier exploratory draft. The current direction restores a narrowly
+> scoped static-template compiler; see
+> [Agent-first Roqa: current direction](./AGENT-FIRST-DESIGN.md).
 
 ## The idea
 
@@ -630,6 +632,23 @@ A possible distribution is:
 - `@roqajs/skill`: the versioned agent skill and references.
 
 Additional packages should be added only when a concrete need cannot be met by the platform or existing ecosystem tools. The runtime must not depend on agent tooling. A component authored with the primitives remains ordinary ESM that can be built and served without the CLI.
+
+### Review applications
+
+The vision includes two review-only applications:
+
+- [`agent-first-example`](./agent-first-example/README.md) is a deliberately small
+  dashboard for studying the core component, binding, and block patterns.
+- [`figleaf-example`](./figleaf-example/README.md) translates the substantially
+  larger Figleaf DAW interface into a more ergonomic speculative vocabulary. It
+  combines typed template references and component props, typed event-first
+  `on(event.click, ...)` registration, `computed`/`effect`/`batch`, explicitly keyed
+  blocks, scoped cleanup, typed actions, and reconnect-safe mounting. These APIs are
+  locally declared for syntax review and are not implemented by the current runtime.
+
+The second example is not a proposal to rewrite Figleaf. It is a syntax and
+reviewability probe: a realistic source sample for deciding which patterns feel
+clear, which feel overly mechanical, and which should be generated or wrapped.
 
 ## Humans are still part of the loop
 
